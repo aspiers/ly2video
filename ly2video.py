@@ -107,7 +107,7 @@ def generateTitle(titleText, resolution, fps, titleLength):
 
     # generate needed number of frames (= fps * titleLength)
     for frameNum in range(fps * titleLength):
-        titleScreen.save(".\\title\\frame" + str(frameNum) + ".png")
+        titleScreen.save("./title/frame" + str(frameNum) + ".png")
         
     sys.stderr.write("TITLE: Generating title screen has ended. ("
                      + str(fps * titleLength) + "/"
