@@ -551,6 +551,9 @@ def generateSilence(length):
     fSilence.close()
     return "silence.wav"
 # ------------------------------------------------------------------------------
+def output_divider_line():
+    sys.stderr.write(60 * "-" + "\n")
+# ------------------------------------------------------------------------------
 
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
@@ -621,7 +624,7 @@ def main():
         return 3
     else:
         sys.stderr.write("TiMidity++ was found.\n")
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
 
     # input project from user (string)
     project = options.input
@@ -732,7 +735,7 @@ def main():
         else:
             sys.stderr.write("WARNING: Convert of input file has failed, " +
                              "there can be some errors.\n")
-            sys.stderr.write(60 * "-" + "\n")
+            output_divider_line()
     fProject = open(project, "r")
 
     # generate preview of notes
@@ -881,7 +884,7 @@ def main():
                   + "-dmidi-extension=midi ly2videoConvert.ly") != 0):
         sys.stderr.write("ERROR: Calling LilyPond has failed.\n")
         return 9
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
 
     # delete created project
     os.remove("ly2videoConvert.ly")
@@ -913,22 +916,22 @@ def main():
         sys.stderr.write("> Statement: " + str(err) + "\n")
         return 10
         
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
 
     # find notes indexes
     notesIndexes = getNotesIndexes("ly2videoConvert.pdf",
                                    picWidth, loadedProject, midiTicks, notesInTick)
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
     
     # generate title screen
     if (useTitle):
         generateTitle(titleText, resolution, fps, titleLength)
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
 
     # generate notes
     sync(midiResolution, temposList, midiTicks, resolution,
          fps, notesIndexes, notesPictures, color)
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
     try:
@@ -938,7 +941,7 @@ def main():
         sys.stderr.write("> TiMidity++: There has been some error.\n")
         sys.stderr.write("> Statement: " + str(err) + "\n")
         return 11
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
 
     # delete old files
     try:
@@ -991,7 +994,7 @@ def main():
         os.remove("video.mpg")
         os.remove(silentAudio)
         shutil.rmtree("title")
-    sys.stderr.write(60 * "-" + "\n")
+    output_divider_line()
         
     # delete wav file and folder with notes frames
     os.remove("ly2videoConvert.wav")
