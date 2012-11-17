@@ -14,6 +14,8 @@ import shutil
 import subprocess
 from struct import pack
 # ------------------------------------------------------------------------------
+KEEP_TMP_FILES = False
+# ------------------------------------------------------------------------------
 def lineIndices(picture, lineLength):
     """
     Takes a picture and returns height indices of staff lines in pixels.
@@ -86,7 +88,8 @@ def generateTitle(titleText, resolution, fps, titleLength):
     # it will draw text on titleScreen
     drawer = ImageDraw.Draw(titleScreen)    
     # save folder for frames
-    os.mkdir("title")
+    if not os.path.exists("title"):
+        os.mkdir("title")
 
     progress("TITLE: ly2video will generate cca "
              + str(fps * titleLength) + " frames.")
@@ -487,7 +490,8 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
     frameNum = 0
 
     # folder to store frames for video
-    os.mkdir("notes")
+    if not os.path.exists("notes"):
+        os.mkdir("notes")
 
     totalFrames = int(round(((temposList[tempoIndex][1] * 1.0)
                         / midiResolution * (midiTicks[-1]) / 1000000 * fps)))
@@ -608,6 +612,22 @@ def fatal(text, status=1):
     progress("ERROR: " + text)
     sys.exit(status)
 # ------------------------------------------------------------------------------
+def delete_tmp_files(paths):
+    return True
+    errors = 0
+    for path in paths:
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            try:
+                os.remove(path)
+            except Exception as err:
+                sys.stderr.write("WARNING:\n")
+                sys.stderr.write("> Ly2video can't delete %s\n" % path)
+                sys.stderr.write("> Statement: " + str(err) + "\n")
+                errors += 1
+    return (errors == 0)
+# ------------------------------------------------------------------------------
 
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
@@ -657,6 +677,9 @@ def main():
     parser.add_option("--windows-timidity", dest="winTimidity",
                   help='(for Windows users) folder with timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
+    parser.add_option("-k", "--keep", dest="keepTempFiles",
+                  help="don't remove temporary working files",
+                      action="store_true", default=False)
 
     # if there is only one arg, then show help and exit
     if(len(sys.argv) == 1):
@@ -664,6 +687,9 @@ def main():
         return 0
     # and parse input
     (options, args) = parser.parse_args()
+
+    if options.keepTempFiles:
+        KEEP_TMP_FILES = True
 
     # test needed programs
     redirect = ""
@@ -755,20 +781,10 @@ def main():
         output = project[:-2] + "avi"
         
     # delete old created folders
-    for folder in ["notes", "title"]:   
-        try:
-            shutil.rmtree(folder)
-        except os.error:
-            continue
-    # delete old created files   
+    delete_tmp_files(["notes", "title"])
     for fileName in os.listdir("."):
         if "ly2videoConvert" in fileName:
-            try:
-                os.remove(fileName)
-            except Exception as err:
-                sys.stderr.write("ERROR:\n")
-                sys.stderr.write("> Ly2video can't delete old files.\n")
-                sys.stderr.write("> Statement: " + str(err) + "\n")
+            if not delete_tmp_files(fileName):
                 return 6
        
     # 1 px = 0.251375 mm
@@ -818,14 +834,9 @@ def main():
     numStaffLines = len(lineIndices(previewPic, 50))
 
     # then delete generated preview files
-    try:
-        for soubor in previewFiles:    
-            os.remove(soubor)
-        os.remove(project[:-2] + "midi")
-    except Exception as err:
-        sys.stderr.write("ERROR:\n")
-        sys.stderr.write("> Ly2video can't delete preview files.\n")
-        sys.stderr.write("> Statement: " + str(err) + "\n")
+    if not delete_tmp_files(previewFiles):
+        return 8
+    if not delete_tmp_files(project[:-2] + "midi"):
         return 8
 
     # create own ly project
@@ -948,13 +959,10 @@ def main():
     output_divider_line()
 
     # delete created project
-    os.remove("ly2videoConvert.ly")
+    delete_tmp_files("ly2videoConvert.ly")
     # and try to delete converted project
     if version != "2.14.2":
-        try:
-            os.remove("newProjekt.ly")
-        except:
-            pass
+        delete_tmp_files("newProjekt.ly")
 
     # find generated pictures
     folderContent = os.listdir(".")
@@ -1007,16 +1015,9 @@ def main():
     output_divider_line()
 
     # delete old files
-    try:
-        for picture in notesPictures:
-            os.remove(picture)
-        os.remove("ly2videoConvert.pdf")
-        os.remove("ly2videoConvert.midi")
-    except Exception as err:
-        sys.stderr.write("ERROR:\n")
-        sys.stderr.write("> Ly2video can't delete some files.\n")
-        sys.stderr.write("> Statement: " + str(err) + "\n")
-        return 12
+    delete_tmp_files(notesPictures)
+    delete_tmp_files("ly2videoConvert.pdf")
+    delete_tmp_files("ly2videoConvert.midi")
 
     # call FFmpeg (without title)
     if not useTitle:
@@ -1048,16 +1049,12 @@ def main():
             fatal("Calling FFmpeg has failed.", 16)
 
         # delete created videos, silent audio and folder with title frames
-        os.remove("title.mpg")
-        os.remove("notes.mpg")
-        os.remove("video.mpg")
-        os.remove(silentAudio)
-        shutil.rmtree("title")
+        delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
+
     output_divider_line()
         
     # delete wav file and folder with notes frames
-    os.remove("ly2videoConvert.wav")
-    shutil.rmtree("notes")
+    delete_tmp_files([ "ly2videoConvert.wav", "notes" ])
 
     # end
     print("Ly2video has ended. Your generated file: " + output + ".")
