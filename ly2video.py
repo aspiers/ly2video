@@ -567,28 +567,28 @@ def main():
     parser.add_option("-i", "--input", dest="input",
                   help="input LilyPond project", metavar="FILE")
     parser.add_option("-o", "--output", dest="output",
-                  help="name of output video (e.g. \"myNotes.avi\", default is input + .avi)",
+                  help='name of output video (e.g. "myNotes.avi", default is input + .avi)',
                       metavar="FILE")
     parser.add_option("-c", "--color", dest="color",
-                  help="name of color of middle bar (default is \"red\")", metavar="COLOR",
+                  help='name of color of middle bar (default is "red")', metavar="COLOR",
                       default="red")
     parser.add_option("-f", "--fps", dest="fps",
-                  help="frame rate of final video (default is \"30\")", type="int", metavar="FPS",
+                  help='frame rate of final video (default is "30")', type="int", metavar="FPS",
                       default=30)
     parser.add_option("-r", "--resolution", dest="resolution",
-                  help="resolution of final video (options: 360, 720, 1080, default is \"720\")",
+                  help='resolution of final video (options: 360, 720, 1080, default is "720")',
                       metavar="HEIGHT", type="int", default=720)
     parser.add_option("--title-at-start", dest="titleAtStart",
-                  help="adds title screen at the start of video (with name of song and its author)",
+                  help='adds title screen at the start of video (with name of song and its author)',
                       action="store_true", default=False)
     parser.add_option("--title-delay", dest="titleDelay",
-                  help="time to display the title screen (default is \"3\" seconds)", type="int",
+                  help='time to display the title screen (default is "3" seconds)', type="int",
                       metavar="SECONDS", default=3)
     parser.add_option("--windows-ffmpeg", dest="winFfmpeg",
-                  help="(for Windows users) folder with ffpeg.exe (e.g. \"C:\\ffmpeg\\bin\\\")",
+                  help='(for Windows users) folder with ffpeg.exe (e.g. "C:\\ffmpeg\\bin\\")',
                       metavar="PATH", default="")
     parser.add_option("--windows-timidity", dest="winTimidity",
-                  help="(for Windows users) folder with timidity.exe (e.g. \"C:\\timidity\\\")",
+                  help='(for Windows users) folder with timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
 
     # if there is only one arg, then show help and exit
