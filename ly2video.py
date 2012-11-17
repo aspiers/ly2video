@@ -380,8 +380,8 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         for index in page:
             # if runs out of midi indexes, then exit
             if midiIndex == len(midiTicks):
-                progress("ERROR: ly2video don't have enough MIDI indexes. "
-                         + "Current PDF index: " + str(index) + ".")
+                fatal("ly2video don't have enough MIDI indexes. "
+                      + "Current PDF index: " + str(index) + ".")
                 sys.exit()
                 
             # skip next index
@@ -557,6 +557,10 @@ def progress(text):
 def output_divider_line():
     progress(60 * "-")
 # ------------------------------------------------------------------------------
+def fatal(text, status=1):
+    progress("ERROR: " + text)
+    sys.exit(status)
+# ------------------------------------------------------------------------------
 
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
@@ -609,22 +613,19 @@ def main():
         redirect = "NUL"
     
     if (os.system("lilypond -v > " + redirect) != 0):
-        progress("ERROR: LilyPond was not found.")
-        return 1
+        fatal("LilyPond was not found.", 1)
     else:
         progress("LilyPond was found.")
 
     winFfmpeg = options.winFfmpeg
     winTimidity = options.winTimidity
     if (os.system(winFfmpeg + "ffmpeg -version > " + redirect) != 0):
-        progress("ERROR: FFmpeg was not found (maybe use --windows-ffmpeg?).")
-        return 2
+        fatal("FFmpeg was not found (maybe use --windows-ffmpeg?).", 2)
     else:
         progress("FFmpeg was found.")
         
     if (os.system(winTimidity + "timidity -v > " + redirect) != 0):
-        progress("ERROR: TiMidity++ was not found (maybe use --windows-timidity?).")
-        return 3
+        fatal("TiMidity++ was not found (maybe use --windows-timidity?).", 3)
     else:
         progress("TiMidity++ was found.")
     output_divider_line()
@@ -681,15 +682,13 @@ def main():
 
     # if I don't have input file, end  
     if (project == None):
-        progress("ERROR: Input project was not found.")
-        return 4
+        fatal("Input project was not found.", 4)
     else:
         # otherwise try to open project
         try:
             fProject = open(project, "r") 
         except (IOError):
-            progress("ERROR: Input project doesn't exist.")
-            return 5
+            fatal("Input project doesn't exist.", 5)
 
     # try to check output name
     if (output == None or len(output.split(".")) < 2):
@@ -744,7 +743,7 @@ def main():
     # generate preview of notes
     if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
                   + project + " 2> " + redirect) != 0):
-        progress("ERROR: Generating preview has failed.")
+        fatal("Generating preview has failed.", 7)
         return 7
 
     # find preview picture and get num of staff lines
@@ -885,8 +884,7 @@ def main():
     # generate PDF, PNG and MIDI file
     if (os.system("lilypond -fpdf --png -dpoint-and-click "
                   + "-dmidi-extension=midi ly2videoConvert.ly") != 0):
-        progress("ERROR: Calling LilyPond has failed.")
-        return 9
+        fatal("Calling LilyPond has failed.", 9)
     output_divider_line()
 
     # delete created project
@@ -965,8 +963,7 @@ def main():
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
                      + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + output) != 0:
-            progress("ERROR: Calling FFmpeg has failed.")
-            return 13
+            fatal("Calling FFmpeg has failed.", 13)
     # call FFmpeg (with title)
     else:
         # create video with title
@@ -974,14 +971,12 @@ def main():
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
                      + " -i ./title/frame%d.png -i "
                      + silentAudio + " -same_quant title.mpg") != 0:
-            progress("ERROR: Calling FFmpeg has failed.")
-            return 14
+            fatal("Calling FFmpeg has failed.", 14)
         # generate video with notes
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
                      + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + "-same_quant notes.mpg") != 0:
-            progress("ERROR: Calling FFmpeg has failed.")
-            return 15
+            fatal("Calling FFmpeg has failed.", 15)
         # join the files
         if sys.platform.startswith("linux"):
             os.system("cat title.mpg notes.mpg > video.mpg")
@@ -990,8 +985,7 @@ def main():
 
         # create output file
         if os.system(winFfmpeg + "ffmpeg -i video.mpg " + output) != 0:
-            progress("ERROR: Calling FFmpeg has failed.")
-            return 16
+            fatal("Calling FFmpeg has failed.", 16)
 
         # delete created videos, silent audio and folder with title frames
         os.remove("title.mpg")
