@@ -501,7 +501,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
                         frame.putpixel(((resolution[0] / 2) + 1, pixel), color)
 
                     # save that frame
-                    frame.save(".\\notes\\frame" + str(frameNum) + ".png")
+                    frame.save("./notes/frame" + str(frameNum) + ".png")
                     frameNum += 1
 
         sys.stderr.write("SYNC: Generating frames for page "
@@ -932,8 +932,7 @@ def main():
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
     try:
-        subprocess.call(winTimidity + "timidity ly2videoConvert.midi -Ow",
-                        stderr=subprocess.STDOUT) 
+        subprocess.check_call([winTimidity + "timidity", "ly2videoConvert.midi", "-Ow"])
     except subprocess.CalledProcessError as err:
         sys.stderr.write("ERROR:\n")
         sys.stderr.write("> TiMidity++: There has been some error.\n")
@@ -956,7 +955,7 @@ def main():
     # call FFmpeg (without title)
     if not useTitle:
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
-                     + " -i .\\notes\\frame%d.png -i ly2videoConvert.wav "
+                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + output) != 0:
             sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
             return 13
@@ -965,13 +964,13 @@ def main():
         # create video with title
         silentAudio = generateSilence(titleLength)
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
-                     + " -i .\\title\\frame%d.png -i "
+                     + " -i ./title/frame%d.png -i "
                      + silentAudio + " -same_quant title.mpg") != 0:
             sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
             return 14
         # generate video with notes
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
-                     + " -i .\\notes\\frame%d.png -i ly2videoConvert.wav "
+                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + "-same_quant notes.mpg") != 0:
             sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
             return 15
