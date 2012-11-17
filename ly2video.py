@@ -900,7 +900,9 @@ def main():
     notesPictures = []
     for fileName in folderContent:
         if (fileName.split(".")[-1] == "png" and "ly2videoConvert" in fileName):
+            sys.stderr.write("found generated picture: %s\n" % fileName)
             notesPictures.append(fileName)
+    output_divider_line()
 
     # and get width of picture        
     tmpPicuture = Image.open(notesPictures[0])
