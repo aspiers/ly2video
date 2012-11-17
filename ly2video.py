@@ -88,8 +88,8 @@ def generateTitle(titleText, resolution, fps, titleLength):
     # save folder for frames
     os.mkdir("title")
 
-    sys.stderr.write("TITLE: ly2video will generate cca "
-                     + str(fps * titleLength) + " frames.\n")
+    progress("TITLE: ly2video will generate cca "
+             + str(fps * titleLength) + " frames.")
 
     # font for song's name, args - font type, size
     nameFont = ImageFont.truetype("arial.ttf", resolution[1] / 15)
@@ -109,9 +109,9 @@ def generateTitle(titleText, resolution, fps, titleLength):
     for frameNum in range(fps * titleLength):
         titleScreen.save("./title/frame" + str(frameNum) + ".png")
         
-    sys.stderr.write("TITLE: Generating title screen has ended. ("
-                     + str(fps * titleLength) + "/"
-                     + str(fps * titleLength) + ")\n")
+    progress("TITLE: Generating title screen has ended. ("
+             + str(fps * titleLength) + "/"
+             + str(fps * titleLength) + ")")
     return 0
 # ------------------------------------------------------------------------------
 def writePaperHeader(fFile, resolution, pixelsPerMm, numOfLines):
@@ -209,7 +209,7 @@ def getMidiEvents(nameOfMidi):
                 endOfTrack = eventsList[-1].tick
     midiTicks.append(endOfTrack)
     
-    sys.stderr.write("MIDI: Parsing MIDI file has ended.\n")
+    progress("MIDI: Parsing MIDI file has ended.")
     
     return (midiResolution, temposList, notesInTick, midiTicks)
 # ------------------------------------------------------------------------------
@@ -283,13 +283,13 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                             notesAndLigatures.add((int(linkLy[0]), int(linkLy[1])))
                 #if there is some error, write that statement and exit
                 except Exception as err:
-                    sys.stderr.write("ERROR:\n")
-                    sys.stderr.write("> PDF: There has been some error, "
-                                     + " ly2video is trying to work with this: \""
-                                     + loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1]
-                                     + "\", coords in LY (" + str((int(linkLy[0]), int(linkLy[1])))
-                                     + ").\n")
-                    sys.stderr.write("> Statement: " + str(err))
+                    progress("ERROR:")
+                    progress("> PDF: There has been some error, "
+                             + " ly2video is trying to work with this: \""
+                             + loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1]
+                             + "\", coords in LY (" + str((int(linkLy[0]), int(linkLy[1])))
+                             + ").")
+                    progress("> Statement: " + str(err))
                     sys.exit()
                     
             # sort wanted positions on that page and add it into whole wanted positions
@@ -363,8 +363,8 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         notesInIndex.append(notesInIndexPage)
         allNotesIndexes.append(notesIndexesPage)
         
-        sys.stderr.write("PDF: Page " + str(wantedPos.index(page) + 1) + "/"
-                         + str(len(wantedPos)) + " has been completed.\n")
+        progress("PDF: Page " + str(wantedPos.index(page) + 1) + "/"
+                 + str(len(wantedPos)) + " has been completed.")
 
     # notesIndexes = final indexes of notes
     notesIndexes = []
@@ -380,8 +380,8 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         for index in page:
             # if runs out of midi indexes, then exit
             if midiIndex == len(midiTicks):
-                sys.stderr.write("ERROR: ly2video don't have enough MIDI indexes. "
-                                 + "Current PDF index: " + str(index) +".\n")
+                progress("ERROR: ly2video don't have enough MIDI indexes. "
+                         + "Current PDF index: " + str(index) + ".")
                 sys.exit()
                 
             # skip next index
@@ -444,8 +444,8 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
 
     totalFrames = int(round(((temposList[tempoIndex][1] * 1.0)
                         / midiResolution * (midiTicks[-1]) / 1000000 * fps)))
-    sys.stderr.write("SYNC: ly2video will generate cca "
-                     + str(totalFrames) + " frames.\n")
+    progress("SYNC: ly2video will generate cca "
+             + str(totalFrames) + " frames.")
 
     dropFrame = 0.0
     
@@ -504,10 +504,10 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
                     frame.save("./notes/frame" + str(frameNum) + ".png")
                     frameNum += 1
 
-        sys.stderr.write("SYNC: Generating frames for page "
-                         + str(notesIndexes.index(indexes) + 1) + "/"
-                         + str(len(notesIndexes)) + " has beeen completed. ("
-                         + str(frameNum) + "/" + str(totalFrames) + ")\n")
+        progress("SYNC: Generating frames for page "
+                 + str(notesIndexes.index(indexes) + 1) + "/"
+                 + str(len(notesIndexes)) + " has beeen completed. ("
+                 + str(frameNum) + "/" + str(totalFrames) + ")")
 # ------------------------------------------------------------------------------
 def generateSilence(length):
     """
@@ -551,8 +551,11 @@ def generateSilence(length):
     fSilence.close()
     return "silence.wav"
 # ------------------------------------------------------------------------------
+def progress(text):
+    sys.stderr.write(text + "\n")
+# ------------------------------------------------------------------------------
 def output_divider_line():
-    sys.stderr.write(60 * "-" + "\n")
+    progress(60 * "-")
 # ------------------------------------------------------------------------------
 
 # MAIN ----------------------------------------------------------------------------------------------
@@ -606,24 +609,24 @@ def main():
         redirect = "NUL"
     
     if (os.system("lilypond -v > " + redirect) != 0):
-        sys.stderr.write("ERROR: LilyPond was not found.\n")
+        progress("ERROR: LilyPond was not found.")
         return 1
     else:
-        sys.stderr.write("LilyPond was found.\n")
+        progress("LilyPond was found.")
 
     winFfmpeg = options.winFfmpeg
     winTimidity = options.winTimidity
     if (os.system(winFfmpeg + "ffmpeg -version > " + redirect) != 0):
-        sys.stderr.write("ERROR: FFmpeg was not found (maybe use --windows-ffmpeg?).\n")
+        progress("ERROR: FFmpeg was not found (maybe use --windows-ffmpeg?).")
         return 2
     else:
-        sys.stderr.write("FFmpeg was found.\n")
+        progress("FFmpeg was found.")
         
     if (os.system(winTimidity + "timidity -v > " + redirect) != 0):
-        sys.stderr.write("ERROR: TiMidity++ was not found (maybe use --windows-timidity?).\n")
+        progress("ERROR: TiMidity++ was not found (maybe use --windows-timidity?).")
         return 3
     else:
-        sys.stderr.write("TiMidity++ was found.\n")
+        progress("TiMidity++ was found.")
     output_divider_line()
 
     # input project from user (string)
@@ -649,8 +652,8 @@ def main():
     elif (options.color == "brown"):
         color = (165,42,42)
     else:
-        sys.stderr.write("ERROR: Color was not found, " +
-                         "ly2video will use default one (\"red\").\n")
+        progress("WARNING: Color was not found, " +
+                 'ly2video will use default one ("red").')
 
     # frame rate of output video
     fps = options.fps
@@ -664,8 +667,8 @@ def main():
     elif (options.resolution == 1080):
         resolution = (1920, 1080)
     else:
-        sys.stderr.write("ERROR: Resolution was not found, " + 
-                         "ly2video will use default one (\"720\" => 1280x720).\n")
+        progress("WARNING: Resolution was not found, " +
+                 'ly2video will use default one ("720" => 1280x720).')
     # title and all about it
     useTitle = options.titleAtStart
     if (useTitle):
@@ -678,14 +681,14 @@ def main():
 
     # if I don't have input file, end  
     if (project == None):
-        sys.stderr.write("ERROR: Input project was not found.\n")
+        progress("ERROR: Input project was not found.")
         return 4
     else:
         # otherwise try to open project
         try:
             fProject = open(project, "r") 
         except (IOError):
-            sys.stderr.write("ERROR: Input project doesn't exist.\n")
+            progress("ERROR: Input project doesn't exist.")
             return 5
 
     # try to check output name
@@ -733,15 +736,15 @@ def main():
         if os.system("convert-ly " + project + " > newProject.ly") == 0:
             project = "newProject.ly"
         else:
-            sys.stderr.write("WARNING: Convert of input file has failed, " +
-                             "there can be some errors.\n")
+            progress("WARNING: Convert of input file has failed, " +
+                     "there can be some errors.")
             output_divider_line()
     fProject = open(project, "r")
 
     # generate preview of notes
     if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
                   + project + " 2> " + redirect) != 0):
-        sys.stderr.write("ERROR: Generating preview has failed.\n")
+        progress("ERROR: Generating preview has failed.")
         return 7
 
     # find preview picture and get num of staff lines
@@ -784,8 +787,8 @@ def main():
         done = False
 
         if (line.find("\\partial") != -1):
-            sys.stderr.write("WARNING: Ly2video has found \"\\partial\" command " +
-                             "in your project. There can be some errors.\n")
+            progress('WARNING: Ly2video has found "\\partial" command ' +
+                     "in your project. There can be some errors.")
 
         # ignore these commands
         if (line.find("\\include \"articulate.ly\"") != -1
@@ -882,7 +885,7 @@ def main():
     # generate PDF, PNG and MIDI file
     if (os.system("lilypond -fpdf --png -dpoint-and-click "
                   + "-dmidi-extension=midi ly2videoConvert.ly") != 0):
-        sys.stderr.write("ERROR: Calling LilyPond has failed.\n")
+        progress("ERROR: Calling LilyPond has failed.")
         return 9
     output_divider_line()
 
@@ -900,7 +903,7 @@ def main():
     notesPictures = []
     for fileName in folderContent:
         if (fileName.split(".")[-1] == "png" and "ly2videoConvert" in fileName):
-            sys.stderr.write("found generated picture: %s\n" % fileName)
+            progress("Found generated picture: %s" % fileName)
             notesPictures.append(fileName)
     output_divider_line()
 
@@ -913,9 +916,9 @@ def main():
     try:
         midiResolution, temposList, notesInTick, midiTicks = getMidiEvents("ly2videoConvert.midi")
     except Exception as err:
-        sys.stderr.write("ERROR:\n")
-        sys.stderr.write("> MIDI: There has been some error.\n")
-        sys.stderr.write("> Statement: " + str(err) + "\n")
+        progress("ERROR:")
+        progress("> MIDI: There has been some error.")
+        progress("> Statement: " + str(err))
         return 10
         
     output_divider_line()
@@ -939,9 +942,9 @@ def main():
     try:
         subprocess.check_call([winTimidity + "timidity", "ly2videoConvert.midi", "-Ow"])
     except subprocess.CalledProcessError as err:
-        sys.stderr.write("ERROR:\n")
-        sys.stderr.write("> TiMidity++: There has been some error.\n")
-        sys.stderr.write("> Statement: " + str(err) + "\n")
+        progress("ERROR:")
+        progress("> TiMidity++: There has been some error.")
+        progress("> Statement: " + str(err))
         return 11
     output_divider_line()
 
@@ -962,7 +965,7 @@ def main():
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
                      + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + output) != 0:
-            sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
+            progress("ERROR: Calling FFmpeg has failed.")
             return 13
     # call FFmpeg (with title)
     else:
@@ -971,13 +974,13 @@ def main():
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
                      + " -i ./title/frame%d.png -i "
                      + silentAudio + " -same_quant title.mpg") != 0:
-            sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
+            progress("ERROR: Calling FFmpeg has failed.")
             return 14
         # generate video with notes
         if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
                      + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + "-same_quant notes.mpg") != 0:
-            sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
+            progress("ERROR: Calling FFmpeg has failed.")
             return 15
         # join the files
         if sys.platform.startswith("linux"):
@@ -987,7 +990,7 @@ def main():
 
         # create output file
         if os.system(winFfmpeg + "ffmpeg -i video.mpg " + output) != 0:
-            sys.stderr.write("ERROR: Calling FFmpeg has failed.\n")
+            progress("ERROR: Calling FFmpeg has failed.")
             return 16
 
         # delete created videos, silent audio and folder with title frames
