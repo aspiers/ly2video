@@ -10,6 +10,7 @@ from ly.tokenize import Tokenizer
 from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 import collections
+import re
 import shutil
 import subprocess
 from struct import pack
@@ -965,12 +966,22 @@ def main():
         delete_tmp_files("newProjekt.ly")
 
     # find generated pictures
-    folderContent = os.listdir(".")
     notesPictures = []
-    for fileName in folderContent:
-        if (fileName.split(".")[-1] == "png" and "ly2videoConvert" in fileName):
+    for fileName in os.listdir("."):
+        m = re.match('ly2videoConvert(?:-page(\d+))?\.png', fileName)
+        if m:
             progress("Found generated picture: %s" % fileName)
-            notesPictures.append(fileName)
+            if m.group(1):
+                i = int(m.group(1))
+            else:
+                i = 1
+            newFileName = "ly2videoConvert-page%04d.png" % i
+
+            if newFileName != fileName:
+                os.rename(fileName, newFileName)
+                progress("  renamed -> %s" % newFileName)
+            notesPictures.append(newFileName)
+    notesPictures.sort()
     output_divider_line()
 
     # and get width of picture        
