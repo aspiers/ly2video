@@ -411,7 +411,7 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                 skip = True
             # go to next MIDI index
             midiIndex += 1
-        # add indexes on one page into finel notesIndexes
+        # add indexes on one page into final notesIndexes
         notesIndexes.append(notesIndexesPage)
         
     # close PDF file
@@ -688,7 +688,7 @@ def main():
             sys.stderr.write("ERROR: Input project doesn't exist.\n")
             return 5
 
-    # try to chech output name
+    # try to check output name
     if (output == None or len(output.split(".")) < 2):
         output = project[:-2] + "avi"
         
