@@ -41,6 +41,13 @@ If you know how to fix a problem or contribute an enhancement, you are
 extremely welcome to [fork this repository](https://github.com/aspiers/ly2video/fork_select),
 commit your fix, and then send me a [pull request](https://help.github.com/articles/using-pull-requests)!
 
+## Acknowledgements
+
+Huge credits for the initial implementation go to Jiří "FireTight"
+Szabó, who wrote it as part of his Bachelor's degree.  If you are
+lucky enough to understand Czech, you can [read his write-up
+online](http://is.muni.cz/th/359741/fi_b/text_prace.pdf) :-)
+
 ## License
 
 ly2video is released under the [GNU GPL v3](http://www.gnu.org/licenses/gpl.html).
