@@ -1,4 +1,10 @@
-PIL
-pyPDF
--e git://github.com/aspiers/python-midi.git#egg=midi
-#git://github.com/vishnubob/python-midi.git#egg=midi
+PIL==1.1.7
+pyPDF==1.13
+
+git+git://github.com/aspiers/python-midi.git#egg=midi
+#git+git://github.com/vishnubob/python-midi.git#egg=midi
+
+# Once https://github.com/pypa/pip/pull/526 is completed,
+# this should work instead, for anyone who wants to
+# concurrently hack on python-midi:
+#-e git+git://github.com/aspiers/python-midi.git#egg=midi&subdirectory=src
