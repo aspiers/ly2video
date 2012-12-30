@@ -14,9 +14,9 @@ import shutil
 import subprocess
 from struct import pack
 # ------------------------------------------------------------------------------
-def lineIndexes(picture, lineLength):
+def lineIndices(picture, lineLength):
     """
-    Takes a picture and returns height indexes of staff lines in pixels.
+    Takes a picture and returns height indices of staff lines in pixels.
 
     Params:
     - picture:      name of picture with staff lines
@@ -67,7 +67,7 @@ def lineIndexes(picture, lineLength):
 
     del fPicture
 
-    # return staff line indexes
+    # return staff line indices
     return lines
 # ------------------------------------------------------------------------------
 def generateTitle(titleText, resolution, fps, titleLength):
@@ -219,9 +219,9 @@ def getMidiEvents(nameOfMidi):
     
     return (midiResolution, temposList, notesInTick, midiTicks)
 # ------------------------------------------------------------------------------
-def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
-    Returns indexes of notes in generated PNG pictures (through PDF file).
+    Returns indices of notes in generated PNG pictures (through PDF file).
     Assumes that the PDF file was generated with -dpoint-and-click.
 
     Iterates through PDF pages:
@@ -233,16 +233,16 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     - second pass: goes through wantedPos and separates notes and
       ligatures.
 
-    - third pass: merges near indexes (e.g. 834, 835, 833, ...)
+    - third pass: merges near indices (e.g. 834, 835, 833, ...)
 
-    Then it sequentially compares the indexes of the images with
-    indexes in the MIDI: the first position in the MIDI with the first
+    Then it sequentially compares the indices of the images with
+    indices in the MIDI: the first position in the MIDI with the first
     position on the image.  If it's equal, then it's OK.  If not, then
     it skips to the next position on image (see getMidiEvents(), part
     notesInTick).  Then it compares the next image index with MIDI
     index, and so on.
 
-    notesIndexes is the final structure with final notes' indexes on
+    notesIndices is the final structure with final notes' indices on
     PNG image.
 
     Params:
@@ -339,8 +339,8 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     # how many notes are in one position
     notesInIndex = []
 
-    # indexes of all notes in image (from now on in pixels)
-    allNotesIndexes = []
+    # indices of all notes in image (from now on in pixels)
+    allNotesIndices = []
 
     for page in wantedPos: 
         parser = Tokenizer()
@@ -364,7 +364,7 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                 # otherwise get its index in pixels
                 noteIndex = int(round((float((coords[0] / pageWidth * imageWidth)
                                              + (coords[2] / pageWidth * imageWidth))) / 2))
-                # add that index into indexes
+                # add that index into indices
                 if notesInIndexPage.get(noteIndex) == None:
                     notesInIndexPage[noteIndex] = 1
                 else:
@@ -378,48 +378,48 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                     else:
                         silentNotes.append(notesAndLigatures[notesAndLigatures.index(silentNotes[-1]) + 1]) 
 
-        # gets all indexes on one page and sort it
-        notesIndexesPage = notesInIndexPage.keys()
-        notesIndexesPage.sort()
+        # gets all indices on one page and sort it
+        notesIndicesPage = notesInIndexPage.keys()
+        notesIndicesPage.sort()
 
-        # merges near indexes
+        # merges near indices
         skip = False
-        for index in notesIndexesPage[:-1]:
+        for index in notesIndicesPage[:-1]:
             if skip:
                 skip = False
                 continue
             # gets next index
-            tmp = notesIndexesPage[notesIndexesPage.index(index) + 1]
+            tmp = notesIndicesPage[notesIndicesPage.index(index) + 1]
             # if this index is in its range +/- 10 pixels
             if index in range(tmp - 10, tmp + 10):
                 # merges them and remove next index
                 notesInIndexPage[index] += notesInIndexPage.get(tmp)
                 notesInIndexPage.pop(tmp)
-                notesIndexesPage.remove(tmp)
+                notesIndicesPage.remove(tmp)
                 skip = True
 
         # stores info about this page        
         notesInIndex.append(notesInIndexPage)
-        allNotesIndexes.append(notesIndexesPage)
+        allNotesIndices.append(notesIndicesPage)
         
         progress("PDF: Page " + str(wantedPos.index(page) + 1) + "/"
                  + str(len(wantedPos)) + " has been completed.")
 
-    # notesIndexes = final indexes of notes
-    notesIndexes = []
+    # notesIndices = final indices of notes
+    notesIndices = []
     # index into list of MIDI ticks
     midiIndex = 0
 
-    for page in allNotesIndexes:
-        # final indexes of notes on one page
-        notesIndexesPage = []
+    for page in allNotesIndices:
+        # final indices of notes on one page
+        notesIndicesPage = []
         # skips next index (if needed)
         skip = False
         
         for index in page:
-            # if runs out of midi indexes, then exit
+            # if runs out of midi indices, then exit
             if midiIndex == len(midiTicks):
-                fatal("ly2video don't have enough MIDI indexes. "
+                fatal("ly2video don't have enough MIDI indices. "
                       + "Current PDF index: " + str(index) + ".")
                 sys.exit()
                 
@@ -430,35 +430,35 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
             if (notesInTick.get(midiTicks[midiIndex])
-                <= notesInIndex[allNotesIndexes.index(page)].get(index)):
+                <= notesInIndex[allNotesIndices.index(page)].get(index)):
                 # add that index
-                notesIndexesPage.append(index)
+                notesIndicesPage.append(index)
             else:
                 # if there is next index on my right
                 if index != page[-1]:
                     # get number of notes in right index
-                    rightIndex = notesInIndex[allNotesIndexes.index(page)].get(page[page.index(index) + 1])
+                    rightIndex = notesInIndex[allNotesIndices.index(page)].get(page[page.index(index) + 1])
                     # compare them and get add that with more notes
-                    if notesInIndex[allNotesIndexes.index(page)].get(index) >= rightIndex:
-                        notesIndexesPage.append(index)
+                    if notesInIndex[allNotesIndices.index(page)].get(index) >= rightIndex:
+                        notesIndicesPage.append(index)
                     else:
-                        notesIndexesPage.append(page[page.index(index) + 1])
+                        notesIndicesPage.append(page[page.index(index) + 1])
                 # otherwise just add that index (it's last index on that page)
                 else:
-                    notesIndexesPage.append(index)
+                    notesIndicesPage.append(index)
                 # and of course skip next index
                 skip = True
             # go to next MIDI index
             midiIndex += 1
-        # add indexes on one page into final notesIndexes
-        notesIndexes.append(notesIndexesPage)
+        # add indices on one page into final notesIndices
+        notesIndices.append(notesIndicesPage)
         
     # close PDF file
     fPdf.close()
     
-    return notesIndexes
+    return notesIndices
 # ------------------------------------------------------------------------------
-def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
+def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
          notesPictures, color):
     """
     Generates frames for the final video, synchronized with audio.
@@ -477,7 +477,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
     - midiTicks:        list of ticks with NoteOnEvent
     - resolution:       resolution of generated frames (and video)
     - fps:              frame rate of video
-    - notesIndexes:     indexes of notes in picutres
+    - notesIndices:     indices of notes in picutres
     - notesPictures:    names of that pictures (list of strings)
     - color:            color of middle line
     """
@@ -496,19 +496,19 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
 
     dropFrame = 0.0
     
-    for indexes in notesIndexes:
+    for indices in notesIndices:
         # open picture of staff
-        notesPic = Image.open(notesPictures[notesIndexes.index(indexes)]) 
+        notesPic = Image.open(notesPictures[notesIndices.index(indices)]) 
 
         # add index for the last note
-        indexes.append(indexes[-1])
+        indices.append(indices[-1])
 
-        for index in indexes[:-1]:
-            # get two indexes of notes (pixels)
+        for index in indices[:-1]:
+            # get two indices of notes (pixels)
             startIndex = index
-            endIndex = indexes[indexes.index(index) + 1]
+            endIndex = indices[indices.index(index) + 1]
 
-            # get two indexes of MIDI events (ticks)
+            # get two indices of MIDI events (ticks)
             startMidi = midiTicks[midiIndex]
             midiIndex += 1
             endMidi = midiTicks[midiIndex]
@@ -552,8 +552,8 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
                     frameNum += 1
 
         progress("SYNC: Generating frames for page "
-                 + str(notesIndexes.index(indexes) + 1) + "/"
-                 + str(len(notesIndexes)) + " has beeen completed. ("
+                 + str(notesIndices.index(indices) + 1) + "/"
+                 + str(len(notesIndices)) + " has beeen completed. ("
                  + str(frameNum) + "/" + str(totalFrames) + ")")
 # ------------------------------------------------------------------------------
 def generateSilence(length):
@@ -815,7 +815,7 @@ def main():
             previewFiles.append(soubor)
             if soubor.split(".")[-1] == "png":
                 previewPic = soubor
-    numStaffLines = len(lineIndexes(previewPic, 50))
+    numStaffLines = len(lineIndices(previewPic, 50))
 
     # then delete generated preview files
     try:
@@ -981,8 +981,8 @@ def main():
         
     output_divider_line()
 
-    # find notes indexes
-    notesIndexes = getNotesIndexes("ly2videoConvert.pdf",
+    # find notes indices
+    notesIndices = getNotesIndices("ly2videoConvert.pdf",
                                    picWidth, loadedProject, midiTicks, notesInTick)
     output_divider_line()
     
@@ -993,7 +993,7 @@ def main():
 
     # generate notes
     sync(midiResolution, temposList, midiTicks, resolution,
-         fps, notesIndexes, notesPictures, color)
+         fps, notesIndices, notesPictures, color)
     output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
