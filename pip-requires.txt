@@ -1,0 +1,4 @@
+PIL
+pyPDF
+-e git://github.com/aspiers/python-midi.git#egg=midi
+#git://github.com/vishnubob/python-midi.git#egg=midi
