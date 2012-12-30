@@ -226,12 +226,12 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
 
     Iterates through PDF pages:
 
-    - first pass: for every note or ligature, finds every single
+    - first pass: for every note or tie, finds every single
       position in the PDF file and in the *.ly code, and stores it in
-      the wantedPos and notesAndLigatures structures.
+      the wantedPos and notesAndTies structures.
 
     - second pass: goes through wantedPos and separates notes and
-      ligatures.
+      ties.
 
     - third pass: merges near indices (e.g. 834, 835, 833, ...)
 
@@ -258,13 +258,13 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     pdfFile = PdfFileReader(fPdf) 
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
 
-    # Stores positions of notes and ligatures in .ly file.
+    # Stores positions of notes and ties in .ly file.
     # Forms a list of
     #   (int(linkLy[0]), int(linkLy[1]))
     # tuples sorted by line number in *.ly
-    notesAndLigatures = set()
+    notesAndTies = set()
 
-    # Stores wanted positions (notes and ligatures) in .ly and PDF
+    # Stores wanted positions (notes and ties) in .ly and PDF
     # file.  Forms a list with each top-level item representing a page,
     # and each page is a list of
     #   ((int(linkLy[0]), int(linkLy[1])), coords)
@@ -310,13 +310,13 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                               and repr(token) == "u'\\\\rest'"):
                             noteOk = False
                             break
-                    # if the note is ok and it's not rest or it's ligature
+                    # if the note is ok and it's not rest or it's tie
                     if noteOk:
                         if ((note.__class__.__name__ == "PitchWord" and str(note) not in "rR")
                             or (note.find("~") != -1)):
                             # add it
                             wantedPosPage.append(((int(linkLy[0]), int(linkLy[1])), coords))
-                            notesAndLigatures.add((int(linkLy[0]), int(linkLy[1])))
+                            notesAndTies.add((int(linkLy[0]), int(linkLy[1])))
                 #if there is some error, write that statement and exit
                 except Exception as err:
                     progress("ERROR:")
@@ -332,9 +332,9 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
             wantedPosPage.sort()
             wantedPos.append(wantedPosPage)
             
-    # create list of notes and ligatures and sort it        
-    notesAndLigatures = list(notesAndLigatures)
-    notesAndLigatures.sort()    
+    # create list of notes and ties and sort it        
+    notesAndTies = list(notesAndTies)
+    notesAndTies.sort()    
 
     # how many notes are in one position
     notesInIndex = []
@@ -347,7 +347,7 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         # how many notes are in one position (on one page)
         notesInIndexPage = dict()
 
-        # notes that are connected by ligature and will not generate
+        # notes that are connected by tie and will not generate
         # a MIDI NoteOn event
         silentNotes = []
 
@@ -369,14 +369,14 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                     notesInIndexPage[noteIndex] = 1
                 else:
                     notesInIndexPage[noteIndex] += 1
-            # if it's ligature
+            # if it's tie
             elif token.find("~") != -1:
                     # if next note isn't in silent notes, add it
-                    if silentNotes.count(notesAndLigatures[notesAndLigatures.index(linkLy) + 1]) == 0:
-                        silentNotes.append(notesAndLigatures[notesAndLigatures.index(linkLy) + 1])
-                    # otherwise add next one (after the last silent one (if it's ligature of harmony))
+                    if silentNotes.count(notesAndTies[notesAndTies.index(linkLy) + 1]) == 0:
+                        silentNotes.append(notesAndTies[notesAndTies.index(linkLy) + 1])
+                    # otherwise add next one (after the last silent one (if it's tie of harmony))
                     else:
-                        silentNotes.append(notesAndLigatures[notesAndLigatures.index(silentNotes[-1]) + 1]) 
+                        silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
 
         # gets all indices on one page and sort it
         notesIndicesPage = notesInIndexPage.keys()
