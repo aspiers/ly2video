@@ -60,8 +60,9 @@ commit your fix, and then send me a [pull request](https://help.github.com/artic
 
 Huge credits for the initial implementation go to Jiří "FireTight"
 Szabó, who wrote it as part of his Bachelor's degree.  If you are
-lucky enough to understand Czech, you can [read his write-up
-online](http://is.muni.cz/th/359741/fi_b/text_prace.pdf) :-)
+lucky enough to understand Czech, you can read his thesis on ly2video
+in the `doc/thesis/` subdirectory, or
+[online](http://is.muni.cz/th/359741/fi_b/text_prace.pdf) :-)
 
 ## License
 
