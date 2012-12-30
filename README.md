@@ -29,6 +29,17 @@ or for the current user via:
 
     pip install --user -r pip-requires.txt
 
+You can optionally protect against the risk of installation of these
+dependencies destabilising any other Python applications you may use,
+by isolating them in a virtual environment using
+[`virtualenv`](http://www.virtualenv.org/en/latest/).  The most
+convenient way to do this is via
+[`virtualenvwrapper`](http://virtualenvwrapper.readthedocs.org/en/latest/).
+Once you have `virtualenvwrapper` installed, it's as simple as:
+
+    mkvirtualenv ly2video
+    pip install -r pip-requires.txt
+
 ## Usage
 
 Run `ly2video.py --help` to display usage information.
