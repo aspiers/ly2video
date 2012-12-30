@@ -179,7 +179,13 @@ def getMidiEvents(nameOfMidi):
             # and add that new tempo with its start into temposList
             temposList.append((event.tick, tempoValue))
 
-    # how many notes start in one tick
+    # Count how many notes start in each tick.  Each key is a tick and
+    # the corresponding value is the count.  This is needed for
+    # deleting some notes' positions obtained from the images,
+    # e.g. when two or more notes within a major second of each other
+    # occur in the same chord and share a note stem - in that case you
+    # get some note heads to the left of the stem and some to the
+    # right.
     notesInTick = dict()
 
     # for every channel in MIDI (except the first one)
@@ -216,23 +222,53 @@ def getMidiEvents(nameOfMidi):
 def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
     Returns indexes of notes in generated PNG pictures (through PDF file).
+    Assumes that the PDF file was generated with -dpoint-and-click.
+
+    Iterates through PDF pages:
+
+    - first pass: for every note or ligature, finds every single
+      position in the PDF file and in the *.ly code, and stores it in
+      the wantedPos and notesAndLigatures structures.
+
+    - second pass: goes through wantedPos and separates notes and
+      ligatures.
+
+    - third pass: merges near indexes (e.g. 834, 835, 833, ...)
+
+    Then it sequentially compares the indexes of the images with
+    indexes in the MIDI: the first position in the MIDI with the first
+    position on the image.  If it's equal, then it's OK.  If not, then
+    it skips to the next position on image (see getMidiEvents(), part
+    notesInTick).  Then it compares the next image index with MIDI
+    index, and so on.
+
+    notesIndexes is the final structure with final notes' indexes on
+    PNG image.
 
     Params:
     - pdf:              name of generated PDF file (string)
     - imageWidth:       width of PNG file(s) 
     - loadedProject:    loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
-    - notesInTick:      how many notes starts in one tick
+    - notesInTick:      how many notes starts in each tick
     """
 
-    # open PDf file with external library and gets width of page (in PDF measures)
+    # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdf, "rb")
     pdfFile = PdfFileReader(fPdf) 
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
 
-    # stores positions of notes and ligatures in LY file
+    # Stores positions of notes and ligatures in .ly file.
+    # Forms a list of
+    #   (int(linkLy[0]), int(linkLy[1]))
+    # tuples sorted by line number in *.ly
     notesAndLigatures = set()
-    # stores wanted positions (notes and ligatures) in LY and PDF file
+
+    # Stores wanted positions (notes and ligatures) in .ly and PDF
+    # file.  Forms a list with each top-level item representing a page,
+    # and each page is a list of
+    #   ((int(linkLy[0]), int(linkLy[1])), coords)
+    # tuples (FIXME)
     wantedPos = []
     
     for pageNumber in range(pdfFile.getNumPages()):
@@ -302,7 +338,8 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
 
     # how many notes are in one position
     notesInIndex = []
-    # indexes of all notes
+
+    # indexes of all notes in image (from now on in pixels)
     allNotesIndexes = []
 
     for page in wantedPos: 
@@ -310,8 +347,10 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         # how many notes are in one position (on one page)
         notesInIndexPage = dict()
 
-        # notes in ligature        
+        # notes that are connected by ligature and will not generate
+        # a MIDI NoteOn event
         silentNotes = []
+
         for (linkLy, coords) in page:
             # get that token
             token = parser.tokens(loadedProject[linkLy[0] - 1][linkLy[1]:]).next()                     
@@ -422,7 +461,15 @@ def getNotesIndexes(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
 def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndexes,
          notesPictures, color):
     """
-    Generates frames for video, synchronized with audio.
+    Generates frames for the final video, synchronized with audio.
+
+    Counts time between starts of two notes, gets their positions on
+    image and generates needed amount of frames. The index of last
+    note on every page is "doubled", so it waits at the end of page.
+    The required number of frames for every pair is computed as a real
+    number and because a fractional number of frames can't be
+    generated, they are stored in dropFrame and if that is > 1, it
+    skips generating one frame.
 
     Params:
     - midiResolution:   resolution of MIDI file
@@ -566,6 +613,19 @@ def fatal(text, status=1):
 def main():
     """
     Main function of ly2video script.
+
+    It performs the following steps:
+
+    - use Lilypond to generate PNG images, PDF, and MIDI files of the
+      music
+
+    - find the spacial and temporal position of each note in the PDF
+      and MIDI files respectively
+
+    - combine the positions together to generate the required number
+      of video frames
+
+    - create a video file from the individual frames
     """
     
     # create parser and add options
