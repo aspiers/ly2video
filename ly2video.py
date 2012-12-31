@@ -323,14 +323,11 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                             notesAndTies.add((int(linkLy[0]), int(linkLy[1])))
                 #if there is some error, write that statement and exit
                 except Exception as err:
-                    progress("ERROR:")
-                    progress("> PDF: There has been some error, "
-                             + " ly2video is trying to work with this: \""
-                             + loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1]
-                             + "\", coords in LY (" + str((int(linkLy[0]), int(linkLy[1])))
-                             + ").")
-                    progress("> Statement: " + str(err))
-                    sys.exit()
+                    fatal("PDF: " + str(err) + "\n"
+                          + "ly2video was trying to work with this: \""
+                          + loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1]
+                          + "\", coords in LY (" + str((int(linkLy[0]), int(linkLy[1])))
+                          + ").")
                     
             # sort wanted positions on that page and add it into whole wanted positions
             wantedPosPage.sort()
@@ -622,9 +619,8 @@ def delete_tmp_files(paths):
             try:
                 os.remove(path)
             except Exception as err:
-                sys.stderr.write("WARNING:\n")
-                sys.stderr.write("> Ly2video can't delete %s\n" % path)
-                sys.stderr.write("> Statement: " + str(err) + "\n")
+                sys.stderr.write("WARNING: ly2video can't delete %s: %s\n" %
+                                 (path, err))
                 errors += 1
     return (errors == 0)
 # ------------------------------------------------------------------------------
@@ -991,10 +987,7 @@ def main():
     try:
         midiResolution, temposList, notesInTick, midiTicks = getMidiEvents("ly2videoConvert.midi")
     except Exception as err:
-        progress("ERROR:")
-        progress("> MIDI: There has been some error.")
-        progress("> Statement: " + str(err))
-        return 10
+        fatal("MIDI: " + str(err), 10)
         
     output_divider_line()
 
@@ -1016,11 +1009,8 @@ def main():
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
     try:
         subprocess.check_call([winTimidity + "timidity", "ly2videoConvert.midi", "-Ow"])
-    except subprocess.CalledProcessError as err:
-        progress("ERROR:")
-        progress("> TiMidity++: There has been some error.")
-        progress("> Statement: " + str(err))
-        return 11
+    except (subprocess.CalledProcessError, OSError) as err:
+        fatal("TiMidity++: %s" % err, 11)
     output_divider_line()
 
     # delete old files
