@@ -307,40 +307,11 @@ def getNotePositions(pdf, loadedProject):
     notesAndTies.sort()    
     return wantedPos, notesAndTies, pageWidth
 # ------------------------------------------------------------------------------
-def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pageWidth):
     """
-    Returns indices of notes in generated PNG pictures (through PDF file).
-    Assumes that the PDF file was generated with -dpoint-and-click.
-
-    Iterates through PDF pages:
-
-    - first pass: for every note or tie, finds every single
-      position in the PDF file and in the *.ly code, and stores it in
-      the wantedPos and notesAndTies structures.
-
-    - second pass: goes through wantedPos separating notes and
-      ties and merging near indices (e.g. 834, 835, 833, ...)
-
-    Then it sequentially compares the indices of the images with
-    indices in the MIDI: the first position in the MIDI with the first
-    position on the image.  If it's equal, then it's OK.  If not, then
-    it skips to the next position on image (see getMidiEvents(), part
-    notesInTick).  Then it compares the next image index with MIDI
-    index, and so on.
-
-    notesIndices is the final structure with final notes' indices on
-    PNG image.
-
-    Params:
-    - pdf:              name of generated PDF file (string)
-    - imageWidth:       width of PNG file(s)
-    - loadedProject:    loaded *.ly file in memory (list)
-    - midiTicks:        all ticks with notes in MIDI file
-    - notesInTick:      how many notes starts in each tick
+    Goes through wantedPos separating notes and ties, and merging
+    near indices.
     """
-
-    wantedPos, notesAndTies, pageWidth = getNotePositions(pdf, loadedProject)
-
     # how many notes are in one position
     notesInIndex = []
 
@@ -410,6 +381,46 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         
         progress("PDF: Page %d/%d has been completed." %
                  (wantedPos.index(page) + 1, len(wantedPos)))
+
+    return notesInIndex, allNotesIndices
+# ------------------------------------------------------------------------------
+def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+    """
+    Returns indices of notes in generated PNG pictures (through PDF file).
+    Assumes that the PDF file was generated with -dpoint-and-click.
+
+    Iterates through PDF pages:
+
+    - first pass: finds the position in the PDF file and in the *.ly
+      code of every note or tie, and stores it in the wantedPos and
+      notesAndTies structures.
+
+    - second pass: goes through wantedPos separating notes and
+      ties and merging near indices (e.g. 834, 835, 833, ...)
+
+    Then it sequentially compares the indices of the images with
+    indices in the MIDI: the first position in the MIDI with the first
+    position on the image.  If it's equal, then it's OK.  If not, then
+    it skips to the next position on image (see getMidiEvents(), part
+    notesInTick).  Then it compares the next image index with MIDI
+    index, and so on.
+
+    notesIndices is the final structure with final notes' indices on
+    PNG image.
+
+    Params:
+    - pdf:              name of generated PDF file (string)
+    - imageWidth:       width of PNG file(s)
+    - loadedProject:    loaded *.ly file in memory (list)
+    - midiTicks:        all ticks with notes in MIDI file
+    - notesInTick:      how many notes starts in each tick
+    """
+
+    wantedPos, notesAndTies, pageWidth = \
+        getNotePositions(pdf, loadedProject)
+
+    notesInIndex, allNotesIndices = \
+        separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pageWidth)
 
     # notesIndices = final indices of notes
     notesIndices = []
