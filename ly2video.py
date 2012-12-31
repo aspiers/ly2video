@@ -1020,11 +1020,11 @@ def main():
     previewPic = ""
     previewFilesTmp = os.listdir(".")
     previewFiles = []
-    for soubor in previewFilesTmp:
-        if "preview" in soubor:
-            previewFiles.append(soubor)
-            if soubor.split(".")[-1] == "png":
-                previewPic = soubor
+    for fileName in previewFilesTmp:
+        if "preview" in fileName:
+            previewFiles.append(fileName)
+            if fileName.split(".")[-1] == "png":
+                previewPic = fileName
     numStaffLines = len(lineIndices(previewPic, 50))
 
     # then delete generated preview files
