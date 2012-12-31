@@ -1,19 +1,20 @@
 #!/usr/bin/env python
-#coding=utf-8
+# coding=utf-8
 
-import os
-import sys
-from PIL import Image, ImageDraw, ImageFont
-from optparse import OptionParser
-import optparse
-from ly.tokenize import Tokenizer
-from pyPdf import PdfFileWriter, PdfFileReader
-import midi
 import collections
+import os
 import re
 import shutil
 import subprocess
-from struct import pack
+import sys
+from   optparse import OptionParser
+from   struct import pack
+
+from PIL import Image, ImageDraw, ImageFont
+from ly.tokenize import Tokenizer
+from pyPdf import PdfFileWriter, PdfFileReader
+import midi
+
 
 KEEP_TMP_FILES = False
 
