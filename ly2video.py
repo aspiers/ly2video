@@ -286,6 +286,8 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                 # otherwise get coordinates into LY file
                 uri = link.getObject()['/A']['/URI']
                 lineNum, charNum, columnNum = uri.split(":")[-3:]
+                if charNum != columnNum:
+                    print "got char %s col %s on line %s" % (charNum, columnNum, lineNum)
                 lineNum = int(lineNum)
                 charNum = int(charNum)
                 
