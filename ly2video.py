@@ -692,7 +692,36 @@ def parseOptions():
 
     # and parse input
     return parser.parse_args()
+# ------------------------------------------------------------------------------
+def portableDevNull():
+    if sys.platform.startswith("linux"):
+        return "/dev/null"
+    elif sys.platform.startswith("win"):
+        return "NUL"
+# ------------------------------------------------------------------------------
+def findExecutableDependencies(options):
+    redirectToNull = " >%s" % portableDevNull()
 
+    if (os.system("lilypond -v" + redirectToNull) != 0):
+        fatal("LilyPond was not found.", 1)
+    else:
+        progress("LilyPond was found.")
+
+    ffmpeg = options.winFfmpeg + "ffmpeg"
+    if (os.system(ffmpeg + " -version" + redirectToNull) != 0):
+        fatal("FFmpeg was not found (maybe use --windows-ffmpeg?).", 2)
+    else:
+        progress("FFmpeg was found.")
+
+    timidity = options.winTimidity + "timidity"
+    if (os.system(timidity + " -v" + redirectToNull) != 0):
+        fatal("TiMidity++ was not found (maybe use --windows-timidity?).", 3)
+    else:
+        progress("TiMidity++ was found.")
+
+    output_divider_line()
+
+    return ffmpeg, timidity
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
     """
@@ -716,30 +745,7 @@ def main():
     if options.keepTempFiles:
         KEEP_TMP_FILES = True
 
-    # test needed programs
-    redirect = ""
-    if sys.platform.startswith("linux"):
-        redirect = "/dev/null"
-    elif sys.platform.startswith("win"):
-        redirect = "NUL"
-    
-    if (os.system("lilypond -v > " + redirect) != 0):
-        fatal("LilyPond was not found.", 1)
-    else:
-        progress("LilyPond was found.")
-
-    winFfmpeg = options.winFfmpeg
-    winTimidity = options.winTimidity
-    if (os.system(winFfmpeg + "ffmpeg -version > " + redirect) != 0):
-        fatal("FFmpeg was not found (maybe use --windows-ffmpeg?).", 2)
-    else:
-        progress("FFmpeg was found.")
-        
-    if (os.system(winTimidity + "timidity -v > " + redirect) != 0):
-        fatal("TiMidity++ was not found (maybe use --windows-timidity?).", 3)
-    else:
-        progress("TiMidity++ was found.")
-    output_divider_line()
+    ffmpeg, timidity = findExecutableDependencies(options)
 
     # input project from user (string)
     project = options.input
@@ -843,7 +849,7 @@ def main():
 
     # generate preview of notes
     if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
-                  + project + " 2> " + redirect) != 0):
+                  + project + " 2>" + portableDevNull()) != 0):
         fatal("Generating preview has failed.", 7)
 
     # find preview picture and get num of staff lines
@@ -1037,7 +1043,7 @@ def main():
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
     try:
-        subprocess.check_call([winTimidity + "timidity", "ly2videoConvert.midi", "-Ow"])
+        subprocess.check_call([timidity, "ly2videoConvert.midi", "-Ow"])
     except (subprocess.CalledProcessError, OSError) as err:
         fatal("TiMidity++: %s" % err, 11)
     output_divider_line()
@@ -1049,7 +1055,7 @@ def main():
 
     # call FFmpeg (without title)
     if not useTitle:
-        if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
+        if os.system(ffmpeg + " -f image2 -r " + str(fps)
                      + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + output) != 0:
             fatal("Calling FFmpeg has failed.", 13)
@@ -1057,12 +1063,12 @@ def main():
     else:
         # create video with title
         silentAudio = generateSilence(titleLength)
-        if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
+        if os.system(ffmpeg + " -f image2 -r " + str(fps)
                      + " -i ./title/frame%d.png -i "
                      + silentAudio + " -same_quant title.mpg") != 0:
             fatal("Calling FFmpeg has failed.", 14)
         # generate video with notes
-        if os.system(winFfmpeg + "ffmpeg -f image2 -r " + str(fps)
+        if os.system(ffmpeg + " -f image2 -r " + str(fps)
                      + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
                      + "-same_quant notes.mpg") != 0:
             fatal("Calling FFmpeg has failed.", 15)
@@ -1073,7 +1079,7 @@ def main():
             os.system("copy title.mpg /B + notes.mpg /B video.mpg /B")
 
         # create output file
-        if os.system(winFfmpeg + "ffmpeg -i video.mpg " + output) != 0:
+        if os.system(ffmpeg + " -i video.mpg " + output) != 0:
             fatal("Calling FFmpeg has failed.", 16)
 
         # delete created videos, silent audio and folder with title frames
