@@ -16,6 +16,7 @@ from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 
 
+SANITISED_LY = "ly2videoConvert.ly"
 KEEP_TMP_FILES = False
 
 def lineIndices(picture, lineLength):
@@ -256,7 +257,7 @@ def getNotePositions(pdf, loadedProject):
                 # get coordinates of that link
                 coords = link.getObject()['/Rect']
                 # if it's not link into ly2videoConvert.ly, then ignore it
-                if link.getObject()['/A']['/URI'].find("ly2videoConvert.ly") == -1:
+                if link.getObject()['/A']['/URI'].find(SANITISED_LY) == -1:
                     continue
                 # otherwise get coordinates into LY file
                 uri = link.getObject()['/A']['/URI']
@@ -930,7 +931,7 @@ def main():
         return 8
 
     # create own ly project
-    fMyProject = open("ly2videoConvert.ly", "w")
+    fMyProject = open(SANITISED_LY, "w")
 
     # if I add own paper block
     paperBlock = False
@@ -1036,7 +1037,7 @@ def main():
     fMyProject.close()
 
     # load own project into memory
-    fMyProject = open("ly2videoConvert.ly", "r")
+    fMyProject = open(SANITISED_LY, "r")
     loadedProject = []
     for line in fMyProject.readlines():
         loadedProject.append(line)
@@ -1049,7 +1050,8 @@ def main():
     output_divider_line()
 
     # delete created project
-    delete_tmp_files("ly2videoConvert.ly")
+    delete_tmp_files(SANITISED_LY)
+
     # and try to delete converted project
     if versionConversion:
         delete_tmp_files(project)
