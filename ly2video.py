@@ -363,12 +363,12 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                     notesInIndexPage[noteIndex] += 1
             # if it's tie
             elif token.find("~") != -1:
-                    # if next note isn't in silent notes, add it
-                    if silentNotes.count(notesAndTies[notesAndTies.index(linkLy) + 1]) == 0:
-                        silentNotes.append(notesAndTies[notesAndTies.index(linkLy) + 1])
-                    # otherwise add next one (after the last silent one (if it's tie of harmony))
-                    else:
-                        silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
+                # if next note isn't in silent notes, add it
+                if silentNotes.count(notesAndTies[notesAndTies.index(linkLy) + 1]) == 0:
+                    silentNotes.append(notesAndTies[notesAndTies.index(linkLy) + 1])
+                # otherwise add next one (after the last silent one (if it's tie of harmony))
+                else:
+                    silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
 
         # gets all indices on one page and sort it
         notesIndicesPage = notesInIndexPage.keys()
