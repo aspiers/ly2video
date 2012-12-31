@@ -226,10 +226,8 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
       position in the PDF file and in the *.ly code, and stores it in
       the wantedPos and notesAndTies structures.
 
-    - second pass: goes through wantedPos and separates notes and
-      ties.
-
-    - third pass: merges near indices (e.g. 834, 835, 833, ...)
+    - second pass: goes through wantedPos separating notes and
+      ties and merging near indices (e.g. 834, 835, 833, ...)
 
     Then it sequentially compares the indices of the images with
     indices in the MIDI: the first position in the MIDI with the first
