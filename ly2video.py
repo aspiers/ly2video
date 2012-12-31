@@ -741,6 +741,19 @@ def getCursorLineColor(options):
         progress("WARNING: Color was not found, " +
                  'ly2video will use default one ("red").')
         return (255,0,0)
+# ------------------------------------------------------------------------------
+def getResolution(options):
+    if options.resolution == 360:
+        return (640, 360)
+    elif options.resolution == 720:
+        return (1280, 720)
+    elif options.resolution == 1080:
+        return (1920, 1080)
+    else:
+        progress("WARNING: Resolution was not found, " +
+                 'ly2video will use default one ("720" => 1280x720).')
+        return (1280, 720)
+
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
     """
@@ -780,16 +793,8 @@ def main():
     fps = options.fps
     
     # resolution of output video
-    resolution = (1280, 720)
-    if (options.resolution == 360):
-        resolution = (640, 360)
-    elif (options.resolution == 720):
-        resolution = (1280, 720)
-    elif (options.resolution == 1080):
-        resolution = (1920, 1080)
-    else:
-        progress("WARNING: Resolution was not found, " +
-                 'ly2video will use default one ("720" => 1280x720).')
+    resolution = getResolution(options)
+
     # title and all about it
     useTitle = options.titleAtStart
     if (useTitle):
