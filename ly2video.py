@@ -119,16 +119,17 @@ def generateTitle(titleText, resolution, fps, titleLength):
              (totalFrames, totalFrames))
     return 0
 
-def writePaperHeader(fFile, resolution, pixelsPerMm, numOfLines):
+def writePaperHeader(fFile, resolution, numOfLines):
     """
     Writes own paper block into given file.
 
     Params:
     - fFile:        given opened file
     - resolution:   wanted resolution of video
-    - pixelsPerMm:  how many pixels are in one millimeter
     - numOfLines:   number of staff lines
     """
+
+    pixelsPerMm = 181.0 / 720 # 1 px = 0.251375 mm
 
     fFile.write("\\paper {\n")
     fFile.write("   paper-width   = %d\\mm\n" % round(10 * resolution[0] * pixelsPerMm))
@@ -841,94 +842,8 @@ def getNotesPictures(fileName):
     notesPictures.sort()
     return notesPictures
 
-def main():
-    """
-    Main function of ly2video script.
-
-    It performs the following steps:
-
-    - use Lilypond to generate PNG images, PDF, and MIDI files of the
-      music
-
-    - find the spacial and temporal position of each note in the PDF
-      and MIDI files respectively
-
-    - combine the positions together to generate the required number
-      of video frames
-
-    - create a video file from the individual frames
-    """
-    (options, args) = parseOptions()
-
-    if options.keepTempFiles:
-        KEEP_TMP_FILES = True
-
-    ffmpeg, timidity = findExecutableDependencies(options)
-
-    # color of middle line
-    cursorLineColor = getCursorLineColor(options)
-
-    # resolution of output video
-    resolution = getResolution(options)
-
-    # title and all about it
-    if options.titleAtStart:
-        titleLength = options.titleDelay
-    else:
-        titleLength = 0
-    titleText = collections.namedtuple("titleText", "name author")
-    titleText.name = "<name of song>"
-    titleText.author = "<author>"
-
-    # delete old created folders
-    delete_tmp_files(["notes", "title"])
-    for fileName in os.listdir("."):
-        if "ly2videoConvert" in fileName:
-            if not delete_tmp_files(fileName):
-                return 6
-       
-    # 1 px = 0.251375 mm
-    pixelsInMm = 181.0 / 720
-    
-    # prepinac set-global-staff-size
-    sirka = int(round(resolution[0] * pixelsInMm)) # základní šířka
-
-    # input project from user (string)
-    project = options.input
-
-    # if it's not 2.14.2, try to convert it
-    versionConversion = False
-    if getLyVersion(project) != "2.14.2":
-        if os.system("convert-ly " + project + " > newProject.ly") == 0:
-            project = "newProject.ly"
-            versionConversion = True
-        else:
-            progress("WARNING: Convert of input file has failed, " +
-                     "there can be some errors.")
-            output_divider_line()
+def sanitiseLy(project, resolution, numStaffLines, titleText):
     fProject = open(project, "r")
-
-    # generate preview of notes
-    if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
-                  + project + " 2>" + portableDevNull()) != 0):
-        fatal("Generating preview has failed.", 7)
-
-    # find preview picture and get num of staff lines
-    previewPic = ""
-    previewFilesTmp = os.listdir(".")
-    previewFiles = []
-    for soubor in previewFilesTmp:
-        if "preview" in soubor:
-            previewFiles.append(soubor)
-            if soubor.split(".")[-1] == "png":
-                previewPic = soubor
-    numStaffLines = len(lineIndices(previewPic, 50))
-
-    # then delete generated preview files
-    if not delete_tmp_files(previewFiles):
-        return 8
-    if not delete_tmp_files(project[:-2] + "midi"):
-        return 8
 
     # create own ly project
     fMyProject = open(SANITISED_LY, "w")
@@ -962,7 +877,7 @@ def main():
         if (line.find("\\version") != -1):
             done = True
             fMyProject.write(line)
-            writePaperHeader(fMyProject, resolution, pixelsInMm, numStaffLines)
+            writePaperHeader(fMyProject, resolution, numStaffLines)
             paperBlock = True
 
         # get needed info from header block and ignore it
@@ -1033,8 +948,92 @@ def main():
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        writePaperHeader(fMyProject, resolution, pixelsInMm, numStaffLines)
+        writePaperHeader(fMyProject, resolution, numStaffLines)
     fMyProject.close()
+
+def main():
+    """
+    Main function of ly2video script.
+
+    It performs the following steps:
+
+    - use Lilypond to generate PNG images, PDF, and MIDI files of the
+      music
+
+    - find the spacial and temporal position of each note in the PDF
+      and MIDI files respectively
+
+    - combine the positions together to generate the required number
+      of video frames
+
+    - create a video file from the individual frames
+    """
+    (options, args) = parseOptions()
+
+    if options.keepTempFiles:
+        KEEP_TMP_FILES = True
+
+    ffmpeg, timidity = findExecutableDependencies(options)
+
+    # color of middle line
+    cursorLineColor = getCursorLineColor(options)
+
+    # resolution of output video
+    resolution = getResolution(options)
+
+    # title and all about it
+    if options.titleAtStart:
+        titleLength = options.titleDelay
+    else:
+        titleLength = 0
+    titleText = collections.namedtuple("titleText", "name author")
+    titleText.name = "<name of song>"
+    titleText.author = "<author>"
+
+    # delete old created folders
+    delete_tmp_files(["notes", "title"])
+    for fileName in os.listdir("."):
+        if "ly2videoConvert" in fileName:
+            if not delete_tmp_files(fileName):
+                return 6
+       
+    # input project from user (string)
+    project = options.input
+
+    # if it's not 2.14.2, try to convert it
+    versionConversion = False
+    if getLyVersion(project) != "2.14.2":
+        if os.system("convert-ly " + project + " > newProject.ly") == 0:
+            project = "newProject.ly"
+            versionConversion = True
+        else:
+            progress("WARNING: Convert of input file has failed, " +
+                     "there can be some errors.")
+            output_divider_line()
+
+    # generate preview of notes
+    if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
+                  + project + " 2>" + portableDevNull()) != 0):
+        fatal("Generating preview has failed.", 7)
+
+    # find preview picture and get num of staff lines
+    previewPic = ""
+    previewFilesTmp = os.listdir(".")
+    previewFiles = []
+    for soubor in previewFilesTmp:
+        if "preview" in soubor:
+            previewFiles.append(soubor)
+            if soubor.split(".")[-1] == "png":
+                previewPic = soubor
+    numStaffLines = len(lineIndices(previewPic, 50))
+
+    # then delete generated preview files
+    if not delete_tmp_files(previewFiles):
+        return 8
+    if not delete_tmp_files(project[:-2] + "midi"):
+        return 8
+
+    sanitiseLy(project, resolution, numStaffLines, titleText)
 
     # load own project into memory
     fMyProject = open(SANITISED_LY, "r")
