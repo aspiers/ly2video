@@ -553,7 +553,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
 
         progress("SYNC: Generating frames for page "
                  + str(notesIndices.index(indices) + 1) + "/"
-                 + str(len(notesIndices)) + " has beeen completed. ("
+                 + str(len(notesIndices)) + " has been completed. ("
                  + str(frameNum) + "/" + str(totalFrames) + ")")
 # ------------------------------------------------------------------------------
 def generateSilence(length):
@@ -966,9 +966,9 @@ def main():
     output_divider_line()
 
     # and get width of picture        
-    tmpPicuture = Image.open(notesPictures[0])
-    picWidth = tmpPicuture.size[0]
-    del tmpPicuture
+    tmpPicture = Image.open(notesPictures[0])
+    picWidth = tmpPicture.size[0]
+    del tmpPicture
 
     # find needed data in MIDI
     try:
