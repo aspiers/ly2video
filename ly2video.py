@@ -425,7 +425,6 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
             if midiIndex == len(midiTicks):
                 fatal("ly2video don't have enough MIDI indices. "
                       + "Current PDF index: " + str(index) + ".")
-                sys.exit()
                 
             # skip next index
             if skip:
@@ -821,7 +820,6 @@ def main():
     if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
                   + project + " 2> " + redirect) != 0):
         fatal("Generating preview has failed.", 7)
-        return 7
 
     # find preview picture and get num of staff lines
     previewPic = ""
