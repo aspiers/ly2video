@@ -484,7 +484,7 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
 # ------------------------------------------------------------------------------
 def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
-         notesPictures, color):
+         notesPictures, cursorLineColor):
     """
     Generates frames for the final video, synchronized with audio.
 
@@ -504,7 +504,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
     - fps:              frame rate of video
     - notesIndices:     indices of notes in picutres
     - notesPictures:    names of that pictures (list of strings)
-    - color:            color of middle line
+    - cursorLineColor:            color of middle line
     """
 
     midiIndex = 0
@@ -569,8 +569,8 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
                     frame = notesPic.copy().crop((leftUpper, 0, rightUpper, resolution[1]))
                     # add middle line
                     for pixel in range(resolution[1]):
-                        frame.putpixel((resolution[0] / 2, pixel), color)
-                        frame.putpixel(((resolution[0] / 2) + 1, pixel), color)
+                        frame.putpixel((resolution[0] / 2, pixel), cursorLineColor)
+                        frame.putpixel(((resolution[0] / 2) + 1, pixel), cursorLineColor)
 
                     # save that frame
                     frame.save("./notes/frame%d.png" % frameNum)
@@ -722,6 +722,25 @@ def findExecutableDependencies(options):
     output_divider_line()
 
     return ffmpeg, timidity
+# ------------------------------------------------------------------------------
+def getCursorLineColor(options):
+    options.color = options.color.lower()
+    if options.color == "black":
+        return (0,0,0)
+    elif (options.color == "yellow"):
+        return (255,255,0)
+    elif (options.color == "red"):
+        return (255,0,0)
+    elif (options.color == "green"):
+        return (0,128,0)
+    elif (options.color == "blue"):
+        return (0,0,255)
+    elif (options.color == "brown"):
+        return (165,42,42)
+    else:
+        progress("WARNING: Color was not found, " +
+                 'ly2video will use default one ("red").')
+        return (255,0,0)
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
     """
@@ -755,23 +774,7 @@ def main():
     output = options.output
 
     # color of middle line
-    color = (255,0,0)
-    options.color = options.color.lower()
-    if (options.color == "black"):
-        color = (0,0,0)
-    elif (options.color == "yellow"):
-        color = (255,255,0)
-    elif (options.color == "red"):
-        color = (255,0,0)
-    elif (options.color == "green"):
-        color = (0,128,0)
-    elif (options.color == "blue"):
-        color = (0,0,255)
-    elif (options.color == "brown"):
-        color = (165,42,42)
-    else:
-        progress("WARNING: Color was not found, " +
-                 'ly2video will use default one ("red").')
+    cursorLineColor = getCursorLineColor(options)
 
     # frame rate of output video
     fps = options.fps
@@ -1038,7 +1041,7 @@ def main():
 
     # generate notes
     sync(midiResolution, temposList, midiTicks, resolution,
-         fps, notesIndices, notesPictures, color)
+         fps, notesIndices, notesPictures, cursorLineColor)
     output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
