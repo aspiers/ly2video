@@ -507,7 +507,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
     - fps:              frame rate of video
     - notesIndices:     indices of notes in picutres
     - notesPictures:    names of that pictures (list of strings)
-    - cursorLineColor:            color of middle line
+    - cursorLineColor:  color of middle line
     """
 
     midiIndex = 0
@@ -975,9 +975,6 @@ def main():
 
     ffmpeg, timidity = findExecutableDependencies(options)
 
-    # color of middle line
-    cursorLineColor = getCursorLineColor(options)
-
     # resolution of output video
     resolution = getResolution(options)
 
@@ -1087,7 +1084,7 @@ def main():
 
     # generate notes
     sync(midiResolution, temposList, midiTicks, resolution,
-         fps, notesIndices, notesPictures, cursorLineColor)
+         fps, notesIndices, notesPictures, getCursorLineColor(options))
     output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
