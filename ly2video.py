@@ -255,16 +255,12 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
 
     # Stores positions of notes and ties in .ly file.
-    # Forms a list of
-    #   (int(linkLy[0]), int(linkLy[1]))
-    # tuples sorted by line number in *.ly
+    # Forms a list of (lineNum, charNum) tuples sorted by line number in *.ly.
     notesAndTies = set()
 
     # Stores wanted positions (notes and ties) in .ly and PDF
     # file.  Forms a list with each top-level item representing a page,
-    # and each page is a list of
-    #   ((int(linkLy[0]), int(linkLy[1])), coords)
-    # tuples (FIXME)
+    # and each page is a list of ((lineNum, charNum), coords) tuples.
     wantedPos = []
     
     for pageNumber in range(pdfFile.getNumPages()):
@@ -288,16 +284,18 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                 if link.getObject()['/A']['/URI'].find("ly2videoConvert.ly") == -1:
                     continue
                 # otherwise get coordinates into LY file
-                linkLy = link.getObject()['/A']['/URI'].split(":")[-3:]
+                uri = link.getObject()['/A']['/URI']
+                lineNum, charNum, columnNum = uri.split(":")[-3:]
+                lineNum = int(lineNum)
+                charNum = int(charNum)
                 
                 try:
                     # get name of that note
-                    note = parser.tokens(loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):]).next()
+                    note = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
 
                     # is that note ok?
                     noteOk = True
-                    for token in parser.tokens(loadedProject[int(linkLy[0]) - 1][int(linkLy[1])
-                                                                                 + len(note):]):
+                    for token in parser.tokens(loadedProject[lineNum - 1][charNum + len(note):]):
                         # if there is another note right next to it (or rest, etc.), it's ok 
                         if token.__class__.__name__ == "PitchWord":
                             break
@@ -311,16 +309,16 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                         if ((note.__class__.__name__ == "PitchWord" and str(note) not in "rR")
                             or (note.find("~") != -1)):
                             # add it
-                            wantedPosPage.append(((int(linkLy[0]), int(linkLy[1])), coords))
-                            notesAndTies.add((int(linkLy[0]), int(linkLy[1])))
+                            wantedPosPage.append(((lineNum, charNum), coords))
+                            notesAndTies.add((lineNum, charNum))
                 #if there is some error, write that statement and exit
                 except Exception as err:
                     fatal(("PDF: %s\n"
                            + "ly2video was trying to work with this: "
                            + "\"%s\", coords in LY (line %d char %d).") %
-                          (err, loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1],
-                           linkLy[0], linkLy[1]))
-                    
+                          (err, loadedProject[lineNum - 1][charNum:][:-1],
+                           lineNum, charNum))
+
             # sort wanted positions on that page and add it into whole wanted positions
             wantedPosPage.sort()
             wantedPos.append(wantedPosPage)
@@ -345,8 +343,9 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         silentNotes = []
 
         for (linkLy, coords) in page:
+            lineNum, charNum = linkLy
             # get that token
-            token = parser.tokens(loadedProject[linkLy[0] - 1][linkLy[1]:]).next()                     
+            token = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
 
             # if it's note
             if (token.__class__.__name__ == "PitchWord"):
