@@ -651,26 +651,7 @@ def delete_tmp_files(paths):
                 errors += 1
     return (errors == 0)
 # ------------------------------------------------------------------------------
-
-# MAIN ----------------------------------------------------------------------------------------------
-def main():
-    """
-    Main function of ly2video script.
-
-    It performs the following steps:
-
-    - use Lilypond to generate PNG images, PDF, and MIDI files of the
-      music
-
-    - find the spacial and temporal position of each note in the PDF
-      and MIDI files respectively
-
-    - combine the positions together to generate the required number
-      of video frames
-
-    - create a video file from the individual frames
-    """
-    
+def parseOptions():
     # create parser and add options
     parser = OptionParser("usage: %prog [options]")
 
@@ -705,11 +686,32 @@ def main():
                       action="store_true", default=False)
 
     # if there is only one arg, then show help and exit
-    if(len(sys.argv) == 1):
+    if len(sys.argv) == 1:
         parser.print_help()
-        return 0
+        sys.exit(0)
+
     # and parse input
-    (options, args) = parser.parse_args()
+    return parser.parse_args()
+
+# MAIN ----------------------------------------------------------------------------------------------
+def main():
+    """
+    Main function of ly2video script.
+
+    It performs the following steps:
+
+    - use Lilypond to generate PNG images, PDF, and MIDI files of the
+      music
+
+    - find the spacial and temporal position of each note in the PDF
+      and MIDI files respectively
+
+    - combine the positions together to generate the required number
+      of video frames
+
+    - create a video file from the individual frames
+    """
+    (options, args) = parseOptions()
 
     if options.keepTempFiles:
         KEEP_TMP_FILES = True
