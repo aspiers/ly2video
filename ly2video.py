@@ -542,6 +542,10 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
                     # save that frame
                     frame.save("./notes/frame%d.png" % frameNum)
                     frameNum += 1
+                    if frameNum % 10 == 0:
+                        sys.stdout.write(".")
+                        sys.stdout.flush()
+        print
 
         progress("SYNC: Generating frames for page %d/%d has been completed. (%d/%d)" %
                  (notesIndices.index(indices) + 1, len(notesIndices),
