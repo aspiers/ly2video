@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #coding=utf-8
-# ------------------------------------------------------------------------------
+
 import os
 import sys
 from PIL import Image, ImageDraw, ImageFont
@@ -14,9 +14,9 @@ import re
 import shutil
 import subprocess
 from struct import pack
-# ------------------------------------------------------------------------------
+
 KEEP_TMP_FILES = False
-# ------------------------------------------------------------------------------
+
 def lineIndices(picture, lineLength):
     """
     Takes a picture and returns height indices of staff lines in pixels.
@@ -72,7 +72,7 @@ def lineIndices(picture, lineLength):
 
     # return staff line indices
     return lines
-# ------------------------------------------------------------------------------
+
 def generateTitle(titleText, resolution, fps, titleLength):
     """
     Generates frames with name of song and its author.
@@ -116,7 +116,7 @@ def generateTitle(titleText, resolution, fps, titleLength):
     progress("TITLE: Generating title screen has ended. (%d/%d)" %
              (totalFrames, totalFrames))
     return 0
-# ------------------------------------------------------------------------------
+
 def writePaperHeader(fFile, resolution, pixelsPerMm, numOfLines):
     """
     Writes own paper block into given file.
@@ -141,7 +141,7 @@ def writePaperHeader(fFile, resolution, pixelsPerMm, numOfLines):
                 int(round((resolution[1] - 2 * (resolution[1] / 10)) / numOfLines)))
     
     return 0
-# ------------------------------------------------------------------------------
+
 def getMidiEvents(nameOfMidi):
     """
     Goes through given MIDI file and returns list of tempos, resolution,
@@ -214,7 +214,7 @@ def getMidiEvents(nameOfMidi):
     progress("MIDI: Parsing MIDI file has ended.")
     
     return (midiResolution, temposList, notesInTick, midiTicks)
-# ------------------------------------------------------------------------------
+
 def getNotePositions(pdf, loadedProject):
     """
     For every note or tie, finds every single position in the PDF file
@@ -306,7 +306,7 @@ def getNotePositions(pdf, loadedProject):
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()    
     return wantedPos, notesAndTies, pageWidth
-# ------------------------------------------------------------------------------
+
 def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pageWidth):
     """
     Goes through wantedPos separating notes and ties, and merging
@@ -383,7 +383,7 @@ def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pa
                  (wantedPos.index(page) + 1, len(wantedPos)))
 
     return notesInIndex, allNotesIndices
-# ------------------------------------------------------------------------------
+
 def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
     """
     Sequentially compares the indices of notes in the images with
@@ -442,7 +442,7 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
         notesIndices.append(notesIndicesPage)
         
     return notesIndices
-# ------------------------------------------------------------------------------
+
 def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
     Returns indices of notes in generated PNG pictures (through PDF file).
@@ -482,7 +482,7 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pageWidth)
 
     return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
-# ------------------------------------------------------------------------------
+
 def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
          notesPictures, cursorLineColor):
     """
@@ -583,7 +583,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
         progress("SYNC: Generating frames for page %d/%d has been completed. (%d/%d)" %
                  (notesIndices.index(indices) + 1, len(notesIndices),
                  frameNum, totalFrames))
-# ------------------------------------------------------------------------------
+
 def generateSilence(length):
     """
     Generates silent audio for the title screen.
@@ -625,17 +625,17 @@ def generateSilence(length):
     ]))
     fSilence.close()
     return "silence.wav"
-# ------------------------------------------------------------------------------
+
 def progress(text):
     sys.stderr.write(text + "\n")
-# ------------------------------------------------------------------------------
+
 def output_divider_line():
     progress(60 * "-")
-# ------------------------------------------------------------------------------
+
 def fatal(text, status=1):
     progress("ERROR: " + text)
     sys.exit(status)
-# ------------------------------------------------------------------------------
+
 def delete_tmp_files(paths):
     return True
     errors = 0
@@ -650,7 +650,7 @@ def delete_tmp_files(paths):
                                  (path, err))
                 errors += 1
     return (errors == 0)
-# ------------------------------------------------------------------------------
+
 def parseOptions():
     # create parser and add options
     parser = OptionParser("usage: %prog [options]")
@@ -692,13 +692,13 @@ def parseOptions():
 
     # and parse input
     return parser.parse_args()
-# ------------------------------------------------------------------------------
+
 def portableDevNull():
     if sys.platform.startswith("linux"):
         return "/dev/null"
     elif sys.platform.startswith("win"):
         return "NUL"
-# ------------------------------------------------------------------------------
+
 def findExecutableDependencies(options):
     redirectToNull = " >%s" % portableDevNull()
 
@@ -722,7 +722,7 @@ def findExecutableDependencies(options):
     output_divider_line()
 
     return ffmpeg, timidity
-# ------------------------------------------------------------------------------
+
 def getCursorLineColor(options):
     options.color = options.color.lower()
     if options.color == "black":
@@ -741,7 +741,7 @@ def getCursorLineColor(options):
         progress("WARNING: Color was not found, " +
                  'ly2video will use default one ("red").')
         return (255,0,0)
-# ------------------------------------------------------------------------------
+
 def getResolution(options):
     if options.resolution == 360:
         return (640, 360)
@@ -753,13 +753,13 @@ def getResolution(options):
         progress("WARNING: Resolution was not found, " +
                  'ly2video will use default one ("720" => 1280x720).')
         return (1280, 720)
-# ------------------------------------------------------------------------------
+
 def getOutputFile(options):
     output = options.output
     if output == None or len(output.split(".")) < 2:
         return project[:-2] + "avi"
     return output
-# ------------------------------------------------------------------------------
+
 def callFfmpeg(ffmpeg, options, output):
     fps = str(options.fps)
     # call FFmpeg (without title)
@@ -794,7 +794,6 @@ def callFfmpeg(ffmpeg, options, output):
         # delete created videos, silent audio and folder with title frames
         delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
 
-# MAIN ----------------------------------------------------------------------------------------------
 def main():
     """
     Main function of ly2video script.
@@ -1105,7 +1104,7 @@ def main():
     # end
     print("Ly2video has ended. Your generated file: " + output + ".")
     return 0  
-# ------------------------------------------------------------------------------
+
 if __name__ == '__main__':
     status = main()
     sys.exit(status)
