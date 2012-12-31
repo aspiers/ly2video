@@ -753,6 +753,46 @@ def getResolution(options):
         progress("WARNING: Resolution was not found, " +
                  'ly2video will use default one ("720" => 1280x720).')
         return (1280, 720)
+# ------------------------------------------------------------------------------
+def getOutputFile(options):
+    output = options.output
+    if output == None or len(output.split(".")) < 2:
+        return project[:-2] + "avi"
+    return output
+# ------------------------------------------------------------------------------
+def callFfmpeg(ffmpeg, options, output):
+    fps = str(options.fps)
+    # call FFmpeg (without title)
+    if not options.titleAtStart:
+        if os.system(ffmpeg + " -f image2 -r " + fps
+                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
+                     + output) != 0:
+            fatal("Calling FFmpeg has failed.", 13)
+    # call FFmpeg (with title)
+    else:
+        # create video with title
+        silentAudio = generateSilence(titleLength)
+        if os.system(ffmpeg + " -f image2 -r " + fps
+                     + " -i ./title/frame%d.png -i "
+                     + silentAudio + " -same_quant title.mpg") != 0:
+            fatal("Calling FFmpeg has failed.", 14)
+        # generate video with notes
+        if os.system(ffmpeg + " -f image2 -r " + fps
+                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
+                     + "-same_quant notes.mpg") != 0:
+            fatal("Calling FFmpeg has failed.", 15)
+        # join the files
+        if sys.platform.startswith("linux"):
+            os.system("cat title.mpg notes.mpg > video.mpg")
+        elif sys.platform.startswith("win"):
+            os.system("copy title.mpg /B + notes.mpg /B video.mpg /B")
+
+        # create output file
+        if os.system(ffmpeg + " -i video.mpg " + output) != 0:
+            fatal("Calling FFmpeg has failed.", 16)
+
+        # delete created videos, silent audio and folder with title frames
+        delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
 
 # MAIN ----------------------------------------------------------------------------------------------
 def main():
@@ -783,21 +823,15 @@ def main():
     project = options.input
     # opened project from user (pointer)
     fProject = None
-    # output file
-    output = options.output
 
     # color of middle line
     cursorLineColor = getCursorLineColor(options)
 
-    # frame rate of output video
-    fps = options.fps
-    
     # resolution of output video
     resolution = getResolution(options)
 
     # title and all about it
-    useTitle = options.titleAtStart
-    if (useTitle):
+    if options.titleAtStart:
         titleLength = options.titleDelay
     else:
         titleLength = 0
@@ -815,10 +849,6 @@ def main():
         except (IOError):
             fatal("Input project doesn't exist.", 5)
 
-    # try to check output name
-    if (output == None or len(output.split(".")) < 2):
-        output = project[:-2] + "avi"
-        
     # delete old created folders
     delete_tmp_files(["notes", "title"])
     for fileName in os.listdir("."):
@@ -1039,8 +1069,11 @@ def main():
                                    picWidth, loadedProject, midiTicks, notesInTick)
     output_divider_line()
     
+    # frame rate of output video
+    fps = options.fps
+    
     # generate title screen
-    if (useTitle):
+    if options.titleAtStart:
         generateTitle(titleText, resolution, fps, titleLength)
     output_divider_line()
 
@@ -1061,37 +1094,8 @@ def main():
     delete_tmp_files("ly2videoConvert.pdf")
     delete_tmp_files("ly2videoConvert.midi")
 
-    # call FFmpeg (without title)
-    if not useTitle:
-        if os.system(ffmpeg + " -f image2 -r " + str(fps)
-                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
-                     + output) != 0:
-            fatal("Calling FFmpeg has failed.", 13)
-    # call FFmpeg (with title)
-    else:
-        # create video with title
-        silentAudio = generateSilence(titleLength)
-        if os.system(ffmpeg + " -f image2 -r " + str(fps)
-                     + " -i ./title/frame%d.png -i "
-                     + silentAudio + " -same_quant title.mpg") != 0:
-            fatal("Calling FFmpeg has failed.", 14)
-        # generate video with notes
-        if os.system(ffmpeg + " -f image2 -r " + str(fps)
-                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
-                     + "-same_quant notes.mpg") != 0:
-            fatal("Calling FFmpeg has failed.", 15)
-        # join the files
-        if sys.platform.startswith("linux"):
-            os.system("cat title.mpg notes.mpg > video.mpg")
-        elif sys.platform.startswith("win"):
-            os.system("copy title.mpg /B + notes.mpg /B video.mpg /B")
-
-        # create output file
-        if os.system(ffmpeg + " -i video.mpg " + output) != 0:
-            fatal("Calling FFmpeg has failed.", 16)
-
-        # delete created videos, silent audio and folder with title frames
-        delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
+    output = getOutputFile(options)
+    callFfmpeg(ffmpeg, options, output)
 
     output_divider_line()
         
