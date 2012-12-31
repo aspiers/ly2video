@@ -821,6 +821,25 @@ def getLyVersion(fileName):
 
     return version
 
+def getNotesPictures(fileName):
+    notesPictures = []
+    for fileName in os.listdir("."):
+        m = re.match('ly2videoConvert(?:-page(\d+))?\.png', fileName)
+        if m:
+            progress("Found generated picture: %s" % fileName)
+            if m.group(1):
+                i = int(m.group(1))
+            else:
+                i = 1
+            newFileName = "ly2videoConvert-page%04d.png" % i
+
+            if newFileName != fileName:
+                os.rename(fileName, newFileName)
+                progress("  renamed -> %s" % newFileName)
+            notesPictures.append(newFileName)
+    notesPictures.sort()
+    return notesPictures
+
 def main():
     """
     Main function of ly2video script.
@@ -1036,22 +1055,7 @@ def main():
         delete_tmp_files(project)
 
     # find generated pictures
-    notesPictures = []
-    for fileName in os.listdir("."):
-        m = re.match('ly2videoConvert(?:-page(\d+))?\.png', fileName)
-        if m:
-            progress("Found generated picture: %s" % fileName)
-            if m.group(1):
-                i = int(m.group(1))
-            else:
-                i = 1
-            newFileName = "ly2videoConvert-page%04d.png" % i
-
-            if newFileName != fileName:
-                os.rename(fileName, newFileName)
-                progress("  renamed -> %s" % newFileName)
-            notesPictures.append(newFileName)
-    notesPictures.sort()
+    notesPictures = getNotesPictures(fileName)
     output_divider_line()
 
     # and get width of picture        
