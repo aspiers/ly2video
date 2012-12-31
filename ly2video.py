@@ -92,8 +92,8 @@ def generateTitle(titleText, resolution, fps, titleLength):
     if not os.path.exists("title"):
         os.mkdir("title")
 
-    progress("TITLE: ly2video will generate cca "
-             + str(fps * titleLength) + " frames.")
+    totalFrames = fps * titleLength
+    progress("TITLE: ly2video will generate cca %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
     nameFont = ImageFont.truetype("arial.ttf", resolution[1] / 15)
@@ -110,12 +110,11 @@ def generateTitle(titleText, resolution, fps, titleLength):
                 titleText.author, font=authorFont, fill=(0,0,0))
 
     # generate needed number of frames (= fps * titleLength)
-    for frameNum in range(fps * titleLength):
-        titleScreen.save("./title/frame" + str(frameNum) + ".png")
-        
-    progress("TITLE: Generating title screen has ended. ("
-             + str(fps * titleLength) + "/"
-             + str(fps * titleLength) + ")")
+    for frameNum in range(totalFrames):
+        titleScreen.save("./title/frame%d.png" % frameNum)
+
+    progress("TITLE: Generating title screen has ended. (%d/%d)" %
+             (totalFrames, totalFrames))
     return 0
 # ------------------------------------------------------------------------------
 def writePaperHeader(fFile, resolution, pixelsPerMm, numOfLines):
@@ -130,23 +129,16 @@ def writePaperHeader(fFile, resolution, pixelsPerMm, numOfLines):
     """
 
     fFile.write("\\paper {\n")
-    fFile.write("   paper-width = "
-                + str(round(10 * resolution[0] * pixelsPerMm)) + "\\mm\n")
-    fFile.write("   paper-height = "
-                + str(round(resolution[1] * pixelsPerMm)) + "\\mm\n")
-    fFile.write("   top-margin = "
-                + str(round(resolution[1] * pixelsPerMm / 20)) + "\\mm\n")
-    fFile.write("   bottom-margin = "
-                + str(round(resolution[1] * pixelsPerMm / 20)) + "\\mm\n")
-    fFile.write("   left-margin = "
-                + str(round(resolution[0] * pixelsPerMm / 2)) + "\\mm\n")
-    fFile.write("   right-margin = "
-                + str(round(resolution[0] * pixelsPerMm / 2)) + "\\mm\n")
+    fFile.write("   paper-width   = %d\\mm\n" % round(10 * resolution[0] * pixelsPerMm))
+    fFile.write("   paper-height  = %d\\mm\n" % round(resolution[1] * pixelsPerMm))
+    fFile.write("   top-margin    = %d\\mm\n" % round(resolution[1] * pixelsPerMm / 20))
+    fFile.write("   bottom-margin = %d\\mm\n" % round(resolution[1] * pixelsPerMm / 20))
+    fFile.write("   left-margin   = %d\\mm\n" % round(resolution[0] * pixelsPerMm / 2))
+    fFile.write("   right-margin  = %d\\mm\n" % round(resolution[0] * pixelsPerMm / 2))
     fFile.write("   print-page-number = ##f\n")
     fFile.write("}\n")
-    fFile.write("#(set-global-staff-size "
-                + str(int(round((resolution[1] - 2 * (resolution[1] / 10)) / numOfLines)))
-                + ")\n\n")
+    fFile.write("#(set-global-staff-size %d)\n\n" %
+                int(round((resolution[1] - 2 * (resolution[1] / 10)) / numOfLines)))
     
     return 0
 # ------------------------------------------------------------------------------
@@ -323,11 +315,11 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
                             notesAndTies.add((int(linkLy[0]), int(linkLy[1])))
                 #if there is some error, write that statement and exit
                 except Exception as err:
-                    fatal("PDF: " + str(err) + "\n"
-                          + "ly2video was trying to work with this: \""
-                          + loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1]
-                          + "\", coords in LY (" + str((int(linkLy[0]), int(linkLy[1])))
-                          + ").")
+                    fatal(("PDF: %s\n"
+                           + "ly2video was trying to work with this: "
+                           + "\"%s\", coords in LY (line %d char %d).") %
+                          (err, loadedProject[int(linkLy[0]) - 1][int(linkLy[1]):][:-1],
+                           linkLy[0], linkLy[1]))
                     
             # sort wanted positions on that page and add it into whole wanted positions
             wantedPosPage.sort()
@@ -403,8 +395,8 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         notesInIndex.append(notesInIndexPage)
         allNotesIndices.append(notesIndicesPage)
         
-        progress("PDF: Page " + str(wantedPos.index(page) + 1) + "/"
-                 + str(len(wantedPos)) + " has been completed.")
+        progress("PDF: Page %d/%d has been completed." %
+                 (wantedPos.index(page) + 1, len(wantedPos)))
 
     # notesIndices = final indices of notes
     notesIndices = []
@@ -421,7 +413,7 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
             # if runs out of midi indices, then exit
             if midiIndex == len(midiTicks):
                 fatal("ly2video don't have enough MIDI indices. "
-                      + "Current PDF index: " + str(index) + ".")
+                      + "Current PDF index: %d" % index)
                 
             # skip next index
             if skip:
@@ -492,8 +484,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
 
     totalFrames = int(round(((temposList[tempoIndex][1] * 1.0)
                         / midiResolution * (midiTicks[-1]) / 1000000 * fps)))
-    progress("SYNC: ly2video will generate cca "
-             + str(totalFrames) + " frames.")
+    progress("SYNC: ly2video will generate cca %d frames." % totalFrames)
 
     dropFrame = 0.0
     
@@ -549,13 +540,12 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
                         frame.putpixel(((resolution[0] / 2) + 1, pixel), color)
 
                     # save that frame
-                    frame.save("./notes/frame" + str(frameNum) + ".png")
+                    frame.save("./notes/frame%d.png" % frameNum)
                     frameNum += 1
 
-        progress("SYNC: Generating frames for page "
-                 + str(notesIndices.index(indices) + 1) + "/"
-                 + str(len(notesIndices)) + " has been completed. ("
-                 + str(frameNum) + "/" + str(totalFrames) + ")")
+        progress("SYNC: Generating frames for page %d/%d has been completed. (%d/%d)" %
+                 (notesIndices.index(indices) + 1, len(notesIndices),
+                 frameNum, totalFrames))
 # ------------------------------------------------------------------------------
 def generateSilence(length):
     """
@@ -987,7 +977,7 @@ def main():
     try:
         midiResolution, temposList, notesInTick, midiTicks = getMidiEvents("ly2videoConvert.midi")
     except Exception as err:
-        fatal("MIDI: " + str(err), 10)
+        fatal("MIDI: %s " % err, 10)
         
     output_divider_line()
 
