@@ -795,6 +795,32 @@ def callFfmpeg(ffmpeg, options, output):
         # delete created videos, silent audio and folder with title frames
         delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
 
+def getLyVersion(fileName):
+    # if I don't have input file, end  
+    if fileName == None:
+        fatal("LilyPond input file was not specified.", 4)
+    else:
+        # otherwise try to open fileName
+        try:
+            fProject = open(fileName, "r") 
+        except IOError:
+            fatal("Couldn't read %s" % fileName, 5)
+
+    # find version of LilyPond in input project
+    version = ""
+    for line in fProject.readlines():
+        if line.find("\\version") != -1:
+            parser = Tokenizer()
+            for token in parser.tokens(line):
+                if token.__class__.__name__ == "StringQuoted":
+                    version = str(token)[1:-1]
+                    break
+            if version != "":
+                break
+    fProject.close()
+
+    return version
+
 def main():
     """
     Main function of ly2video script.
@@ -819,11 +845,6 @@ def main():
 
     ffmpeg, timidity = findExecutableDependencies(options)
 
-    # input project from user (string)
-    project = options.input
-    # opened project from user (pointer)
-    fProject = None
-
     # color of middle line
     cursorLineColor = getCursorLineColor(options)
 
@@ -839,16 +860,6 @@ def main():
     titleText.name = "<name of song>"
     titleText.author = "<author>"
 
-    # if I don't have input file, end  
-    if (project == None):
-        fatal("Input project was not found.", 4)
-    else:
-        # otherwise try to open project
-        try:
-            fProject = open(project, "r") 
-        except (IOError):
-            fatal("Input project doesn't exist.", 5)
-
     # delete old created folders
     delete_tmp_files(["notes", "title"])
     for fileName in os.listdir("."):
@@ -862,23 +873,15 @@ def main():
     # prepinac set-global-staff-size
     sirka = int(round(resolution[0] * pixelsInMm)) # základní šířka
 
-    # find version of LilyPond in input project
-    version = ""
-    for line in fProject.readlines():
-        if (line.find("\\version") != -1):
-            parser = Tokenizer()
-            for token in parser.tokens(line):
-                if token.__class__.__name__ == "StringQuoted":
-                    version = str(token)[1:-1]
-                    break
-            if version != "":
-                break
-    fProject.close()
-    
+    # input project from user (string)
+    project = options.input
+
     # if it's not 2.14.2, try to convert it
-    if version != "2.14.2":
+    versionConversion = False
+    if getLyVersion(project) != "2.14.2":
         if os.system("convert-ly " + project + " > newProject.ly") == 0:
             project = "newProject.ly"
+            versionConversion = True
         else:
             progress("WARNING: Convert of input file has failed, " +
                      "there can be some errors.")
@@ -1029,8 +1032,8 @@ def main():
     # delete created project
     delete_tmp_files("ly2videoConvert.ly")
     # and try to delete converted project
-    if version != "2.14.2":
-        delete_tmp_files("newProjekt.ly")
+    if versionConversion:
+        delete_tmp_files(project)
 
     # find generated pictures
     notesPictures = []
