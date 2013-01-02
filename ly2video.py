@@ -46,9 +46,9 @@ def lineIndices(picture, lineLength):
                     # else it can be
                     firstLinePos = (x, y)
             # when have a valid position, break out
-            if (firstLinePos != (-1, -1)):
+            if firstLinePos != (-1, -1):
                 break
-        if (firstLinePos != (-1, -1)):
+        if firstLinePos != (-1, -1):
             break
 
     # adding 3 pixels to avoid line of pixels connectings all staffs together
@@ -60,7 +60,7 @@ def lineIndices(picture, lineLength):
     # for every pixel in range (height of first line, height of picture)
     for height in range(firstLinePos[1], fPicture.size[1]):
         # if color of that pixel isn't white
-        if (fPicture.getpixel((firstLinePos[0], height)) != (255,255,255)):
+        if fPicture.getpixel((firstLinePos[0], height)) != (255,255,255):
             # and it can be new staff line
             if newLine:
                 # accept it
@@ -194,7 +194,7 @@ def getMidiEvents(nameOfMidi):
             # if it's NoteOnEvent
             if isinstance(event, midi.NoteOnEvent):
                 # and velocity is not zero (that's basically "NoteOffEvent")
-                if (event.data[1] != 0):
+                if event.data[1] != 0:
                     # add it into notesInTick
                     if notesInTick.get(event.tick) == None:
                         notesInTick[event.tick] = 1
@@ -210,7 +210,7 @@ def getMidiEvents(nameOfMidi):
     # through ever channel
     for eventsList in midiFile[1:]:
         if isinstance(eventsList[-1], midi.EndOfTrackEvent):
-            if (endOfTrack < eventsList[-1].tick):
+            if endOfTrack < eventsList[-1].tick:
                 endOfTrack = eventsList[-1].tick
     midiTicks.append(endOfTrack)
     
@@ -336,7 +336,7 @@ def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pa
             token = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
 
             # if it's note
-            if (token.__class__.__name__ == "PitchWord"):
+            if token.__class__.__name__ == "PitchWord":
                 # if it's silent note, then remove it and ignore it
                 if linkLy in silentNotes:
                     silentNotes.remove(linkLy)
@@ -542,8 +542,8 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
             endMidi = midiTicks[midiIndex]
 
             # if there's gonna be change in tempo, change it
-            if (tempoIndex != (len(temposList) - 1)):
-                if (startMidi == temposList[tempoIndex + 1][0]):
+            if tempoIndex != (len(temposList) - 1):
+                if startMidi == temposList[tempoIndex + 1][0]:
                     tempoIndex += 1
 
 
@@ -560,7 +560,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
             
             for posun in range(realFrames):
                 # if I need drop more than "1.0" frames, drop one
-                if (dropFrame >= 1.0):
+                if dropFrame >= 1.0:
                     dropFrame -= 1.0
                     continue
                 else:
@@ -705,19 +705,19 @@ def portableDevNull():
 def findExecutableDependencies(options):
     redirectToNull = " >%s" % portableDevNull()
 
-    if (os.system("lilypond -v" + redirectToNull) != 0):
+    if os.system("lilypond -v" + redirectToNull) != 0:
         fatal("LilyPond was not found.", 1)
     else:
         progress("LilyPond was found.")
 
     ffmpeg = options.winFfmpeg + "ffmpeg"
-    if (os.system(ffmpeg + " -version" + redirectToNull) != 0):
+    if os.system(ffmpeg + " -version" + redirectToNull) != 0:
         fatal("FFmpeg was not found (maybe use --windows-ffmpeg?).", 2)
     else:
         progress("FFmpeg was found.")
 
     timidity = options.winTimidity + "timidity"
-    if (os.system(timidity + " -v" + redirectToNull) != 0):
+    if os.system(timidity + " -v" + redirectToNull) != 0:
         fatal("TiMidity++ was not found (maybe use --windows-timidity?).", 3)
     else:
         progress("TiMidity++ was found.")
@@ -730,15 +730,15 @@ def getCursorLineColor(options):
     options.color = options.color.lower()
     if options.color == "black":
         return (0,0,0)
-    elif (options.color == "yellow"):
+    elif options.color == "yellow":
         return (255,255,0)
-    elif (options.color == "red"):
+    elif options.color == "red":
         return (255,0,0)
-    elif (options.color == "green"):
+    elif options.color == "green":
         return (0,128,0)
-    elif (options.color == "blue"):
+    elif options.color == "blue":
         return (0,0,255)
-    elif (options.color == "brown"):
+    elif options.color == "brown":
         return (165,42,42)
     else:
         progress("WARNING: Color was not found, " +
@@ -862,7 +862,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText):
         # if the line is done
         done = False
 
-        if (line.find("\\partial") != -1):
+        if line.find("\\partial") != -1:
             progress('WARNING: Ly2video has found "\\partial" command ' +
                      "in your project. There can be some errors.")
 
@@ -874,7 +874,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText):
             line = fProject.readline()
 
         # if I find version, write own paper block right behind it
-        if (line.find("\\version") != -1):
+        if line.find("\\version") != -1:
             done = True
             fMyProject.write(line)
             writePaperHeader(fMyProject, resolution, numStaffLines)
@@ -888,9 +888,9 @@ def sanitiseLy(project, resolution, numStaffLines, titleText):
                 
             done = True
             
-            if (line.find("title = ") != -1):
+            if line.find("title = ") != -1:
                 titleText.name = line.split("=")[-1].strip()[1:-1]
-            if (line.find("composer = ") != -1):
+            if line.find("composer = ") != -1:
                 titleText.author = line.split("=")[-1].strip()[1:-1]
             
             for znak in line:
@@ -922,19 +922,19 @@ def sanitiseLy(project, resolution, numStaffLines, titleText):
             fMyProject.write(line + " \\unfoldRepeats\n")
 
         # parse other lines, ignore page breaking commands and articulate
-        if (not headerPart and not paperPart and not done):
+        if not headerPart and not paperPart and not done:
             finalLine = ""
             
-            if (line.find("\\break") != -1):
+            if line.find("\\break") != -1:
                 finalLine = (line[:line.find("\\break")]
                              + line[line.find("\\break") + len("\\break"):])
-            elif (line.find("\\noBreak") != -1):
+            elif line.find("\\noBreak") != -1:
                 finalLine = (line[:line.find("\\noBreak")]
                              + line[line.find("\\noBreak") + len("\\noBreak"):])
-            elif (line.find("\\pageBreak") != -1):
+            elif line.find("\\pageBreak") != -1:
                 finalLine = (line[:line.find("\\pageBreak")]
                              + line[line.find("\\pageBreak") + len("\\pageBreak"):])
-            elif (line.find("\\articulate") != -1):
+            elif line.find("\\articulate") != -1:
                 finalLine = (line[:line.find("\\articulate")]
                              + line[line.find("\\articulate") + len("\\articulate"):])
             else:
