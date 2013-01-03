@@ -453,7 +453,7 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
         
     return notesIndices
 
-def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
     Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
@@ -1094,8 +1094,8 @@ def main():
     output_divider_line()
 
     # find notes indices
-    notesIndices = getNotesIndices("ly2videoConvert.pdf",
-                                   picWidth, loadedProject, midiTicks, notesInTick)
+    notesIndices = getNoteIndices("ly2videoConvert.pdf",
+                                  picWidth, loadedProject, midiTicks, notesInTick)
     output_divider_line()
     
     # frame rate of output video
