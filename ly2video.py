@@ -326,12 +326,12 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
     which are within +/- 10 pixels of each other.
 
     Returns:
-    - notesInIndex: a list of hashes, one per page, mapping each index
-                    to how many notes are at that index
+    - indexNoteCountByPage: a list of dicts, one per page, mapping each index
+                            to how many notes are at that index
     - allNotesIndices: a list of sorted lists, one per page, containing
                        all the indices on that page in order
     """
-    notesInIndex = []
+    indexNoteCountByPage = []
     allNotesIndices = []
 
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
@@ -391,15 +391,15 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 skipNext = True
 
         # stores info about this page        
-        notesInIndex.append(indexNoteCountInPage)
+        indexNoteCountByPage.append(indexNoteCountInPage)
         allNotesIndices.append(noteIndicesInPage)
         
         progress("PDF: Page %d/%d has been completed." %
                  (pageNum + 1, len(notePositionsByPage)))
 
-    return notesInIndex, allNotesIndices
+    return indexNoteCountByPage, allNotesIndices
 
-def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
+def compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick):
     """
     Sequentially compares the indices of notes in the images with
     indices in the MIDI: the first position in the MIDI with the first
@@ -433,16 +433,16 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
             if (notesInTick.get(midiTicks[midiIndex])
-                <= notesInIndex[allNotesIndices.index(page)].get(index)):
+                <= indexNoteCountByPage[allNotesIndices.index(page)].get(index)):
                 # add that index
                 noteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
                 if index != page[-1]:
                     # get number of notes in right index
-                    rightIndex = notesInIndex[allNotesIndices.index(page)].get(page[page.index(index) + 1])
+                    rightIndex = indexNoteCountByPage[allNotesIndices.index(page)].get(page[page.index(index) + 1])
                     # compare them and get add that with more notes
-                    if notesInIndex[allNotesIndices.index(page)].get(index) >= rightIndex:
+                    if indexNoteCountByPage[allNotesIndices.index(page)].get(index) >= rightIndex:
                         noteIndicesInPage.append(index)
                     else:
                         noteIndicesInPage.append(page[page.index(index) + 1])
@@ -493,10 +493,10 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     notePositionsByPage, notesAndTies, pageWidth = \
         getNotePositions(pdf, loadedProject)
 
-    notesInIndex, allNotesIndices = \
+    indexNoteCountByPage, allNotesIndices = \
         getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
-    return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
+    return compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick)
 
 def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPage,
          notesImages, cursorLineColor):
