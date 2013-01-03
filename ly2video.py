@@ -220,24 +220,29 @@ def getMidiEvents(nameOfMidi):
 
 def getNotePositions(pdf, loadedProject):
     """
-    For every note or tie, finds every single position in the PDF file
-    and in the *.ly code, and returns those positions in the wantedPos
-    and notesAndTies structures, along with the width of the first
-    page (all pages are assumed to have the same width).
+    For every link annotation in the PDF file which is a link to the
+    SANITISED_LY file we generated, store the coordinates of the
+    annotated rectangle and also the line and column number it points
+    to in the SANITISED_LY file.
+
+    Returns:
+    - notesAndTies: a list of (lineNum, charNum) tuples sorted by
+      line number in SANITISED_LY
+    - wantedPos: a list with each top-level item representing a page,
+      where each page is a list of ((lineNum, charNum), coords) tuples.
+      coords is (x1, y1, x2, y2) representing opposite corners of
+      the rectangle.
+    - pageWidth: the width of the first page (all pages are
+      assumed to have the same width)
     """
 
     # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdf, "rb")
     pdfFile = PdfFileReader(fPdf) 
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
+    print "width of first PDF page is %f" % pageWidth
 
-    # Stores positions of notes and ties in .ly file.
-    # Forms a list of (lineNum, charNum) tuples sorted by line number in *.ly.
     notesAndTies = set()
-
-    # Stores wanted positions (notes and ties) in .ly and PDF
-    # file.  Forms a list with each top-level item representing a page,
-    # and each page is a list of ((lineNum, charNum), coords) tuples.
     wantedPos = []
     
     for pageNumber in range(pdfFile.getNumPages()):
@@ -255,8 +260,10 @@ def getNotePositions(pdf, loadedProject):
             wantedPosPage = []
             
             for link in links:
-                # get coordinates of that link
+                # Get (x1, y1, x2, y2) coordinates of opposite corners
+                # of the annotated rectangle
                 coords = link.getObject()['/Rect']
+
                 # if it's not link into ly2videoConvert.ly, then ignore it
                 if link.getObject()['/A']['/URI'].find(SANITISED_LY) == -1:
                     continue
@@ -342,8 +349,8 @@ def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pa
                     silentNotes.remove(linkLy)
                     continue
                 # otherwise get its index in pixels
-                noteIndex = int(round((float((coords[0] / pageWidth * imageWidth)
-                                             + (coords[2] / pageWidth * imageWidth))) / 2))
+                xcenter = (coords[0] + coords[2]) / 2
+                noteIndex = int(round(xcenter * imageWidth / pageWidth))
                 # add that index into indices
                 if notesInIndexPage.get(noteIndex) == None:
                     notesInIndexPage[noteIndex] = 1
@@ -448,14 +455,15 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
 
 def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
-    Returns indices of notes in generated PNG pictures (through PDF file).
-    Assumes that the PDF file was generated with -dpoint-and-click.
+    Returns indices of notes in generated PNG pictures (through PDF
+    file).  A note's index is the x-coordinate of its center in the
+    PNG image containing it.  This relies on the fact that the PDF
+    file was generated with -dpoint-and-click.
 
-    Iterates through PDF pages:
+    It iterates through PDF pages:
 
     - first pass: finds the position in the PDF file and in the *.ly
-      code of every note or tie, and stores it in the wantedPos and
-      notesAndTies structures.
+      code of every note or tie
 
     - second pass: goes through wantedPos separating notes and
       ties and merging near indices (e.g. 834, 835, 833, ...)
@@ -1056,9 +1064,12 @@ def main():
     notesPictures = getNotesPictures(fileName)
     output_divider_line()
 
-    # and get width of picture        
+    # Get width of first image (we assume all have the same width).
+    # This will allow us to convert PDF coordinates into dimensions
+    # measured in pixels.
     tmpPicture = Image.open(notesPictures[0])
     picWidth = tmpPicture.size[0]
+    print "width of %s is %d pixels" % (notesPictures[0], picWidth)
     del tmpPicture
 
     # find needed data in MIDI
