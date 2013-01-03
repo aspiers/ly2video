@@ -228,7 +228,7 @@ def getNotePositions(pdf, loadedProject):
     Returns:
     - notesAndTies: a list of (lineNum, charNum) tuples sorted by
       line number in SANITISED_LY
-    - wantedPos: a list with each top-level item representing a page,
+    - notePositionsByPage: a list with each top-level item representing a page,
       where each page is a list of ((lineNum, charNum), coords) tuples.
       coords is (x1, y1, x2, y2) representing opposite corners of
       the rectangle.
@@ -243,7 +243,7 @@ def getNotePositions(pdf, loadedProject):
     print "width of first PDF page is %f" % pageWidth
 
     notesAndTies = set()
-    wantedPos = []
+    notePositionsByPage = []
     
     for pageNumber in range(pdfFile.getNumPages()):
         # get informations about page
@@ -257,7 +257,7 @@ def getNotePositions(pdf, loadedProject):
             links = info['/Annots']
 
             # stores wanted positions on single page
-            wantedPosPage = []
+            notePositionsInPage = []
             
             for link in links:
                 # Get (x1, y1, x2, y2) coordinates of opposite corners
@@ -295,7 +295,7 @@ def getNotePositions(pdf, loadedProject):
                         if ((note.__class__.__name__ == "PitchWord" and str(note) not in "rR")
                             or (note.find("~") != -1)):
                             # add it
-                            wantedPosPage.append(((lineNum, charNum), coords))
+                            notePositionsInPage.append(((lineNum, charNum), coords))
                             notesAndTies.add((lineNum, charNum))
                 #if there is some error, write that statement and exit
                 except Exception as err:
@@ -306,8 +306,8 @@ def getNotePositions(pdf, loadedProject):
                            lineNum, charNum))
 
             # sort wanted positions on that page and add it into whole wanted positions
-            wantedPosPage.sort()
-            wantedPos.append(wantedPosPage)
+            notePositionsInPage.sort()
+            notePositionsByPage.append(notePositionsInPage)
 
     # close PDF file
     fPdf.close()
@@ -315,11 +315,11 @@ def getNotePositions(pdf, loadedProject):
     # create list of notes and ties and sort it        
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()    
-    return wantedPos, notesAndTies, pageWidth
+    return notePositionsByPage, notesAndTies, pageWidth
 
-def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pageWidth):
+def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth):
     """
-    Goes through wantedPos separating notes and ties, and merging
+    Goes through notePositionsByPage separating notes and ties, and merging
     near indices.
     """
     # how many notes are in one position
@@ -328,7 +328,7 @@ def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pa
     # indices of all notes in image (from now on in pixels)
     allNotesIndices = []
 
-    for page in wantedPos: 
+    for page in notePositionsByPage: 
         parser = Tokenizer()
         # how many notes are in one position (on one page)
         notesInIndexPage = dict()
@@ -390,7 +390,7 @@ def separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pa
         allNotesIndices.append(notesIndicesPage)
         
         progress("PDF: Page %d/%d has been completed." %
-                 (wantedPos.index(page) + 1, len(wantedPos)))
+                 (notePositionsByPage.index(page) + 1, len(notePositionsByPage)))
 
     return notesInIndex, allNotesIndices
 
@@ -465,7 +465,7 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     - first pass: finds the position in the PDF file and in the *.ly
       code of every note or tie
 
-    - second pass: goes through wantedPos separating notes and
+    - second pass: goes through notePositionsByPage separating notes and
       ties and merging near indices (e.g. 834, 835, 833, ...)
 
     Then it sequentially compares the indices of the images with
@@ -486,11 +486,11 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     - notesInTick:      how many notes starts in each tick
     """
 
-    wantedPos, notesAndTies, pageWidth = \
+    notePositionsByPage, notesAndTies, pageWidth = \
         getNotePositions(pdf, loadedProject)
 
     notesInIndex, allNotesIndices = \
-        separateNotesFromTies(wantedPos, notesAndTies, loadedProject, imageWidth, pageWidth)
+        separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
     return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
 
