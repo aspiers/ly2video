@@ -366,28 +366,28 @@ def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imag
                     silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
 
         # gets all indices on one page and sort it
-        notesIndicesPage = notesInIndexPage.keys()
-        notesIndicesPage.sort()
+        noteIndicesInPage = notesInIndexPage.keys()
+        noteIndicesInPage.sort()
 
         # merges near indices
         skip = False
-        for index in notesIndicesPage[:-1]:
+        for index in noteIndicesInPage[:-1]:
             if skip:
                 skip = False
                 continue
             # gets next index
-            tmp = notesIndicesPage[notesIndicesPage.index(index) + 1]
+            tmp = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
             # if this index is in its range +/- 10 pixels
             if index in range(tmp - 10, tmp + 10):
                 # merges them and remove next index
                 notesInIndexPage[index] += notesInIndexPage.get(tmp)
                 notesInIndexPage.pop(tmp)
-                notesIndicesPage.remove(tmp)
+                noteIndicesInPage.remove(tmp)
                 skip = True
 
         # stores info about this page        
         notesInIndex.append(notesInIndexPage)
-        allNotesIndices.append(notesIndicesPage)
+        allNotesIndices.append(noteIndicesInPage)
         
         progress("PDF: Page %d/%d has been completed." %
                  (notePositionsByPage.index(page) + 1, len(notePositionsByPage)))
