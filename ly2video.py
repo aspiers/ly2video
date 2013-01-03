@@ -850,6 +850,18 @@ def getNotesPictures(fileName):
     notesPictures.sort()
     return notesPictures
 
+def getPictureWidth(notesPictures):
+    """
+    Get width of first image in pixels (we assume they all have the
+    same width).  This will allow us to convert PDF coordinates into
+    dimensions measured in pixels.
+    """
+    tmpPicture = Image.open(notesPictures[0])
+    picWidth = tmpPicture.size[0]
+    print "width of %s is %d pixels" % (notesPictures[0], picWidth)
+    del tmpPicture
+    return picWidth
+
 def sanitiseLy(project, resolution, numStaffLines, titleText):
     fProject = open(project, "r")
 
@@ -1063,14 +1075,7 @@ def main():
     # find generated pictures
     notesPictures = getNotesPictures(fileName)
     output_divider_line()
-
-    # Get width of first image (we assume all have the same width).
-    # This will allow us to convert PDF coordinates into dimensions
-    # measured in pixels.
-    tmpPicture = Image.open(notesPictures[0])
-    picWidth = tmpPicture.size[0]
-    print "width of %s is %d pixels" % (notesPictures[0], picWidth)
-    del tmpPicture
+    picWidth = getPictureWidth(notesPictures)
 
     # find needed data in MIDI
     try:
