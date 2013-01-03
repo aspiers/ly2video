@@ -215,36 +215,12 @@ def getMidiEvents(nameOfMidi):
     
     return (midiResolution, temposList, notesInTick, midiTicks)
 # ------------------------------------------------------------------------------
-def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+def getNotePositions(pdf, loadedProject):
     """
-    Returns indices of notes in generated PNG pictures (through PDF file).
-    Assumes that the PDF file was generated with -dpoint-and-click.
-
-    Iterates through PDF pages:
-
-    - first pass: for every note or tie, finds every single
-      position in the PDF file and in the *.ly code, and stores it in
-      the wantedPos and notesAndTies structures.
-
-    - second pass: goes through wantedPos separating notes and
-      ties and merging near indices (e.g. 834, 835, 833, ...)
-
-    Then it sequentially compares the indices of the images with
-    indices in the MIDI: the first position in the MIDI with the first
-    position on the image.  If it's equal, then it's OK.  If not, then
-    it skips to the next position on image (see getMidiEvents(), part
-    notesInTick).  Then it compares the next image index with MIDI
-    index, and so on.
-
-    notesIndices is the final structure with final notes' indices on
-    PNG image.
-
-    Params:
-    - pdf:              name of generated PDF file (string)
-    - imageWidth:       width of PNG file(s) 
-    - loadedProject:    loaded *.ly file in memory (list)
-    - midiTicks:        all ticks with notes in MIDI file
-    - notesInTick:      how many notes starts in each tick
+    For every note or tie, finds every single position in the PDF file
+    and in the *.ly code, and returns those positions in the wantedPos
+    and notesAndTies structures, along with the width of the first
+    page (all pages are assumed to have the same width).
     """
 
     # open PDF file with external library and gets width of page (in PDF measures)
@@ -322,10 +298,48 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
             # sort wanted positions on that page and add it into whole wanted positions
             wantedPosPage.sort()
             wantedPos.append(wantedPosPage)
-            
+
+    # close PDF file
+    fPdf.close()
+
     # create list of notes and ties and sort it        
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()    
+    return wantedPos, notesAndTies, pageWidth
+# ------------------------------------------------------------------------------
+def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+    """
+    Returns indices of notes in generated PNG pictures (through PDF file).
+    Assumes that the PDF file was generated with -dpoint-and-click.
+
+    Iterates through PDF pages:
+
+    - first pass: for every note or tie, finds every single
+      position in the PDF file and in the *.ly code, and stores it in
+      the wantedPos and notesAndTies structures.
+
+    - second pass: goes through wantedPos separating notes and
+      ties and merging near indices (e.g. 834, 835, 833, ...)
+
+    Then it sequentially compares the indices of the images with
+    indices in the MIDI: the first position in the MIDI with the first
+    position on the image.  If it's equal, then it's OK.  If not, then
+    it skips to the next position on image (see getMidiEvents(), part
+    notesInTick).  Then it compares the next image index with MIDI
+    index, and so on.
+
+    notesIndices is the final structure with final notes' indices on
+    PNG image.
+
+    Params:
+    - pdf:              name of generated PDF file (string)
+    - imageWidth:       width of PNG file(s)
+    - loadedProject:    loaded *.ly file in memory (list)
+    - midiTicks:        all ticks with notes in MIDI file
+    - notesInTick:      how many notes starts in each tick
+    """
+
+    wantedPos, notesAndTies, pageWidth = getNotePositions(pdf, loadedProject)
 
     # how many notes are in one position
     notesInIndex = []
@@ -444,9 +458,6 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         # add indices on one page into final notesIndices
         notesIndices.append(notesIndicesPage)
         
-    # close PDF file
-    fPdf.close()
-    
     return notesIndices
 # ------------------------------------------------------------------------------
 def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
