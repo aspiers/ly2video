@@ -370,10 +370,10 @@ def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imag
         noteIndicesInPage.sort()
 
         # merges indices within +/- 10 pixels of each other
-        skip = False
+        skipNext = False
         for index in noteIndicesInPage[:-1]:
-            if skip:
-                skip = False
+            if skipNext:
+                skipNext = False
                 continue
             # gets next index
             nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
@@ -382,7 +382,7 @@ def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imag
                 notesInIndexPage[index] += notesInIndexPage.get(nextIndex)
                 notesInIndexPage.pop(nextIndex)
                 noteIndicesInPage.remove(nextIndex)
-                skip = True
+                skipNext = True
 
         # stores info about this page        
         notesInIndex.append(notesInIndexPage)
