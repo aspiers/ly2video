@@ -539,7 +539,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPa
     progress("SYNC: ly2video will generate cca %d frames." % totalFrames)
 
     dropFrame = 0.0
-    
+
     for pageNum, indices in enumerate(noteIndicesByPage):
         # open image of staff
         notesPic = Image.open(notesImages[pageNum])
