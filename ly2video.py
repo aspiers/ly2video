@@ -831,7 +831,7 @@ def getLyVersion(fileName):
 
     return version
 
-def getNotesImages(fileName):
+def getNoteImages(fileName):
     """
     Returns a sorted list of the generated PNG files.
     """
@@ -1081,7 +1081,7 @@ def main():
         delete_tmp_files(project)
 
     # find generated images
-    notesImages = getNotesImages(fileName)
+    notesImages = getNoteImages(fileName)
     output_divider_line()
     picWidth = getImageWidth(notesImages)
 
