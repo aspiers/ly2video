@@ -475,8 +475,7 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     notesInTick).  Then it compares the next image index with MIDI
     index, and so on.
 
-    notesIndices is the final structure with final notes' indices on
-    PNG image.
+    Returns a list of note indices in the PNG image, grouped by page.
 
     Params:
     - pdf:              name of generated PDF file (string)
@@ -494,7 +493,7 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
 
     return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
 
-def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
+def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPage,
          notesImages, cursorLineColor):
     """
     Generates frames for the final video, synchronized with audio.
@@ -508,14 +507,14 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
     skips generating one frame.
 
     Params:
-    - midiResolution:   resolution of MIDI file
-    - temposList:       list of possible tempos in MIDI
-    - midiTicks:        list of ticks with NoteOnEvent
-    - resolution:       resolution of generated frames (and video)
-    - fps:              frame rate of video
-    - notesIndices:     indices of notes in picutres
-    - notesImages:      names of that images (list of strings)
-    - cursorLineColor:  color of middle line
+    - midiResolution:    resolution of MIDI file
+    - temposList:        list of possible tempos in MIDI
+    - midiTicks:         list of ticks with NoteOnEvent
+    - resolution:        resolution of generated frames (and video)
+    - fps:               frame rate of video
+    - noteIndicesByPage: indices of notes in pictures
+    - notesImages:       names of that images (list of strings)
+    - cursorLineColor:   color of middle line
     """
 
     midiIndex = 0
@@ -532,9 +531,9 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
 
     dropFrame = 0.0
     
-    for indices in notesIndices:
+    for pageNum, indices in enumerate(noteIndicesByPage):
         # open image of staff
-        notesPic = Image.open(notesImages[notesIndices.index(indices)]) 
+        notesPic = Image.open(notesImages[pageNum])
 
         # add index for the last note
         indices.append(indices[-1])
@@ -592,8 +591,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
         print
 
         progress("SYNC: Generating frames for page %d/%d has been completed. (%d/%d)" %
-                 (notesIndices.index(indices) + 1, len(notesIndices),
-                 frameNum, totalFrames))
+                 (pageNum + 1, len(noteIndicesByPage), frameNum, totalFrames))
 
 def generateSilence(length):
     """
