@@ -566,7 +566,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPa
             # how many frames do I need?
             neededFrames = ((temposList[tempoIndex][1] * 1.0) / midiResolution
                             * (endMidi - startMidi) / 1000000 * fps)
-            # how mane frames can be generated?
+            # how many frames can be generated?
             realFrames = int(round(neededFrames))
             # add that difference between needed and real value into dropFrame
             dropFrame += (realFrames - neededFrames)
