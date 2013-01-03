@@ -328,7 +328,7 @@ def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imag
     # indices of all notes in image (from now on in pixels)
     allNotesIndices = []
 
-    for page in notePositionsByPage: 
+    for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
         parser = Tokenizer()
         # how many notes are in one position (on one page)
         notesInIndexPage = dict()
@@ -337,7 +337,7 @@ def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imag
         # a MIDI NoteOn event
         silentNotes = []
 
-        for (linkLy, coords) in page:
+        for (linkLy, coords) in notePositionsInPage:
             lineNum, charNum = linkLy
             # get that token
             token = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
@@ -390,7 +390,7 @@ def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imag
         allNotesIndices.append(noteIndicesInPage)
         
         progress("PDF: Page %d/%d has been completed." %
-                 (notePositionsByPage.index(page) + 1, len(notePositionsByPage)))
+                 (pageNum + 1, len(notePositionsByPage)))
 
     return notesInIndex, allNotesIndices
 
