@@ -328,11 +328,11 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
     Returns:
     - indexNoteCountByPage: a list of dicts, one per page, mapping each index
                             to how many notes are at that index
-    - allNotesIndices: a list of sorted lists, one per page, containing
-                       all the indices on that page in order
+    - noteIndicesByPage: a list of sorted lists, one per page, containing
+                         all the indices on that page in order
     """
     indexNoteCountByPage = []
-    allNotesIndices = []
+    noteIndicesByPage = []
 
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
         parser = Tokenizer()
@@ -392,14 +392,14 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
 
         # stores info about this page        
         indexNoteCountByPage.append(indexNoteCountInPage)
-        allNotesIndices.append(noteIndicesInPage)
+        noteIndicesByPage.append(noteIndicesInPage)
         
         progress("PDF: Page %d/%d has been completed." %
                  (pageNum + 1, len(notePositionsByPage)))
 
-    return indexNoteCountByPage, allNotesIndices
+    return indexNoteCountByPage, noteIndicesByPage
 
-def compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick):
+def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTick):
     """
     Sequentially compares the indices of notes in the images with
     indices in the MIDI: the first position in the MIDI with the first
@@ -407,6 +407,10 @@ def compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick
     it skips to the next position on image (see getMidiEvents(), part
     notesInTick).  Then it compares the next image index with MIDI
     index, and so on.
+
+    Returns:
+    - noteIndicesByPage: a list of sorted lists, one per page, containing
+                         all the indices on that page in order
     """
 
     newNoteIndicesByPage = []
@@ -414,7 +418,7 @@ def compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick
     # index into list of MIDI ticks
     midiIndex = 0
 
-    for page in allNotesIndices:
+    for page in noteIndicesByPage:
         # final indices of notes on one page
         noteIndicesInPage = []
         # skips next index (if needed)
@@ -433,16 +437,16 @@ def compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
             if (notesInTick.get(midiTicks[midiIndex])
-                <= indexNoteCountByPage[allNotesIndices.index(page)].get(index)):
+                <= indexNoteCountByPage[noteIndicesByPage.index(page)].get(index)):
                 # add that index
                 noteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
                 if index != page[-1]:
                     # get number of notes in right index
-                    rightIndex = indexNoteCountByPage[allNotesIndices.index(page)].get(page[page.index(index) + 1])
+                    rightIndex = indexNoteCountByPage[noteIndicesByPage.index(page)].get(page[page.index(index) + 1])
                     # compare them and get add that with more notes
-                    if indexNoteCountByPage[allNotesIndices.index(page)].get(index) >= rightIndex:
+                    if indexNoteCountByPage[noteIndicesByPage.index(page)].get(index) >= rightIndex:
                         noteIndicesInPage.append(index)
                     else:
                         noteIndicesInPage.append(page[page.index(index) + 1])
@@ -493,10 +497,10 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     notePositionsByPage, notesAndTies, pageWidth = \
         getNotePositions(pdf, loadedProject)
 
-    indexNoteCountByPage, allNotesIndices = \
+    indexNoteCountByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
-    return compareIndices(indexNoteCountByPage, allNotesIndices, midiTicks, notesInTick)
+    return compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTick)
 
 def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPage,
          notesImages, cursorLineColor):
