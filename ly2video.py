@@ -337,7 +337,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
         parser = Tokenizer()
         # how many notes are in one position (on one page)
-        notesInIndexPage = dict()
+        indexNoteCountInPage = dict()
 
         # notes that are connected by tie and will not generate
         # a MIDI NoteOn event
@@ -358,10 +358,10 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 xcenter = (coords[0] + coords[2]) / 2
                 noteIndex = int(round(xcenter * imageWidth / pageWidth))
                 # add that index into indices
-                if notesInIndexPage.get(noteIndex) == None:
-                    notesInIndexPage[noteIndex] = 1
+                if indexNoteCountInPage.get(noteIndex) == None:
+                    indexNoteCountInPage[noteIndex] = 1
                 else:
-                    notesInIndexPage[noteIndex] += 1
+                    indexNoteCountInPage[noteIndex] += 1
             # if it's tie
             elif token.find("~") != -1:
                 # if next note isn't in silent notes, add it
@@ -372,7 +372,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                     silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
 
         # gets all indices on one page and sort it
-        noteIndicesInPage = notesInIndexPage.keys()
+        noteIndicesInPage = indexNoteCountInPage.keys()
         noteIndicesInPage.sort()
 
         # merges indices within +/- 10 pixels of each other
@@ -385,13 +385,13 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
             nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
             if index in range(nextIndex - 10, nextIndex + 10):
                 # merges them and remove next index
-                notesInIndexPage[index] += notesInIndexPage.get(nextIndex)
-                notesInIndexPage.pop(nextIndex)
+                indexNoteCountInPage[index] += indexNoteCountInPage.get(nextIndex)
+                indexNoteCountInPage.pop(nextIndex)
                 noteIndicesInPage.remove(nextIndex)
                 skipNext = True
 
         # stores info about this page        
-        notesInIndex.append(notesInIndexPage)
+        notesInIndex.append(indexNoteCountInPage)
         allNotesIndices.append(noteIndicesInPage)
         
         progress("PDF: Page %d/%d has been completed." %
