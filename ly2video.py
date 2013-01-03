@@ -319,13 +319,19 @@ def getNotePositions(pdf, loadedProject):
 
 def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth):
     """
-    Goes through notePositionsByPage separating notes and ties, and merging
-    near indices.
-    """
-    # how many notes are in one position
-    notesInIndex = []
+    Goes through notePositionsByPage, filtering out anything that
+    won't generate a MIDI NoteOn event, converting each note's
+    coordinate into an index (i.e. the x-coordinate of the center of
+    the note in the PNG file which contains it), and merging indices
+    which are within +/- 10 pixels of each other.
 
-    # indices of all notes in image (from now on in pixels)
+    Returns:
+    - notesInIndex: a list of hashes, one per page, mapping each index
+                    to how many notes are at that index
+    - allNotesIndices: a list of sorted lists, one per page, containing
+                       all the indices on that page in order
+    """
+    notesInIndex = []
     allNotesIndices = []
 
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
