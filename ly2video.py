@@ -317,7 +317,7 @@ def getNotePositions(pdf, loadedProject):
     notesAndTies.sort()    
     return notePositionsByPage, notesAndTies, pageWidth
 
-def separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth):
+def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth):
     """
     Goes through notePositionsByPage, filtering out anything that
     won't generate a MIDI NoteOn event, converting each note's
@@ -494,7 +494,7 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
         getNotePositions(pdf, loadedProject)
 
     notesInIndex, allNotesIndices = \
-        separateNotesFromTies(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
+        getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
     return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
 
