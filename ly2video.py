@@ -1092,8 +1092,8 @@ def main():
     output_divider_line()
 
     # find notes indices
-    notesIndices = getNoteIndices("ly2videoConvert.pdf",
-                                  picWidth, loadedProject, midiTicks, notesInTick)
+    noteIndicesByPage = getNoteIndices("ly2videoConvert.pdf", picWidth,
+                                       loadedProject, midiTicks, notesInTick)
     output_divider_line()
     
     # frame rate of output video
@@ -1106,7 +1106,7 @@ def main():
 
     # generate notes
     sync(midiResolution, temposList, midiTicks, resolution,
-         fps, notesIndices, notesImages, getCursorLineColor(options))
+         fps, noteIndicesByPage, notesImages, getCursorLineColor(options))
     output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
