@@ -411,7 +411,7 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
 
     for page in allNotesIndices:
         # final indices of notes on one page
-        notesIndicesPage = []
+        noteIndicesInPage = []
         # skips next index (if needed)
         skip = False
         
@@ -430,7 +430,7 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
             if (notesInTick.get(midiTicks[midiIndex])
                 <= notesInIndex[allNotesIndices.index(page)].get(index)):
                 # add that index
-                notesIndicesPage.append(index)
+                noteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
                 if index != page[-1]:
@@ -438,18 +438,18 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
                     rightIndex = notesInIndex[allNotesIndices.index(page)].get(page[page.index(index) + 1])
                     # compare them and get add that with more notes
                     if notesInIndex[allNotesIndices.index(page)].get(index) >= rightIndex:
-                        notesIndicesPage.append(index)
+                        noteIndicesInPage.append(index)
                     else:
-                        notesIndicesPage.append(page[page.index(index) + 1])
+                        noteIndicesInPage.append(page[page.index(index) + 1])
                 # otherwise just add that index (it's last index on that page)
                 else:
-                    notesIndicesPage.append(index)
+                    noteIndicesInPage.append(index)
                 # and of course skip next index
                 skip = True
             # go to next MIDI index
             midiIndex += 1
         # add indices on one page into final notesIndices
-        notesIndices.append(notesIndicesPage)
+        notesIndices.append(noteIndicesInPage)
         
     return notesIndices
 
