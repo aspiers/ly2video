@@ -421,8 +421,8 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
     for page in noteIndicesByPage:
         # final indices of notes on one page
         noteIndicesInPage = []
-        # skips next index (if needed)
-        skip = False
+
+        skipNextIndex = False
         
         for index in page:
             # if runs out of midi indices, then exit
@@ -430,9 +430,8 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
                 fatal("ly2video don't have enough MIDI indices. "
                       + "Current PDF index: %d" % index)
                 
-            # skip next index
-            if skip:
-                skip = False
+            if skipNextIndex:
+                skipNextIndex = False
                 continue
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
@@ -453,8 +452,7 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
                 # otherwise just add that index (it's last index on that page)
                 else:
                     noteIndicesInPage.append(index)
-                # and of course skip next index
-                skip = True
+                skipNextIndex = True
             # go to next MIDI index
             midiIndex += 1
         # add indices on one page into final noteIndicesByPage
