@@ -832,6 +832,9 @@ def getLyVersion(fileName):
     return version
 
 def getNotesImages(fileName):
+    """
+    Returns a sorted list of the generated PNG files.
+    """
     notesImages = []
     for fileName in os.listdir("."):
         m = re.match('ly2videoConvert(?:-page(\d+))?\.png', fileName)
