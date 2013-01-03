@@ -404,8 +404,8 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
     index, and so on.
     """
 
-    # notesIndices = final indices of notes
-    notesIndices = []
+    newNoteIndicesByPage = []
+
     # index into list of MIDI ticks
     midiIndex = 0
 
@@ -448,10 +448,10 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
                 skip = True
             # go to next MIDI index
             midiIndex += 1
-        # add indices on one page into final notesIndices
-        notesIndices.append(noteIndicesInPage)
-        
-    return notesIndices
+        # add indices on one page into final noteIndicesByPage
+        newNoteIndicesByPage.append(noteIndicesInPage)
+
+    return newNoteIndicesByPage
 
 def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
