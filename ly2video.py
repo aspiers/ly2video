@@ -19,26 +19,26 @@ import midi
 SANITISED_LY = "ly2videoConvert.ly"
 KEEP_TMP_FILES = False
 
-def lineIndices(picture, lineLength):
+def lineIndices(image, lineLength):
     """
-    Takes a picture and returns height indices of staff lines in pixels.
+    Takes a image and returns height indices of staff lines in pixels.
 
     Params:
-    - picture:      name of picture with staff lines
+    - image:        name of image with staff lines
     - lineLength:   needed length of line to accept it as staff line
     """
     
-    fPicture = Image.open(picture)
+    fImage = Image.open(image)
 
-    # position of the first line on picture
+    # position of the first line on image
     firstLinePos = (-1, -1)             
 
-    # for every pixel of picture
-    for x in range(fPicture.size[0]):   
-        for y in range(fPicture.size[1]):
+    # for every pixel of image
+    for x in range(fImage.size[0]):   
+        for y in range(fImage.size[1]):
             for length in range(lineLength):
                 # testing color of pixels in range (startPos, startPos + lineLength)
-                if fPicture.getpixel((x + length, y)) == (255,255,255):
+                if fImage.getpixel((x + length, y)) == (255,255,255):
                     # if it's white then it's not a staff line
                     firstLinePos = (-1, -1)
                     break
@@ -57,10 +57,10 @@ def lineIndices(picture, lineLength):
     lines = []
     newLine = True
 
-    # for every pixel in range (height of first line, height of picture)
-    for height in range(firstLinePos[1], fPicture.size[1]):
+    # for every pixel in range (height of first line, height of image)
+    for height in range(firstLinePos[1], fImage.size[1]):
         # if color of that pixel isn't white
-        if fPicture.getpixel((firstLinePos[0], height)) != (255,255,255):
+        if fImage.getpixel((firstLinePos[0], height)) != (255,255,255):
             # and it can be new staff line
             if newLine:
                 # accept it
@@ -70,7 +70,7 @@ def lineIndices(picture, lineLength):
             # it's space between lines
             newLine = True
 
-    del fPicture
+    del fImage
 
     # return staff line indices
     return lines
@@ -455,7 +455,7 @@ def compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick):
 
 def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
-    Returns indices of notes in generated PNG pictures (through PDF
+    Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
     PNG image containing it.  This relies on the fact that the PDF
     file was generated with -dpoint-and-click.
@@ -495,7 +495,7 @@ def getNotesIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     return compareIndices(notesInIndex, allNotesIndices, midiTicks, notesInTick)
 
 def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
-         notesPictures, cursorLineColor):
+         notesImages, cursorLineColor):
     """
     Generates frames for the final video, synchronized with audio.
 
@@ -514,7 +514,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
     - resolution:       resolution of generated frames (and video)
     - fps:              frame rate of video
     - notesIndices:     indices of notes in picutres
-    - notesPictures:    names of that pictures (list of strings)
+    - notesImages:      names of that images (list of strings)
     - cursorLineColor:  color of middle line
     """
 
@@ -533,8 +533,8 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
     dropFrame = 0.0
     
     for indices in notesIndices:
-        # open picture of staff
-        notesPic = Image.open(notesPictures[notesIndices.index(indices)]) 
+        # open image of staff
+        notesPic = Image.open(notesImages[notesIndices.index(indices)]) 
 
         # add index for the last note
         indices.append(indices[-1])
@@ -572,7 +572,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, notesIndices,
                     dropFrame -= 1.0
                     continue
                 else:
-                    # get frame from picture of staff, args - (("left upper corner", "right lower corner"))
+                    # get frame from image of staff, args - (("left upper corner", "right lower corner"))
                     leftUpper = int(startIndex + round(posun * shift)
                                     - (resolution[0] / 2))
                     rightUpper = int(startIndex + round(posun * shift)
@@ -831,12 +831,12 @@ def getLyVersion(fileName):
 
     return version
 
-def getNotesPictures(fileName):
-    notesPictures = []
+def getNotesImages(fileName):
+    notesImages = []
     for fileName in os.listdir("."):
         m = re.match('ly2videoConvert(?:-page(\d+))?\.png', fileName)
         if m:
-            progress("Found generated picture: %s" % fileName)
+            progress("Found generated image: %s" % fileName)
             if m.group(1):
                 i = int(m.group(1))
             else:
@@ -846,21 +846,46 @@ def getNotesPictures(fileName):
             if newFileName != fileName:
                 os.rename(fileName, newFileName)
                 progress("  renamed -> %s" % newFileName)
-            notesPictures.append(newFileName)
-    notesPictures.sort()
-    return notesPictures
+            notesImages.append(newFileName)
+    notesImages.sort()
+    return notesImages
 
-def getPictureWidth(notesPictures):
+def getImageWidth(notesImages):
     """
     Get width of first image in pixels (we assume they all have the
     same width).  This will allow us to convert PDF coordinates into
     dimensions measured in pixels.
     """
-    tmpPicture = Image.open(notesPictures[0])
-    picWidth = tmpPicture.size[0]
-    print "width of %s is %d pixels" % (notesPictures[0], picWidth)
-    del tmpPicture
+    tmpImage = Image.open(notesImages[0])
+    picWidth = tmpImage.size[0]
+    print "width of %s is %d pixels" % (notesImages[0], picWidth)
+    del tmpImage
     return picWidth
+
+def getNumStaffLines(project):
+    # generate preview of notes
+    if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
+                  + project + " 2>" + portableDevNull()) != 0):
+        fatal("Generating preview has failed.", 7)
+
+    # find preview image and get num of staff lines
+    previewPic = ""
+    previewFilesTmp = os.listdir(".")
+    previewFiles = []
+    for fileName in previewFilesTmp:
+        if "preview" in fileName:
+            previewFiles.append(fileName)
+            if fileName.split(".")[-1] == "png":
+                previewPic = fileName
+    numStaffLines = len(lineIndices(previewPic, 50))
+
+    # then delete generated preview files
+    if not delete_tmp_files(previewFiles):
+        sys.exit(8)
+    if not delete_tmp_files(project[:-2] + "midi"):
+        sys.exit(8)
+
+    return numStaffLines
 
 def sanitiseLy(project, resolution, numStaffLines, titleText):
     fProject = open(project, "r")
@@ -1028,27 +1053,7 @@ def main():
                      "there can be some errors.")
             output_divider_line()
 
-    # generate preview of notes
-    if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
-                  + project + " 2>" + portableDevNull()) != 0):
-        fatal("Generating preview has failed.", 7)
-
-    # find preview picture and get num of staff lines
-    previewPic = ""
-    previewFilesTmp = os.listdir(".")
-    previewFiles = []
-    for fileName in previewFilesTmp:
-        if "preview" in fileName:
-            previewFiles.append(fileName)
-            if fileName.split(".")[-1] == "png":
-                previewPic = fileName
-    numStaffLines = len(lineIndices(previewPic, 50))
-
-    # then delete generated preview files
-    if not delete_tmp_files(previewFiles):
-        return 8
-    if not delete_tmp_files(project[:-2] + "midi"):
-        return 8
+    numStaffLines = getNumStaffLines(project)
 
     sanitiseLy(project, resolution, numStaffLines, titleText)
 
@@ -1072,10 +1077,10 @@ def main():
     if versionConversion:
         delete_tmp_files(project)
 
-    # find generated pictures
-    notesPictures = getNotesPictures(fileName)
+    # find generated images
+    notesImages = getNotesImages(fileName)
     output_divider_line()
-    picWidth = getPictureWidth(notesPictures)
+    picWidth = getImageWidth(notesImages)
 
     # find needed data in MIDI
     try:
@@ -1100,7 +1105,7 @@ def main():
 
     # generate notes
     sync(midiResolution, temposList, midiTicks, resolution,
-         fps, notesIndices, notesPictures, getCursorLineColor(options))
+         fps, notesIndices, notesImages, getCursorLineColor(options))
     output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
@@ -1111,7 +1116,7 @@ def main():
     output_divider_line()
 
     # delete old files
-    delete_tmp_files(notesPictures)
+    delete_tmp_files(notesImages)
     delete_tmp_files("ly2videoConvert.pdf")
     delete_tmp_files("ly2videoConvert.midi")
 
