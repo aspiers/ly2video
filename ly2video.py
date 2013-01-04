@@ -424,7 +424,7 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
 
         skipNextIndex = False
         
-        for index in noteIndicesInPage:
+        for i, index in enumerate(noteIndicesInPage):
             # if runs out of midi indices, then exit
             if midiIndex == len(midiTicks):
                 fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
@@ -443,12 +443,12 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
                 # if there is next index on my right
                 if index != noteIndicesInPage[-1]:
                     # get number of notes in right index
-                    rightIndex = indexNoteCountByPage[pageNum].get(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
+                    rightIndex = indexNoteCountByPage[pageNum].get(noteIndicesInPage[i + 1])
                     # compare them and get add that with more notes
                     if indexNoteCountByPage[pageNum].get(index) >= rightIndex:
                         newNoteIndicesInPage.append(index)
                     else:
-                        newNoteIndicesInPage.append(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
+                        newNoteIndicesInPage.append(noteIndicesInPage[i + 1])
                 # otherwise just add that index (it's last index on that page)
                 else:
                     newNoteIndicesInPage.append(index)
