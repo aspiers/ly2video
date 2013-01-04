@@ -418,8 +418,9 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
             # if it's tie
             elif token.find("~") != -1:
                 # if next note isn't in silent notes, add it
-                if silentNotes.count(notesAndTies[notesAndTies.index(linkLy) + 1]) == 0:
-                    silentNotes.append(notesAndTies[notesAndTies.index(linkLy) + 1])
+                nextNote = notesAndTies[notesAndTies.index(linkLy) + 1]
+                if silentNotes.count(nextNote) == 0:
+                    silentNotes.append(nextNote)
                 # otherwise add next one (after the last silent one (if it's tie of harmony))
                 else:
                     silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
