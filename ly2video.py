@@ -299,14 +299,15 @@ def getNotePositions(pdf, loadedProject):
                 print "got char %s col %s on line %s" % (charNum, columnNum, lineNum)
             lineNum = int(lineNum)
             charNum = int(charNum)
+            srcLine = loadedProject[lineNum - 1]
             
             try:
                 # get name of that note
-                note = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
+                note = parser.tokens(srcLine[charNum:]).next()
 
                 # is that note ok?
                 noteOk = True
-                for token in parser.tokens(loadedProject[lineNum - 1][charNum + len(note):]):
+                for token in parser.tokens(srcLine[charNum + len(note):]):
                     # if there is another note right next to it (or rest, etc.), it's ok 
                     if token.__class__.__name__ == "PitchWord":
                         break
