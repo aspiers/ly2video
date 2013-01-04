@@ -418,13 +418,13 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
     # index into list of MIDI ticks
     midiIndex = 0
 
-    for page in noteIndicesByPage:
+    for noteIndicesInPage in noteIndicesByPage:
         # final indices of notes on one page
         noteIndicesInPage = []
 
         skipNextIndex = False
         
-        for index in page:
+        for index in noteIndicesInPage:
             # if runs out of midi indices, then exit
             if midiIndex == len(midiTicks):
                 fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
@@ -436,19 +436,19 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
             if (notesInTick.get(midiTicks[midiIndex]) <=
-                indexNoteCountByPage[noteIndicesByPage.index(page)].get(index)):
+                indexNoteCountByPage[noteIndicesByPage.index(noteIndicesInPage)].get(index)):
                 # add that index
                 noteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
-                if index != page[-1]:
+                if index != noteIndicesInPage[-1]:
                     # get number of notes in right index
-                    rightIndex = indexNoteCountByPage[noteIndicesByPage.index(page)].get(page[page.index(index) + 1])
+                    rightIndex = indexNoteCountByPage[noteIndicesByPage.index(noteIndicesInPage)].get(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
                     # compare them and get add that with more notes
-                    if indexNoteCountByPage[noteIndicesByPage.index(page)].get(index) >= rightIndex:
+                    if indexNoteCountByPage[noteIndicesByPage.index(noteIndicesInPage)].get(index) >= rightIndex:
                         noteIndicesInPage.append(index)
                     else:
-                        noteIndicesInPage.append(page[page.index(index) + 1])
+                        noteIndicesInPage.append(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
                 # otherwise just add that index (it's last index on that page)
                 else:
                     noteIndicesInPage.append(index)
