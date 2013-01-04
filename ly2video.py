@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+from distutils.version import StrictVersion
 from   optparse import OptionParser
 from   struct import pack
 
@@ -119,7 +120,7 @@ def generateTitle(titleText, resolution, fps, titleLength):
              (totalFrames, totalFrames))
     return 0
 
-def writePaperHeader(fFile, resolution, numOfLines):
+def writePaperHeader(fFile, resolution, numOfLines, lilypondVersion):
     """
     Writes own paper block into given file.
 
@@ -132,13 +133,35 @@ def writePaperHeader(fFile, resolution, numOfLines):
     pixelsPerMm = 181.0 / 720 # 1 px = 0.251375 mm
 
     fFile.write("\\paper {\n")
-    fFile.write("   paper-width   = %d\\mm\n" % round(10 * resolution[0] * pixelsPerMm))
-    fFile.write("   paper-height  = %d\\mm\n" % round(resolution[1] * pixelsPerMm))
+
+    # one-line-breaking is available as of 2.15.41:
+    #   https://code.google.com/p/lilypond/issues/detail?id=2570
+    #   https://codereview.appspot.com/6248056/
+    #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
+    oneLineBreaking = False
+    if StrictVersion(lilypondVersion) >= StrictVersion('2.15.41'):
+        oneLineBreaking = True
+    else:
+        sys.stderr.write(
+            """WARNING: you have LilyPond %s which does not support
+infinitely long lines.  Upgrade to >= 2.15.41 to avoid
+sudden jumps in your video.
+""" % lilypondVersion)
+
+    if oneLineBreaking:
+        fFile.write("   page-breaking = #ly:one-line-breaking\n")
+    else:
+        fFile.write("   paper-width   = %d\\mm\n" % round(10 * resolution[0] * pixelsPerMm))
+        fFile.write("   paper-height  = %d\\mm\n" % round(resolution[1] * pixelsPerMm))
+
     fFile.write("   top-margin    = %d\\mm\n" % round(resolution[1] * pixelsPerMm / 20))
     fFile.write("   bottom-margin = %d\\mm\n" % round(resolution[1] * pixelsPerMm / 20))
     fFile.write("   left-margin   = %d\\mm\n" % round(resolution[0] * pixelsPerMm / 2))
     fFile.write("   right-margin  = %d\\mm\n" % round(resolution[0] * pixelsPerMm / 2))
-    fFile.write("   print-page-number = ##f\n")
+
+    if not oneLineBreaking:
+        fFile.write("   print-page-number = ##f\n")
+
     fFile.write("}\n")
     fFile.write("#(set-global-staff-size %d)\n\n" %
                 int(round((resolution[1] - 2 * (resolution[1] / 10)) / numOfLines)))
@@ -740,28 +763,31 @@ def portableDevNull():
         return "NUL"
 
 def findExecutableDependencies(options):
-    redirectToNull = " >%s" % portableDevNull()
-
-    if os.system("lilypond -v" + redirectToNull) != 0:
+    try:
+        stdout = subprocess.check_output(["lilypond", "-v"])
+    except subprocess.CalledProcessError:
         fatal("LilyPond was not found.", 1)
-    else:
-        progress("LilyPond was found.")
+    progress("LilyPond was found.")
+    m = re.search('\AGNU LilyPond (\d[\d.]+\d)', stdout)
+    if not m:
+        fatal("Couldn't determine LilyPond version via lilypond -v")
+    version = m.group(1)
+
+    redirectToNull = " >%s" % portableDevNull()
 
     ffmpeg = options.winFfmpeg + "ffmpeg"
     if os.system(ffmpeg + " -version" + redirectToNull) != 0:
         fatal("FFmpeg was not found (maybe use --windows-ffmpeg?).", 2)
-    else:
-        progress("FFmpeg was found.")
+    progress("FFmpeg was found.")
 
     timidity = options.winTimidity + "timidity"
     if os.system(timidity + " -v" + redirectToNull) != 0:
         fatal("TiMidity++ was not found (maybe use --windows-timidity?).", 3)
-    else:
-        progress("TiMidity++ was found.")
+    progress("TiMidity++ was found.")
 
     output_divider_line()
 
-    return ffmpeg, timidity
+    return version, ffmpeg, timidity
 
 def getCursorLineColor(options):
     options.color = options.color.lower()
@@ -919,7 +945,7 @@ def getNumStaffLines(project):
 
     return numStaffLines
 
-def sanitiseLy(project, resolution, numStaffLines, titleText):
+def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
     fProject = open(project, "r")
 
     # create own ly project
@@ -954,7 +980,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText):
         if line.find("\\version") != -1:
             done = True
             fMyProject.write(line)
-            writePaperHeader(fMyProject, resolution, numStaffLines)
+            writePaperHeader(fMyProject, resolution, numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
@@ -1050,7 +1076,7 @@ def main():
     if options.keepTempFiles:
         KEEP_TMP_FILES = True
 
-    ffmpeg, timidity = findExecutableDependencies(options)
+    lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
 
     # resolution of output video
     resolution = getResolution(options)
@@ -1087,7 +1113,7 @@ def main():
 
     numStaffLines = getNumStaffLines(project)
 
-    sanitiseLy(project, resolution, numStaffLines, titleText)
+    sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion)
 
     # load own project into memory
     fMyProject = open(SANITISED_LY, "r")
