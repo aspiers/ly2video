@@ -418,9 +418,9 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
     # index into list of MIDI ticks
     midiIndex = 0
 
-    for noteIndicesInPage in noteIndicesByPage:
+    for pageNum, noteIndicesInPage in enumerate(noteIndicesByPage):
         # final indices of notes on one page
-        noteIndicesInPage = []
+        newNoteIndicesInPage = []
 
         skipNextIndex = False
         
@@ -436,27 +436,27 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
             if (notesInTick.get(midiTicks[midiIndex]) <=
-                indexNoteCountByPage[noteIndicesByPage.index(noteIndicesInPage)].get(index)):
+                indexNoteCountByPage[pageNum].get(index)):
                 # add that index
-                noteIndicesInPage.append(index)
+                newNoteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
                 if index != noteIndicesInPage[-1]:
                     # get number of notes in right index
-                    rightIndex = indexNoteCountByPage[noteIndicesByPage.index(noteIndicesInPage)].get(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
+                    rightIndex = indexNoteCountByPage[pageNum].get(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
                     # compare them and get add that with more notes
-                    if indexNoteCountByPage[noteIndicesByPage.index(noteIndicesInPage)].get(index) >= rightIndex:
-                        noteIndicesInPage.append(index)
+                    if indexNoteCountByPage[pageNum].get(index) >= rightIndex:
+                        newNoteIndicesInPage.append(index)
                     else:
-                        noteIndicesInPage.append(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
+                        newNoteIndicesInPage.append(noteIndicesInPage[noteIndicesInPage.index(index) + 1])
                 # otherwise just add that index (it's last index on that page)
                 else:
-                    noteIndicesInPage.append(index)
+                    newNoteIndicesInPage.append(index)
                 skipNextIndex = True
             # go to next MIDI index
             midiIndex += 1
         # add indices on one page into final noteIndicesByPage
-        newNoteIndicesByPage.append(noteIndicesInPage)
+        newNoteIndicesByPage.append(newNoteIndicesInPage)
 
     return newNoteIndicesByPage
 
