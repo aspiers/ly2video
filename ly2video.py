@@ -424,24 +424,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 else:
                     silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
 
-        # gets all indices on one page and sort it
-        noteIndicesInPage = indexNoteCountInPage.keys()
-        noteIndicesInPage.sort()
-
-        # merges indices within +/- 10 pixels of each other
-        skipNext = False
-        for index in noteIndicesInPage[:-1]:
-            if skipNext:
-                skipNext = False
-                continue
-            # gets next index
-            nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
-            if index in range(nextIndex - 10, nextIndex + 10):
-                # merges them and remove next index
-                indexNoteCountInPage[index] += indexNoteCountInPage.get(nextIndex)
-                indexNoteCountInPage.pop(nextIndex)
-                noteIndicesInPage.remove(nextIndex)
-                skipNext = True
+        noteIndicesInPage = mergeNearbyIndices(indexNoteCountInPage)
 
         # stores info about this page        
         indexNoteCountByPage.append(indexNoteCountInPage)
@@ -451,6 +434,33 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                  (pageNum + 1, len(notePositionsByPage)))
 
     return indexNoteCountByPage, noteIndicesByPage
+
+def mergeNearbyIndices(indexNoteCountInPage):
+    """
+    Returns a sorted list of all indices in the page.  Any within +/-
+    10 pixels of each other get merged into a single index, and
+    indexNoteCountInPage is adjusted accordingly as a side-effect.
+    """
+    # gets all indices on one page and sort it
+    noteIndicesInPage = indexNoteCountInPage.keys()
+    noteIndicesInPage.sort()
+
+    # merges indices within +/- 10 pixels of each other
+    skipNext = False
+    for index in noteIndicesInPage[:-1]:
+        if skipNext:
+            skipNext = False
+            continue
+        # gets next index
+        nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
+        if index in range(nextIndex - 10, nextIndex + 10):
+            # merges them and remove next index
+            indexNoteCountInPage[index] += indexNoteCountInPage.get(nextIndex)
+            indexNoteCountInPage.pop(nextIndex)
+            noteIndicesInPage.remove(nextIndex)
+            skipNext = True
+
+    return noteIndicesInPage
 
 def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTick):
     """
