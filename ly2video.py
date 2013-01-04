@@ -199,17 +199,22 @@ def getNotesInTicks(midiFile):
 
     return notesInTick
 
-def getMidiEvents(nameOfMidi):
+def getMidiEvents(midiFileName):
     """
-    Goes through given MIDI file and returns list of tempos, resolution,
-    dictionary of MIDI events and when MIDI events happen (ticks).
+    Extracts useful information from a given MIDI file and returns it.
 
     Params:
-    - nameOfMidi: name of MIDI file (string)
+    - midiFileName: name of MIDI file (string)
+
+    Returns a tuple of the following items:
+    - midiResolution: the resolution of the MIDI file
+    - temposList: as returned by getTemposList()
+    - notesInTick: as returned by getNotesInTicks()
+    - midiTicks: a sorted list of which ticks contain NoteOn events
     """
 
     # open MIDI with external library
-    midiFile = midi.read_midifile(nameOfMidi)
+    midiFile = midi.read_midifile(midiFileName)
     # and make ticks absolute
     midiFile.make_ticks_abs()
 
