@@ -433,22 +433,20 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
             if skipNextIndex:
                 skipNextIndex = False
                 continue
-            
-            # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
-            if (notesInTick.get(midiTicks[midiIndex]) <=
-                indexNoteCountByPage[pageNum].get(index)):
-                # add that index
+
+            indexNoteCountInPage = indexNoteCountByPage[pageNum]
+            indexNoteCount = indexNoteCountInPage.get(index)
+            if notesInTick.get(midiTicks[midiIndex]) <= indexNoteCount:
                 newNoteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
                 if index != noteIndicesInPage[-1]:
-                    # get number of notes in right index
-                    rightIndex = indexNoteCountByPage[pageNum].get(noteIndicesInPage[i + 1])
-                    # compare them and get add that with more notes
-                    if indexNoteCountByPage[pageNum].get(index) >= rightIndex:
+                    rightIndex = noteIndicesInPage[i + 1]
+                    rightIndexNoteCount = indexNoteCountInPage.get(rightIndex)
+                    if indexNoteCount >= rightIndexNoteCount:
                         newNoteIndicesInPage.append(index)
                     else:
-                        newNoteIndicesInPage.append(noteIndicesInPage[i + 1])
+                        newNoteIndicesInPage.append(rightIndex)
                 # otherwise just add that index (it's last index on that page)
                 else:
                     newNoteIndicesInPage.append(index)
