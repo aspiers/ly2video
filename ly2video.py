@@ -276,61 +276,63 @@ def getNotePositions(pdf, loadedProject):
         # ly parser (from Frescobaldi)
         parser = Tokenizer()
 
-        if info.has_key('/Annots'):
-            links = info['/Annots']
+        if not info.has_key('/Annots'):
+            continue
 
-            # stores wanted positions on single page
-            notePositionsInPage = []
+        links = info['/Annots']
+
+        # stores wanted positions on single page
+        notePositionsInPage = []
+        
+        for link in links:
+            # Get (x1, y1, x2, y2) coordinates of opposite corners
+            # of the annotated rectangle
+            coords = link.getObject()['/Rect']
+
+            # if it's not link into ly2videoConvert.ly, then ignore it
+            if link.getObject()['/A']['/URI'].find(SANITISED_LY) == -1:
+                continue
+            # otherwise get coordinates into LY file
+            uri = link.getObject()['/A']['/URI']
+            lineNum, charNum, columnNum = uri.split(":")[-3:]
+            if charNum != columnNum:
+                print "got char %s col %s on line %s" % (charNum, columnNum, lineNum)
+            lineNum = int(lineNum)
+            charNum = int(charNum)
             
-            for link in links:
-                # Get (x1, y1, x2, y2) coordinates of opposite corners
-                # of the annotated rectangle
-                coords = link.getObject()['/Rect']
+            try:
+                # get name of that note
+                note = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
 
-                # if it's not link into ly2videoConvert.ly, then ignore it
-                if link.getObject()['/A']['/URI'].find(SANITISED_LY) == -1:
-                    continue
-                # otherwise get coordinates into LY file
-                uri = link.getObject()['/A']['/URI']
-                lineNum, charNum, columnNum = uri.split(":")[-3:]
-                if charNum != columnNum:
-                    print "got char %s col %s on line %s" % (charNum, columnNum, lineNum)
-                lineNum = int(lineNum)
-                charNum = int(charNum)
-                
-                try:
-                    # get name of that note
-                    note = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
+                # is that note ok?
+                noteOk = True
+                for token in parser.tokens(loadedProject[lineNum - 1][charNum + len(note):]):
+                    # if there is another note right next to it (or rest, etc.), it's ok 
+                    if token.__class__.__name__ == "PitchWord":
+                        break
+                    # if its "note with \rest", it's NOT ok and ignore it
+                    elif (token.__class__.__name__ == "Command"
+                          and repr(token) == "u'\\\\rest'"):
+                        noteOk = False
+                        break
+                # if the note is ok and it's not rest or it's tie
+                if noteOk:
+                    if ((note.__class__.__name__ == "PitchWord" and str(note) not in "rR")
+                        or (note.find("~") != -1)):
+                        # add it
+                        notePositionsInPage.append(((lineNum, charNum), coords))
+                        notesAndTies.add((lineNum, charNum))
+            #if there is some error, write that statement and exit
+            except Exception as err:
+                fatal(("PDF: %s\n"
+                       + "ly2video was trying to work with this: "
+                       + "\"%s\", coords in LY (line %d char %d).") %
+                      (err, loadedProject[lineNum - 1][charNum:][:-1],
+                       lineNum, charNum))
 
-                    # is that note ok?
-                    noteOk = True
-                    for token in parser.tokens(loadedProject[lineNum - 1][charNum + len(note):]):
-                        # if there is another note right next to it (or rest, etc.), it's ok 
-                        if token.__class__.__name__ == "PitchWord":
-                            break
-                        # if its "note with \rest", it's NOT ok and ignore it
-                        elif (token.__class__.__name__ == "Command"
-                              and repr(token) == "u'\\\\rest'"):
-                            noteOk = False
-                            break
-                    # if the note is ok and it's not rest or it's tie
-                    if noteOk:
-                        if ((note.__class__.__name__ == "PitchWord" and str(note) not in "rR")
-                            or (note.find("~") != -1)):
-                            # add it
-                            notePositionsInPage.append(((lineNum, charNum), coords))
-                            notesAndTies.add((lineNum, charNum))
-                #if there is some error, write that statement and exit
-                except Exception as err:
-                    fatal(("PDF: %s\n"
-                           + "ly2video was trying to work with this: "
-                           + "\"%s\", coords in LY (line %d char %d).") %
-                          (err, loadedProject[lineNum - 1][charNum:][:-1],
-                           lineNum, charNum))
-
-            # sort wanted positions on that page and add it into whole wanted positions
-            notePositionsInPage.sort()
-            notePositionsByPage.append(notePositionsInPage)
+        # sort wanted positions on that page and add it into whole wanted positions
+        notePositionsInPage.sort()
+        notePositionsByPage.append(notePositionsInPage)
 
     # close PDF file
     fPdf.close()
