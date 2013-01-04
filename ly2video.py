@@ -169,6 +169,36 @@ def getTemposList(midiFile):
 
     return temposList
 
+def getNotesInTicks(midiFile):
+    """
+    Returns a dict mapping ticks to the number of NoteOn events in
+    that tick.  Each key is a tick and the corresponding value is the
+    count.  This is needed for deleting some notes' positions obtained
+    from the images, e.g. when two or more notes within a major second
+    of each other occur in the same chord and share a note stem - in
+    that case you get some note heads to the left of the stem and some
+    to the right.
+    """
+    notesInTick = dict()
+
+    # for every channel in MIDI (except the first one)
+    for eventsList in midiFile[1:]:
+        for event in eventsList:
+            if not isinstance(event, midi.NoteOnEvent):
+                continue
+
+            if event.data[1] == 0:
+                # velocity is zero (that's basically "NoteOffEvent")
+                continue
+
+            # add it into notesInTick
+            if notesInTick.get(event.tick) == None:
+                notesInTick[event.tick] = 1
+            else:
+                notesInTick[event.tick] += 1
+
+    return notesInTick
+
 def getMidiEvents(nameOfMidi):
     """
     Goes through given MIDI file and returns list of tempos, resolution,
@@ -187,29 +217,7 @@ def getMidiEvents(nameOfMidi):
     midiResolution = midiFile.resolution
 
     temposList = getTemposList(midiFile)
-
-    # Count how many notes start in each tick.  Each key is a tick and
-    # the corresponding value is the count.  This is needed for
-    # deleting some notes' positions obtained from the images,
-    # e.g. when two or more notes within a major second of each other
-    # occur in the same chord and share a note stem - in that case you
-    # get some note heads to the left of the stem and some to the
-    # right.
-    notesInTick = dict()
-
-    # for every channel in MIDI (except the first one)
-    for eventsList in midiFile[1:]:
-        # for every event
-        for event in eventsList:
-            # if it's NoteOnEvent
-            if isinstance(event, midi.NoteOnEvent):
-                # and velocity is not zero (that's basically "NoteOffEvent")
-                if event.data[1] != 0:
-                    # add it into notesInTick
-                    if notesInTick.get(event.tick) == None:
-                        notesInTick[event.tick] = 1
-                    else:
-                        notesInTick[event.tick] += 1
+    notesInTick = getNotesInTicks(midiFile)
 
     # get all ticks with notes and sorts it
     midiTicks = notesInTick.keys()
