@@ -215,7 +215,7 @@ def getNotesInTicks(midiFile):
                 continue
 
             # add it into notesInTick
-            if notesInTick.get(event.tick) == None:
+            if event.tick not in notesInTick:
                 notesInTick[event.tick] = 1
             else:
                 notesInTick[event.tick] += 1
@@ -411,7 +411,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 xcenter = (coords[0] + coords[2]) / 2
                 noteIndex = int(round(xcenter * imageWidth / pageWidth))
                 # add that index into indices
-                if indexNoteCountInPage.get(noteIndex) == None:
+                if noteIndex not in indexNoteCountInPage:
                     indexNoteCountInPage[noteIndex] = 1
                 else:
                     indexNoteCountInPage[noteIndex] += 1
