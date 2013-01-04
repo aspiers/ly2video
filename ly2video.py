@@ -145,22 +145,11 @@ def writePaperHeader(fFile, resolution, numOfLines):
     
     return 0
 
-def getMidiEvents(nameOfMidi):
+def getTemposList(midiFile):
     """
-    Goes through given MIDI file and returns list of tempos, resolution,
-    dictionary of MIDI events and when MIDI events happen (ticks).
-
-    Params:
-    - nameOfMidi: name of MIDI file (string)
+    Returns a list of tempo changes in midiFile.  Each tempo change is
+    represented as a (tick, tempoValue) tuple.
     """
-
-    # open MIDI with external library
-    midiFile = midi.read_midifile(nameOfMidi)
-    # and make ticks absolute
-    midiFile.make_ticks_abs()
-
-    # get MIDI resolution and header
-    midiResolution = midiFile.resolution
     midiHeader = midiFile[0]
 
     temposList = []
@@ -177,6 +166,27 @@ def getMidiEvents(nameOfMidi):
                 base += 1
             # and add that new tempo with its start into temposList
             temposList.append((event.tick, tempoValue))
+
+    return temposList
+
+def getMidiEvents(nameOfMidi):
+    """
+    Goes through given MIDI file and returns list of tempos, resolution,
+    dictionary of MIDI events and when MIDI events happen (ticks).
+
+    Params:
+    - nameOfMidi: name of MIDI file (string)
+    """
+
+    # open MIDI with external library
+    midiFile = midi.read_midifile(nameOfMidi)
+    # and make ticks absolute
+    midiFile.make_ticks_abs()
+
+    # get MIDI resolution and header
+    midiResolution = midiFile.resolution
+
+    temposList = getTemposList(midiFile)
 
     # Count how many notes start in each tick.  Each key is a tick and
     # the corresponding value is the count.  This is needed for
