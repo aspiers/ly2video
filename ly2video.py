@@ -427,16 +427,16 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
         for index in page:
             # if runs out of midi indices, then exit
             if midiIndex == len(midiTicks):
-                fatal("ly2video don't have enough MIDI indices. "
-                      + "Current PDF index: %d" % index)
-                
+                fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
+                      (midiIndex, index))
+
             if skipNextIndex:
                 skipNextIndex = False
                 continue
             
             # if number of notes in one tick (MIDI) <= number of notes in one index (PNG)
-            if (notesInTick.get(midiTicks[midiIndex])
-                <= indexNoteCountByPage[noteIndicesByPage.index(page)].get(index)):
+            if (notesInTick.get(midiTicks[midiIndex]) <=
+                indexNoteCountByPage[noteIndicesByPage.index(page)].get(index)):
                 # add that index
                 noteIndicesInPage.append(index)
             else:
