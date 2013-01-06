@@ -227,13 +227,15 @@ def getMidiEvents(midiFileName):
     Extracts useful information from a given MIDI file and returns it.
 
     Params:
-    - midiFileName: name of MIDI file (string)
+      - midiFileName: name of MIDI file (string)
 
     Returns a tuple of the following items:
-    - midiResolution: the resolution of the MIDI file
-    - temposList: as returned by getTemposList()
-    - notesInTick: as returned by getNotesInTicks()
-    - midiTicks: a sorted list of which ticks contain NoteOn events
+      - midiResolution: the resolution of the MIDI file
+      - temposList: as returned by getTemposList()
+      - notesInTick: as returned by getNotesInTicks()
+      - midiTicks: a sorted list of which ticks contain NoteOn events.
+                   The last tick corresponds to the earliest
+                   EndOfTrackEvent found across all MIDI channels.
     """
 
     # open MIDI with external library
@@ -251,9 +253,9 @@ def getMidiEvents(midiFileName):
     midiTicks = notesInTick.keys()
     midiTicks.sort()
 
-    # add last possible tick (end of song)
+    # find the tick corresponding to the earliest EndOfTrackEvent
+    # across all MIDI channels, and append it
     endOfTrack = -1
-    # through ever channel
     for eventsList in midiFile[1:]:
         if isinstance(eventsList[-1], midi.EndOfTrackEvent):
             if endOfTrack < eventsList[-1].tick:
