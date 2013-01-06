@@ -379,18 +379,43 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
     which are within +/- 10 pixels of each other.
 
     Returns:
-    - indexNoteCountByPage: a list of dicts, one per page, mapping each index
-                            to how many notes are at that index
-    - noteIndicesByPage: a list of sorted lists, one per page, containing
-                         all the indices on that page in order
+      - indexNoteSourcesByPage:
+            a list of dicts, one per page, mapping each index to a
+            list of (lineNum, colNum) tuples in the source project
+            corresponding to the notes at that index, e.g.
+                [
+                    # page 1
+                    {
+                        123 : [    # index
+                            (37, 2), # note at index 123, line 37 col 2
+                            (37, 5), # note at index 123, line 37 col 5
+                        ],
+                        ...
+                    }
+
+                    # page 2
+                    {
+                        ...
+                    }
+                ]
+      - noteIndicesByPage:
+            a list of sorted lists, one per page, containing
+            all the indices on that page in order, e.g.
+                [
+                    # page 1
+                    [ 123, 137, 178 ... ],
+                    # page 2
+                    [ ... ],
+                ]
     """
-    indexNoteCountByPage = []
+    indexNoteSourcesByPage = []
     noteIndicesByPage = []
 
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
         parser = Tokenizer()
-        # how many notes are in one position (on one page)
-        indexNoteCountInPage = dict()
+        # co-ordinates in the .ly source of notes, grouped by index
+        # (within one page)
+        indexNoteSourcesInPage = {}
 
         # notes that are connected by tie and will not generate
         # a MIDI NoteOn event
@@ -411,10 +436,10 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 xcenter = (coords[0] + coords[2]) / 2
                 noteIndex = int(round(xcenter * imageWidth / pageWidth))
                 # add that index into indices
-                if noteIndex not in indexNoteCountInPage:
-                    indexNoteCountInPage[noteIndex] = 1
+                if noteIndex not in indexNoteSourcesInPage:
+                    indexNoteSourcesInPage[noteIndex] = [linkLy]
                 else:
-                    indexNoteCountInPage[noteIndex] += 1
+                    indexNoteSourcesInPage[noteIndex].append(linkLy)
             # if it's tie
             elif token.find("~") != -1:
                 # if next note isn't in silent notes, add it
@@ -425,25 +450,25 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 else:
                     silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
 
-        noteIndicesInPage = mergeNearbyIndices(indexNoteCountInPage)
+        noteIndicesInPage = mergeNearbyIndices(indexNoteSourcesInPage)
 
         # stores info about this page        
-        indexNoteCountByPage.append(indexNoteCountInPage)
+        indexNoteSourcesByPage.append(indexNoteSourcesInPage)
         noteIndicesByPage.append(noteIndicesInPage)
         
         progress("PDF: Page %d/%d has been completed." %
                  (pageNum + 1, len(notePositionsByPage)))
 
-    return indexNoteCountByPage, noteIndicesByPage
+    return indexNoteSourcesByPage, noteIndicesByPage
 
-def mergeNearbyIndices(indexNoteCountInPage):
+def mergeNearbyIndices(indexNoteSourcesInPage):
     """
     Returns a sorted list of all indices in the page.  Any within +/-
     10 pixels of each other get merged into a single index, and
-    indexNoteCountInPage is adjusted accordingly as a side-effect.
+    indexNoteSourcesInPage is adjusted accordingly as a side-effect.
     """
     # gets all indices on one page and sort it
-    noteIndicesInPage = indexNoteCountInPage.keys()
+    noteIndicesInPage = indexNoteSourcesInPage.keys()
     noteIndicesInPage.sort()
 
     # merges indices within +/- 10 pixels of each other
@@ -456,14 +481,14 @@ def mergeNearbyIndices(indexNoteCountInPage):
         nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
         if index in range(nextIndex - 10, nextIndex + 10):
             # merges them and remove next index
-            indexNoteCountInPage[index] += indexNoteCountInPage.get(nextIndex)
-            indexNoteCountInPage.pop(nextIndex)
+            indexNoteSourcesInPage[index].extend(indexNoteSourcesInPage[nextIndex])
+            del indexNoteSourcesInPage[nextIndex]
             noteIndicesInPage.remove(nextIndex)
             skipNext = True
 
     return noteIndicesInPage
 
-def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTick):
+def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTick):
     """
     Sequentially compares the indices of notes in the images with
     indices in the MIDI: the first position in the MIDI with the first
@@ -498,16 +523,16 @@ def compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTi
                 skipNextIndex = False
                 continue
 
-            indexNoteCountInPage = indexNoteCountByPage[pageNum]
-            indexNoteCount = indexNoteCountInPage.get(index)
-            if notesInTick.get(midiTicks[midiIndex]) <= indexNoteCount:
+            indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
+            indexNoteSources = indexNoteSourcesInPage[index]
+            if notesInTick.get(midiTicks[midiIndex]) <= len(indexNoteSources):
                 newNoteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
                 if index != noteIndicesInPage[-1]:
                     rightIndex = noteIndicesInPage[i + 1]
-                    rightIndexNoteCount = indexNoteCountInPage.get(rightIndex)
-                    if indexNoteCount >= rightIndexNoteCount:
+                    rightIndexNoteSources = indexNoteSourcesInPage[rightIndex]
+                    if len(indexNoteSources) >= len(rightIndexNoteSources):
                         newNoteIndicesInPage.append(index)
                     else:
                         newNoteIndicesInPage.append(rightIndex)
@@ -557,10 +582,10 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     notePositionsByPage, notesAndTies, pageWidth = \
         getNotePositions(pdf, loadedProject)
 
-    indexNoteCountByPage, noteIndicesByPage = \
+    indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
-    return compareIndices(indexNoteCountByPage, noteIndicesByPage, midiTicks, notesInTick)
+    return compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTick)
 
 def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPage,
          notesImages, cursorLineColor):
