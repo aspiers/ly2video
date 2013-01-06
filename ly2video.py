@@ -271,15 +271,19 @@ def getNotePositions(pdfFileName, loadedProject):
     annotated rectangle and also the line and column number it points
     to in the SANITISED_LY file.
 
+    Parameters:
+      - pdfFileName
+      - loadedProject: loaded *.ly file in memory (list)
+
     Returns:
-    - notesAndTies: a list of (lineNum, charNum) tuples sorted by
-      line number in SANITISED_LY
-    - notePositionsByPage: a list with each top-level item representing a page,
-      where each page is a list of ((lineNum, charNum), coords) tuples.
-      coords is (x1, y1, x2, y2) representing opposite corners of
-      the rectangle.
-    - pageWidth: the width of the first page (all pages are
-      assumed to have the same width)
+      - notesAndTies: a list of (lineNum, charNum) tuples sorted by
+        line number in SANITISED_LY
+      - notePositionsByPage: a list with each top-level item
+        representing a page, where each page is a sorted list of
+        ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
+        representing opposite corners of the rectangle.
+      - pageWidth: the width of the first PDF page in PDF units (all
+        pages are assumed to have the same width)
     """
 
     # open PDF file with external library and gets width of page (in PDF measures)
@@ -378,6 +382,18 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
     the note in the PNG file which contains it), and merging indices
     which are within +/- 10 pixels of each other.
 
+    Parameters
+      - notePositionsByPage: a list with each top-level item
+        representing a page, where each page is a sorted list of
+        ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
+        representing opposite corners of the rectangle.
+      - notesAndTies: a list of (lineNum, charNum) tuples sorted by
+        line number in SANITISED_LY
+      - loadedProject: loaded *.ly file in memory (list)
+      - imageWidth: width of PNG file(s)
+      - pageWidth: the width of the first PDF page in PDF units (all
+        pages are assumed to have the same width)
+
     Returns:
       - indexNoteSourcesByPage:
             a list of dicts, one per page, mapping each index to a
@@ -417,18 +433,17 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
         # (within one page)
         indexNoteSourcesInPage = {}
 
-        # notes that are connected by tie and will not generate
+        # Notes that are preceded by tie and will not generate
         # a MIDI NoteOn event
         silentNotes = []
 
-        for (linkLy, coords) in notePositionsInPage:
+        for (linkLy, coords) in notePositionsInPage: # this is already sorted
             lineNum, charNum = linkLy
             # get that token
             token = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
 
-            # if it's note
             if token.__class__.__name__ == "PitchWord":
-                # if it's silent note, then remove it and ignore it
+                # It's a note; if it's silent, remove it and ignore it
                 if linkLy in silentNotes:
                     silentNotes.remove(linkLy)
                     continue
@@ -439,9 +454,9 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 if noteIndex not in indexNoteSourcesInPage:
                     indexNoteSourcesInPage[noteIndex] = []
                 indexNoteSourcesInPage[noteIndex].append(linkLy)
-            # if it's tie
             elif token.find("~") != -1:
-                # if next note isn't in silent notes, add it
+                # It's a tie.
+                # If next note isn't in silent notes, add it
                 nextNote = notesAndTies[notesAndTies.index(linkLy) + 1]
                 if silentNotes.count(nextNote) == 0:
                     silentNotes.append(nextNote)
@@ -462,9 +477,28 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
 
 def mergeNearbyIndices(indexNoteSourcesInPage):
     """
-    Returns a sorted list of all indices in the page.  Any within +/-
-    10 pixels of each other get merged into a single index, and
-    indexNoteSourcesInPage is adjusted accordingly as a side-effect.
+    Merges nearby note indices in the given page.  Any within +/- 10
+    pixels of each other get merged into a single index.
+
+    Parameters:
+      - indexNoteSourcesInPage:
+            a dict mapping each index to a list of (lineNum, colNum)
+            tuples in the source project corresponding to the notes at
+            that index within the page, e.g.
+
+                {
+                    123 : [    # index
+                        (37, 2), # note at index 123, line 37 col 2
+                        (37, 5), # note at index 123, line 37 col 5
+                    ],
+                    ...
+                }
+
+    Returns:
+      - a sorted list of all indices in the page, post merge
+
+    indexNoteSourcesInPage is also adjusted according to the merging,
+    as a side-effect.
     """
     # gets all indices on one page and sort it
     noteIndicesInPage = indexNoteSourcesInPage.keys()
@@ -590,6 +624,7 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPa
          notesImages, cursorLineColor):
     """
     Generates frames for the final video, synchronized with audio.
+    Each frame is written to disk as a PNG file.
 
     Counts time between starts of two notes, gets their positions on
     image and generates needed amount of frames. The index of last
