@@ -264,7 +264,7 @@ def getMidiEvents(midiFileName):
     
     return (midiResolution, temposList, notesInTick, midiTicks)
 
-def getNotePositions(pdf, loadedProject):
+def getNotePositions(pdfFileName, loadedProject):
     """
     For every link annotation in the PDF file which is a link to the
     SANITISED_LY file we generated, store the coordinates of the
@@ -283,7 +283,7 @@ def getNotePositions(pdf, loadedProject):
     """
 
     # open PDF file with external library and gets width of page (in PDF measures)
-    fPdf = file(pdf, "rb")
+    fPdf = file(pdfFileName, "rb")
     pdfFile = PdfFileReader(fPdf) 
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
     print "width of first PDF page is %f" % pageWidth
@@ -546,7 +546,7 @@ def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesIn
 
     return newNoteIndicesByPage
 
-def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
+def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTick):
     """
     Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
@@ -571,7 +571,7 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     Returns a list of note indices in the PNG image, grouped by page.
 
     Params:
-    - pdf:              name of generated PDF file (string)
+    - pdfFileName:      name of generated PDF file (string)
     - imageWidth:       width of PNG file(s)
     - loadedProject:    loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
@@ -579,7 +579,7 @@ def getNoteIndices(pdf, imageWidth, loadedProject, midiTicks, notesInTick):
     """
 
     notePositionsByPage, notesAndTies, pageWidth = \
-        getNotePositions(pdf, loadedProject)
+        getNotePositions(pdfFileName, loadedProject)
 
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
