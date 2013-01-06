@@ -454,7 +454,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 if noteIndex not in indexNoteSourcesInPage:
                     indexNoteSourcesInPage[noteIndex] = []
                 indexNoteSourcesInPage[noteIndex].append(linkLy)
-            elif token.find("~") != -1:
+            elif token == "~":
                 # It's a tie.
                 # If next note isn't in silent notes, add it
                 nextNote = notesAndTies[notesAndTies.index(linkLy) + 1]
