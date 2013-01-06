@@ -458,11 +458,14 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
                 # It's a tie.
                 # If next note isn't in silent notes, add it
                 nextNote = notesAndTies[notesAndTies.index(linkLy) + 1]
-                if silentNotes.count(nextNote) == 0:
+                if nextNote not in silentNotes:
                     silentNotes.append(nextNote)
                 # otherwise add next one (after the last silent one (if it's tie of harmony))
                 else:
-                    silentNotes.append(notesAndTies[notesAndTies.index(silentNotes[-1]) + 1]) 
+                    lastSilentSrcIndex = notesAndTies.index(silentNotes[-1])
+                    srcIndexAfterLastSilent = lastSilentSrcIndex + 1
+                    linkLyAfterLastSilent = notesAndTies[srcIndexAfterLastSilent]
+                    silentNotes.append(linkLyAfterLastSilent)
 
         noteIndicesInPage = mergeNearbyIndices(indexNoteSourcesInPage)
 
