@@ -36,6 +36,7 @@ from ly.tokenize import Tokenizer
 from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 
+from pprint import pprint
 
 SANITISED_LY = "ly2videoConvert.ly"
 KEEP_TMP_FILES = False
