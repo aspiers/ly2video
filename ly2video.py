@@ -545,6 +545,9 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
 
     return noteIndicesInPage
 
+def tickMatchesIndex(notesInTick, indexNoteSources):
+    return len(notesInTick) <= len(indexNoteSources)
+
 def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks):
     """
     Sequentially compares the indices of notes in the images with
@@ -584,7 +587,7 @@ def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesIn
             indexNoteSources = indexNoteSourcesInPage[index]
             tick = midiTicks[midiIndex]
             notesInTick = notesInTicks[tick]
-            if len(notesInTick) <= len(indexNoteSources):
+            if tickMatchesIndex(notesInTick, indexNoteSources):
                 newNoteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
