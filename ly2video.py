@@ -351,7 +351,7 @@ def getNotePositions(pdfFileName, loadedProject):
             
             try:
                 # get name of note
-                note = parser.tokens(srcLine[charNum:]).next()
+                token = parser.tokens(srcLine[charNum:]).next()
 
                 # Is the note immediately followed by \rest?  If so,
                 # it's actually a rest not a note:
@@ -360,15 +360,15 @@ def getNotePositions(pdfFileName, loadedProject):
                 # isn't any other note to the right of it.
                 isNote = True
 
-                for token in parser.tokens(srcLine[charNum + len(note):]):
+                for rightToken in parser.tokens(srcLine[charNum + len(token):]):
                     # if there is another note (or rest etc.) to the
                     # right of it, it's a real note
-                    if token.__class__.__name__ == "PitchWord":
+                    if rightToken.__class__.__name__ == "PitchWord":
                         break
                     # if \rest appears after it and before the next
                     # note, it's a rest not a note, so we ignore it
-                    elif (token.__class__.__name__ == "Command"
-                          and repr(token) == "u'\\\\rest'"):
+                    elif (rightToken.__class__.__name__ == "Command"
+                          and repr(rightToken) == "u'\\\\rest'"):
                         isNote = False
                         break
 
@@ -378,11 +378,12 @@ def getNotePositions(pdfFileName, loadedProject):
                 # getFilteredIndices() will filter out notes to the
                 # right of ties.
                 if isNote:
-                    if (note.__class__.__name__ == "PitchWord" and
-                        str(note) not in "rR") or note.find("~") != -1:
+                    if (token.__class__.__name__ == "PitchWord" and
+                        str(token) not in "rR") or token.find("~") != -1:
                         # add it
-                        notePositionsInPage.append(((lineNum, charNum), coords))
-                        notesAndTies.add((lineNum, charNum))
+                        sourceCoords = (lineNum, charNum)
+                        notePositionsInPage.append((sourceCoords, coords))
+                        notesAndTies.add(sourceCoords)
             #if there is some error, write that statement and exit
             except StandardError as err:
                 fatal(("PDF: %s\n"
