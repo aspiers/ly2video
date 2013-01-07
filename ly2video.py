@@ -705,7 +705,6 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPa
                 if startMidi == temposList[tempoIndex + 1][0]:
                     tempoIndex += 1
 
-
             # how many frames do I need?
             neededFrames = ((temposList[tempoIndex][1] * 1.0) / midiResolution
                             * (endMidi - startMidi) / 1000000 * fps)
@@ -715,7 +714,6 @@ def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPa
             dropFrame += (realFrames - neededFrames)
             # pixel shift for one frame
             shift = (endIndex - startIndex) * 1.0 / neededFrames
-
             
             for posun in range(realFrames):
                 # if I need drop more than "1.0" frames, drop one
