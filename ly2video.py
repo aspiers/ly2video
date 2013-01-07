@@ -214,9 +214,8 @@ def getTemposList(midiFile):
 
 def getNotesInTicks(midiFile):
     """
-    Returns a dict mapping ticks to the number of NoteOn events in
-    that tick.  Each key is a tick and the corresponding value is the
-    count.  This is needed for deleting some notes' positions obtained
+    Returns a dict mapping ticks to a list of NoteOn events in that
+    tick.  This is needed for deleting some notes' positions obtained
     from the images, e.g. when two or more notes within a major second
     of each other occur in the same chord and share a note stem - in
     that case you get some note heads to the left of the stem and some
@@ -236,8 +235,8 @@ def getNotesInTicks(midiFile):
 
             # add it into notesInTicks
             if event.tick not in notesInTicks:
-                notesInTicks[event.tick] = 0
-            notesInTicks[event.tick] += 1
+                notesInTicks[event.tick] = []
+            notesInTicks[event.tick].append(event)
 
     return notesInTicks
 
@@ -582,7 +581,8 @@ def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesIn
 
             indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
             indexNoteSources = indexNoteSourcesInPage[index]
-            if notesInTicks.get(midiTicks[midiIndex]) <= len(indexNoteSources):
+            notesInTick = notesInTicks[midiTicks[midiIndex]]
+            if len(notesInTick) <= len(indexNoteSources):
                 newNoteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
