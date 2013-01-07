@@ -384,7 +384,7 @@ def getNotePositions(pdfFileName, loadedProject):
                         notePositionsInPage.append(((lineNum, charNum), coords))
                         notesAndTies.add((lineNum, charNum))
             #if there is some error, write that statement and exit
-            except Exception as err:
+            except StandardError as err:
                 fatal(("PDF: %s\n"
                        + "ly2video was trying to work with this: "
                        + "\"%s\", coords in LY (line %d char %d).") %
