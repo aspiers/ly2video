@@ -582,7 +582,8 @@ def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesIn
 
             indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
             indexNoteSources = indexNoteSourcesInPage[index]
-            notesInTick = notesInTicks[midiTicks[midiIndex]]
+            tick = midiTicks[midiIndex]
+            notesInTick = notesInTicks[tick]
             if len(notesInTick) <= len(indexNoteSources):
                 newNoteIndicesInPage.append(index)
             else:
