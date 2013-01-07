@@ -706,7 +706,8 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
         getNotePositions(pdfFileName, loadedProject)
 
     indexNoteSourcesByPage, noteIndicesByPage = \
-        getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
+        getFilteredIndices(notePositionsByPage, notesAndTies,
+                           loadedProject, imageWidth, pageWidth)
 
     return alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
 
