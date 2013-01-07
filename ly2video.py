@@ -562,7 +562,12 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, 
     At each note index, look to see if the index to the right of the
     current one has more notes, and if so, it skips the current index.
     If *not*, it skips the other one (i.e. the one to the right of the
-    current one).  FIXME: why???
+    current one).  Jiri explained that this was to deal with the case
+    where you would have multiple notes sharing the same note stem,
+    but with more to the right of the stem than to the left.  However,
+    in theory those notes should have been merged into a single index
+    by now by mergeNearbyIndices(), which is a better approach because
+    it places a +/-10 pixels threshold on the merging.
 
     The MIDI information is currently unaltered.  FIXME: if we find
     spurious MIDI events (e.g. due to hidden notes), we will want to
@@ -621,8 +626,6 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, 
                 # are more notes at the index to the right of this
                 # one, out of the two indices choose *only* the one
                 # with the most notes and skip the other one.
-                #
-                # FIXME: why???
 
                 # next time around we won't append an index
                 # to newNoteIndicesInPage
