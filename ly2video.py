@@ -548,7 +548,7 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
 def tickMatchesIndex(notesInTick, indexNoteSources):
     return len(notesInTick) <= len(indexNoteSources)
 
-def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks):
+def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks):
     """
     Sequentially compares the indices of notes in the images with
     indices in the MIDI: the first position in the MIDI with the first
@@ -647,7 +647,7 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
-    return compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
+    return alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
 
 def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
                    noteIndicesByPage, notesImages, cursorLineColor):
