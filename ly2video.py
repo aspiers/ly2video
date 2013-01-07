@@ -671,7 +671,7 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     Then it sequentially compares the indices of the images with
     indices in the MIDI: the first position in the MIDI with the first
     position on the image.  If it's equal, then it's OK.  If not, then
-    it skips to the next position on image (see getMidiEvents(), part
+    it skips to the next position on image (see getMidiEvents() and
     notesInTicks).  Then it compares the next image index with MIDI
     index, and so on.
 
