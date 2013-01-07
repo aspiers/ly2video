@@ -546,20 +546,39 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
     return noteIndicesInPage
 
 def tickMatchesIndex(notesInTick, indexNoteSources):
+    """
+    Do the MIDI NoteOn events in this tick match the notes in the .ly
+    (pointed to from the PDF)?
+    """
     return len(notesInTick) <= len(indexNoteSources)
 
 def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks):
     """
-    Sequentially compares the indices of notes in the images with
-    indices in the MIDI: the first position in the MIDI with the first
-    position on the image.  If it's equal, then it's OK.  If not, then
-    it skips to the next position on image (see getMidiEvents(), part
-    notesInTicks).  Then it compares the next image index with MIDI
-    index, and so on.
+    Build a list of note indices (grouped by page) which align with
+    the ticks in midiTicks, by sequentially comparing the notes at
+    each index in the images with the notes at each tick in the MIDI
+    stream.
+
+    At each note index, look to see if the index to the right of the
+    current one has more notes, and if so, it skips the current index.
+    If *not*, it skips the other one (i.e. the one to the right of the
+    current one).  FIXME: why???
+
+    The MIDI information is currently unaltered.  FIXME: if we find
+    spurious MIDI events (e.g. due to hidden notes), we will want to
+    skip them too.
+
+    Parameters:
+      - indexNoteSourcesByPage: as returned by getFilteredIndices()
+      - noteIndicesByPage:      as returned by getFilteredIndices()
+      - notesInTicks:           as returned by getNotesInTicks()
+      - midiTicks: a sorted list of which ticks contain NoteOn events.
+                   The last tick corresponds to the earliest
+                   EndOfTrackEvent found across all MIDI channels.
 
     Returns:
-    - noteIndicesByPage: a list of sorted lists, one per page, containing
-                         all the indices on that page in order
+      - noteIndicesByPage: a list of sorted lists, one per page, containing
+                           all the indices on that page in order
     """
 
     newNoteIndicesByPage = []
@@ -571,10 +590,13 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, 
         # final indices of notes on one page
         newNoteIndicesInPage = []
 
+        # When this is set to true, the index to the right of this one
+        # will be dropped, and incremental of midiIndex will be
+        # skipped.
         skipNextIndex = False
-        
+
         for i, index in enumerate(noteIndicesInPage):
-            # if runs out of midi indices, then exit
+            # if we run out of midi indices, then exit
             if midiIndex == len(midiTicks):
                 fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
                       (midiIndex, index))
@@ -583,27 +605,49 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, 
                 skipNextIndex = False
                 continue
 
+            # figure out which notes are at this index in the image
             indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
             indexNoteSources = indexNoteSourcesInPage[index]
+
+            # figure out which NoteOn events are at this tick
             tick = midiTicks[midiIndex]
             notesInTick = notesInTicks[tick]
+
             if tickMatchesIndex(notesInTick, indexNoteSources):
+                # MIDI <= notes at index
                 newNoteIndicesInPage.append(index)
             else:
-                # if there is next index on my right
+                # More MIDI notes than notes at this index; if there
+                # are more notes at the index to the right of this
+                # one, out of the two indices choose *only* the one
+                # with the most notes and skip the other one.
+                #
+                # FIXME: why???
+
+                # next time around we won't append an index
+                # to newNoteIndicesInPage
+                skipNextIndex = True
+
+                # if there is another index on my right
                 if index != noteIndicesInPage[-1]:
+                    # get the notes at that index
                     rightIndex = noteIndicesInPage[i + 1]
                     rightIndexNoteSources = indexNoteSourcesInPage[rightIndex]
+
+                    # append the index which has the most notes (if
+                    # they have the same number, append this index not
+                    # the one to its right)
                     if len(indexNoteSources) >= len(rightIndexNoteSources):
                         newNoteIndicesInPage.append(index)
                     else:
                         newNoteIndicesInPage.append(rightIndex)
-                # otherwise just add that index (it's last index on that page)
                 else:
+                    # just add that index (it's the last index on that page)
                     newNoteIndicesInPage.append(index)
-                skipNextIndex = True
+
             # go to next MIDI index
             midiIndex += 1
+
         # add indices on one page into final noteIndicesByPage
         newNoteIndicesByPage.append(newNoteIndicesInPage)
 
