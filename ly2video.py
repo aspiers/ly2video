@@ -202,7 +202,7 @@ def getNotesInTicks(midiFile):
     that case you get some note heads to the left of the stem and some
     to the right.
     """
-    notesInTick = dict()
+    notesInTicks = {}
 
     # for every channel in MIDI (except the first one)
     for eventsList in midiFile[1:]:
@@ -214,13 +214,12 @@ def getNotesInTicks(midiFile):
                 # velocity is zero (that's basically "NoteOffEvent")
                 continue
 
-            # add it into notesInTick
-            if event.tick not in notesInTick:
-                notesInTick[event.tick] = 1
-            else:
-                notesInTick[event.tick] += 1
+            # add it into notesInTicks
+            if event.tick not in notesInTicks:
+                notesInTicks[event.tick] = 0
+            notesInTicks[event.tick] += 1
 
-    return notesInTick
+    return notesInTicks
 
 def getMidiEvents(midiFileName):
     """
@@ -232,7 +231,7 @@ def getMidiEvents(midiFileName):
     Returns a tuple of the following items:
       - midiResolution: the resolution of the MIDI file
       - temposList: as returned by getTemposList()
-      - notesInTick: as returned by getNotesInTicks()
+      - notesInTicks: as returned by getNotesInTicks()
       - midiTicks: a sorted list of which ticks contain NoteOn events.
                    The last tick corresponds to the earliest
                    EndOfTrackEvent found across all MIDI channels.
@@ -247,10 +246,10 @@ def getMidiEvents(midiFileName):
     midiResolution = midiFile.resolution
 
     temposList = getTemposList(midiFile)
-    notesInTick = getNotesInTicks(midiFile)
+    notesInTicks = getNotesInTicks(midiFile)
 
     # get all ticks with notes and sorts it
-    midiTicks = notesInTick.keys()
+    midiTicks = notesInTicks.keys()
     midiTicks.sort()
 
     # find the tick corresponding to the earliest EndOfTrackEvent
@@ -264,7 +263,7 @@ def getMidiEvents(midiFileName):
     
     progress("MIDI: Parsing MIDI file has ended.")
     
-    return (midiResolution, temposList, notesInTick, midiTicks)
+    return (midiResolution, temposList, notesInTicks, midiTicks)
 
 def getNotePositions(pdfFileName, loadedProject):
     """
@@ -526,13 +525,13 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
 
     return noteIndicesInPage
 
-def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTick):
+def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks):
     """
     Sequentially compares the indices of notes in the images with
     indices in the MIDI: the first position in the MIDI with the first
     position on the image.  If it's equal, then it's OK.  If not, then
     it skips to the next position on image (see getMidiEvents(), part
-    notesInTick).  Then it compares the next image index with MIDI
+    notesInTicks).  Then it compares the next image index with MIDI
     index, and so on.
 
     Returns:
@@ -563,7 +562,7 @@ def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesIn
 
             indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
             indexNoteSources = indexNoteSourcesInPage[index]
-            if notesInTick.get(midiTicks[midiIndex]) <= len(indexNoteSources):
+            if notesInTicks.get(midiTicks[midiIndex]) <= len(indexNoteSources):
                 newNoteIndicesInPage.append(index)
             else:
                 # if there is next index on my right
@@ -585,7 +584,7 @@ def compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesIn
 
     return newNoteIndicesByPage
 
-def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTick):
+def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTicks):
     """
     Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
@@ -604,7 +603,7 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     indices in the MIDI: the first position in the MIDI with the first
     position on the image.  If it's equal, then it's OK.  If not, then
     it skips to the next position on image (see getMidiEvents(), part
-    notesInTick).  Then it compares the next image index with MIDI
+    notesInTicks).  Then it compares the next image index with MIDI
     index, and so on.
 
     Returns a list of note indices in the PNG image, grouped by page.
@@ -614,7 +613,7 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     - imageWidth:       width of PNG file(s)
     - loadedProject:    loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
-    - notesInTick:      how many notes starts in each tick
+    - notesInTicks:     how many notes starts in each tick
     """
 
     notePositionsByPage, notesAndTies, pageWidth = \
@@ -623,7 +622,7 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth)
 
-    return compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTick)
+    return compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
 
 def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPage,
          notesImages, cursorLineColor):
@@ -1221,7 +1220,8 @@ def main():
 
     # find needed data in MIDI
     try:
-        midiResolution, temposList, notesInTick, midiTicks = getMidiEvents("ly2videoConvert.midi")
+        midiResolution, temposList, notesInTicks, midiTicks = \
+            getMidiEvents("ly2videoConvert.midi")
     except Exception as err:
         fatal("MIDI: %s " % err, 10)
         
@@ -1229,7 +1229,7 @@ def main():
 
     # find notes indices
     noteIndicesByPage = getNoteIndices("ly2videoConvert.pdf", picWidth,
-                                       loadedProject, midiTicks, notesInTick)
+                                       loadedProject, midiTicks, notesInTicks)
     output_divider_line()
     
     # frame rate of output video
