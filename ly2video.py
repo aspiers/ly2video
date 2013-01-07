@@ -356,20 +356,28 @@ def getNotePositions(pdfFileName, loadedProject):
                 # Is the note immediately followed by \rest?  If so,
                 # it's actually a rest not a note:
                 # http://lilypond.org/doc/v2.14/Documentation/notation/writing-rests
-                isRest = True
+                # We default to assuming it's a note, in case there
+                # isn't any other note to the right of it.
+                isNote = True
+
                 for token in parser.tokens(srcLine[charNum + len(note):]):
-                    # if there is another note right next to it (or rest, etc.), it's ok 
+                    # if there is another note (or rest etc.) to the
+                    # right of it, it's a real note
                     if token.__class__.__name__ == "PitchWord":
                         break
-                    # if its "note with \rest", it's NOT ok and ignore it
+                    # if \rest appears after it and before the next
+                    # note, it's a rest not a note, so we ignore it
                     elif (token.__class__.__name__ == "Command"
                           and repr(token) == "u'\\\\rest'"):
-                        isRest = False
+                        isNote = False
                         break
+
                 # If the note is not followed by \rest, and it's a
                 # note rather than an "r"-style rest or it's a tie, we
-                # keep track of it.  FIXME: why?
-                if isRest:
+                # keep track of it.  In the next phase,
+                # getFilteredIndices() will filter out notes to the
+                # right of ties.
+                if isNote:
                     if (note.__class__.__name__ == "PitchWord" and
                         str(note) not in "rR") or note.find("~") != -1:
                         # add it
