@@ -303,6 +303,9 @@ def getNotePositions(pdfFileName, loadedProject):
         representing a page, where each page is a sorted list of
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
         representing opposite corners of the rectangle.
+      - tokens: a dict mapping every (lineNum, charNum) tuple to the
+        token found at that point in SANITISED_LY.  This will be used
+        to compare notes in the source with notes in the MIDI
       - pageWidth: the width of the first PDF page in PDF units (all
         pages are assumed to have the same width)
     """
@@ -315,6 +318,7 @@ def getNotePositions(pdfFileName, loadedProject):
 
     notesAndTies = set()
     notePositionsByPage = []
+    tokens = {}
     
     for pageNumber in range(pdfFile.getNumPages()):
         # get informations about page
@@ -384,6 +388,7 @@ def getNotePositions(pdfFileName, loadedProject):
                         sourceCoords = (lineNum, charNum)
                         notePositionsInPage.append((sourceCoords, coords))
                         notesAndTies.add(sourceCoords)
+                        tokens[sourceCoords] = token
             #if there is some error, write that statement and exit
             except StandardError as err:
                 fatal(("PDF: %s\n"
@@ -402,7 +407,7 @@ def getNotePositions(pdfFileName, loadedProject):
     # create list of notes and ties and sort it        
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()    
-    return notePositionsByPage, notesAndTies, pageWidth
+    return notePositionsByPage, notesAndTies, tokens, pageWidth
 
 def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth):
     """
@@ -697,7 +702,7 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     - notesInTicks:     how many notes starts in each tick
     """
 
-    notePositionsByPage, notesAndTies, pageWidth = \
+    notePositionsByPage, notesAndTies, tokens, pageWidth = \
         getNotePositions(pdfFileName, loadedProject)
 
     indexNoteSourcesByPage, noteIndicesByPage = \
