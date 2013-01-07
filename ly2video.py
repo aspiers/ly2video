@@ -649,8 +649,8 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
 
     return compareIndices(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
 
-def sync(midiResolution, temposList, midiTicks, resolution, fps, noteIndicesByPage,
-         notesImages, cursorLineColor):
+def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
+                   noteIndicesByPage, notesImages, cursorLineColor):
     """
     Generates frames for the final video, synchronized with audio.
     Each frame is written to disk as a PNG file.
@@ -1264,8 +1264,9 @@ def main():
     output_divider_line()
 
     # generate notes
-    sync(midiResolution, temposList, midiTicks, resolution,
-         fps, noteIndicesByPage, notesImages, getCursorLineColor(options))
+    genVideoFrames(midiResolution, temposList, midiTicks, resolution,
+                   fps, noteIndicesByPage, notesImages,
+                   getCursorLineColor(options))
     output_divider_line()
 
     # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
