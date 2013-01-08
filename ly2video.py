@@ -230,7 +230,7 @@ def getNotesInTicks(midiFile):
             if not isinstance(event, midi.NoteOnEvent):
                 continue
 
-            if event.data[1] == 0:
+            if event.get_velocity() == 0:
                 # velocity is zero (that's basically "NoteOffEvent")
                 continue
 
