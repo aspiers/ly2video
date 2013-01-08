@@ -726,14 +726,14 @@ def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
     skips generating one frame.
 
     Params:
-    - midiResolution:    resolution of MIDI file
-    - temposList:        list of possible tempos in MIDI
-    - midiTicks:         list of ticks with NoteOnEvent
-    - resolution:        resolution of generated frames (and video)
-    - fps:               frame rate of video
-    - noteIndicesByPage: indices of notes in pictures
-    - notesImages:       names of that images (list of strings)
-    - cursorLineColor:   color of middle line
+      - midiResolution:    resolution of MIDI file
+      - temposList:        list of possible tempos in MIDI
+      - midiTicks:         list of ticks with NoteOnEvent
+      - resolution:        resolution of generated frames (and video)
+      - fps:               frame rate of video
+      - noteIndicesByPage: indices of notes in pictures
+      - notesImages:       names of that images (list of strings)
+      - cursorLineColor:   color of middle line
     """
 
     midiIndex = 0
