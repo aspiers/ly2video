@@ -285,7 +285,7 @@ def getMidiEvents(midiFileName):
     
     return (midiResolution, temposList, notesInTicks, midiTicks)
 
-def getNotePositions(pdfFileName, loadedProject):
+def getNotePositions(pdfFileName, lySrcLines):
     """
     For every link annotation in the PDF file which is a link to the
     SANITISED_LY file we generated, store the coordinates of the
@@ -294,7 +294,7 @@ def getNotePositions(pdfFileName, loadedProject):
 
     Parameters:
       - pdfFileName
-      - loadedProject: loaded *.ly file in memory (list)
+      - lySrcLines: loaded *.ly file in memory (list)
 
     Returns:
       - notesAndTies: a list of (lineNum, charNum) tuples sorted by
@@ -351,7 +351,7 @@ def getNotePositions(pdfFileName, loadedProject):
                 print "got char %s col %s on line %s" % (charNum, columnNum, lineNum)
             lineNum = int(lineNum)
             charNum = int(charNum)
-            srcLine = loadedProject[lineNum - 1]
+            srcLine = lySrcLines[lineNum - 1]
             
             try:
                 # get name of note
@@ -394,7 +394,7 @@ def getNotePositions(pdfFileName, loadedProject):
                 fatal(("PDF: %s\n"
                        + "ly2video was trying to work with this: "
                        + "\"%s\", coords in LY (line %d char %d).") %
-                      (err, loadedProject[lineNum - 1][charNum:][:-1],
+                      (err, lySrcLines[lineNum - 1][charNum:][:-1],
                        lineNum, charNum))
 
         # sort wanted positions on that page and add it into whole wanted positions
@@ -409,7 +409,7 @@ def getNotePositions(pdfFileName, loadedProject):
     notesAndTies.sort()    
     return notePositionsByPage, notesAndTies, tokens, pageWidth
 
-def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWidth, pageWidth):
+def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth, pageWidth):
     """
     Goes through notePositionsByPage, filtering out anything that
     won't generate a MIDI NoteOn event, converting each note's
@@ -424,7 +424,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
         representing opposite corners of the rectangle.
       - notesAndTies: a list of (lineNum, charNum) tuples sorted by
         line number in SANITISED_LY
-      - loadedProject: loaded *.ly file in memory (list)
+      - lySrcLines: loaded *.ly file in memory (list)
       - imageWidth: width of PNG file(s)
       - pageWidth: the width of the first PDF page in PDF units (all
         pages are assumed to have the same width)
@@ -475,7 +475,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, loadedProject, imageWi
         for (linkLy, coords) in notePositionsInPage: # this is already sorted
             lineNum, charNum = linkLy
             # get that token
-            token = parser.tokens(loadedProject[lineNum - 1][charNum:]).next()
+            token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
 
             if token.__class__.__name__ == "PitchWord":
                 # It's a note; if it's silent, remove it and ignore it
@@ -670,7 +670,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, 
 
     return newNoteIndicesByPage
 
-def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTicks):
+def getNoteIndices(pdfFileName, imageWidth, lySrcLines, midiTicks, notesInTicks):
     """
     Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
@@ -697,17 +697,17 @@ def getNoteIndices(pdfFileName, imageWidth, loadedProject, midiTicks, notesInTic
     Params:
     - pdfFileName:      name of generated PDF file (string)
     - imageWidth:       width of PNG file(s)
-    - loadedProject:    loaded *.ly file in memory (list)
+    - lySrcLines:    loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
     - notesInTicks:     how many notes starts in each tick
     """
 
     notePositionsByPage, notesAndTies, tokens, pageWidth = \
-        getNotePositions(pdfFileName, loadedProject)
+        getNotePositions(pdfFileName, lySrcLines)
 
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies,
-                           loadedProject, imageWidth, pageWidth)
+                           lySrcLines, imageWidth, pageWidth)
 
     return alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
 
@@ -1280,9 +1280,9 @@ def main():
 
     # load own project into memory
     fMyProject = open(SANITISED_LY, "r")
-    loadedProject = []
+    lySrcLines = []
     for line in fMyProject.readlines():
-        loadedProject.append(line)
+        lySrcLines.append(line)
     fMyProject.close()
     
     # generate PDF, PNG and MIDI file
@@ -1314,7 +1314,7 @@ def main():
 
     # find notes indices
     noteIndicesByPage = getNoteIndices("ly2videoConvert.pdf", picWidth,
-                                       loadedProject, midiTicks, notesInTicks)
+                                       lySrcLines, midiTicks, notesInTicks)
     output_divider_line()
     
     # frame rate of output video
