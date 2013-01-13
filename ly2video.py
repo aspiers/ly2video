@@ -22,6 +22,7 @@
 # <https://github.com/aspiers/ly2video/>.
 
 import collections
+import copy
 import os
 import re
 import shutil
@@ -32,7 +33,8 @@ from   optparse import OptionParser
 from   struct import pack
 
 from PIL import Image, ImageDraw, ImageFont
-from ly.tokenize import Tokenizer
+from ly.tokenize import MusicTokenizer, Tokenizer
+import ly.tools
 from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 
@@ -40,6 +42,19 @@ from pprint import pprint
 
 SANITISED_LY = "ly2videoConvert.ly"
 KEEP_TMP_FILES = False
+
+C_MAJOR_SCALE_STEPS = {
+    # Maps notes of the C major scale into semi-tones above C.
+    # This is needed to map the pitch of ly.tools.Pitch notes
+    # into MIDI pitch values within a given octave.
+    0 :  0, # c
+    1 :  2, # d
+    2 :  4, # e
+    3 :  5, # f
+    4 :  7, # g
+    5 :  9, # a
+    6 : 11, # b
+}
 
 def lineIndices(image, lineLength):
     """
@@ -215,12 +230,7 @@ def getTemposList(midiFile):
 
 def getNotesInTicks(midiFile):
     """
-    Returns a dict mapping ticks to a list of NoteOn events in that
-    tick.  This is needed for deleting some notes' positions obtained
-    from the images, e.g. when two or more notes within a major second
-    of each other occur in the same chord and share a note stem - in
-    that case you get some note heads to the left of the stem and some
-    to the right.
+    Returns a dict mapping ticks to a list of NoteOn events in that tick.
     """
     notesInTicks = {}
 
@@ -306,6 +316,8 @@ def getNotePositions(pdfFileName, lySrcLines):
       - tokens: a dict mapping every (lineNum, charNum) tuple to the
         token found at that point in SANITISED_LY.  This will be used
         to compare notes in the source with notes in the MIDI
+      - parser: the MusicTokenizer() object which can be reused for
+        pitch calculations
       - pageWidth: the width of the first PDF page in PDF units (all
         pages are assumed to have the same width)
     """
@@ -326,7 +338,7 @@ def getNotePositions(pdfFileName, lySrcLines):
         info = page.getObject()
 
         # ly parser (from Frescobaldi)
-        parser = Tokenizer()
+        parser = MusicTokenizer()
 
         if not info.has_key('/Annots'):
             continue
@@ -364,15 +376,16 @@ def getNotePositions(pdfFileName, lySrcLines):
                 # isn't any other note to the right of it.
                 isNote = True
 
-                for rightToken in parser.tokens(srcLine[charNum + len(token):]):
+                restOfLine = srcLine[charNum + len(token):]
+                for rightToken in parser.tokens(restOfLine):
                     # if there is another note (or rest etc.) to the
                     # right of it, it's a real note
-                    if rightToken.__class__.__name__ == "PitchWord":
+                    if isinstance(rightToken, MusicTokenizer.Pitch):
                         break
                     # if \rest appears after it and before the next
                     # note, it's a rest not a note, so we ignore it
-                    elif (rightToken.__class__.__name__ == "Command"
-                          and repr(rightToken) == "u'\\\\rest'"):
+                    elif isinstance(rightToken, Tokenizer.Command) and \
+                         rightToken == '\\rest':
                         isNote = False
                         break
 
@@ -382,13 +395,15 @@ def getNotePositions(pdfFileName, lySrcLines):
                 # getFilteredIndices() will filter out notes to the
                 # right of ties.
                 if isNote:
-                    if (token.__class__.__name__ == "PitchWord" and
-                        str(token) not in "rR") or token.find("~") != -1:
+                    isNote = isinstance(token, MusicTokenizer.Pitch) and \
+                             str(token) not in "rR"
+                    if isNote or token == '~':
                         # add it
                         sourceCoords = (lineNum, charNum)
                         notePositionsInPage.append((sourceCoords, coords))
                         notesAndTies.add(sourceCoords)
                         tokens[sourceCoords] = token
+
             #if there is some error, write that statement and exit
             except StandardError as err:
                 fatal(("PDF: %s\n"
@@ -407,7 +422,7 @@ def getNotePositions(pdfFileName, lySrcLines):
     # create list of notes and ties and sort it        
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()    
-    return notePositionsByPage, notesAndTies, tokens, pageWidth
+    return notePositionsByPage, notesAndTies, tokens, parser, pageWidth
 
 def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth, pageWidth):
     """
@@ -477,7 +492,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
             # get that token
             token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
 
-            if token.__class__.__name__ == "PitchWord":
+            if isinstance(token, MusicTokenizer.PitchWord):
                 # It's a note; if it's silent, remove it and ignore it
                 if linkLy in silentNotes:
                     silentNotes.remove(linkLy)
@@ -501,8 +516,13 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
                     srcIndexAfterLastSilent = lastSilentSrcIndex + 1
                     linkLyAfterLastSilent = notesAndTies[srcIndexAfterLastSilent]
                     silentNotes.append(linkLyAfterLastSilent)
+            else:
+                fatal("didn't know what to do with %s" % repr(token))
 
+        pprint(indexNoteSourcesInPage)
         noteIndicesInPage = mergeNearbyIndices(indexNoteSourcesInPage)
+        pprint(notesAndTies)
+        pprint(indexNoteSourcesInPage)
 
         # stores info about this page        
         indexNoteSourcesByPage.append(indexNoteSourcesInPage)
@@ -559,116 +579,160 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
 
     return noteIndicesInPage
 
-def tickMatchesIndex(notesInTick, indexNoteSources):
+def pitchValue(token, parser):
     """
-    Do the MIDI NoteOn events in this tick match the notes in the .ly
-    (pointed to from the PDF)?
+    Returns the numerical pitch of the token representing a note,
+    where the token is treated as an absolute pitch, and each
+    increment of 1 is equivalent to going up a semi-tone (half-step).
+    This facilitates comparison to MIDI NoteOn events, although
+    arithmetic modulo 12 may be required.
     """
-    return len(notesInTick) <= len(indexNoteSources)
+    print "!!! FIXME: assuming english !!!"
+    parser.language = 'english'
+    p = ly.tools.Pitch.fromToken(token, parser)
 
-def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks):
+    accidentalSemitoneSteps = 2 * p.alter
+    if accidentalSemitoneSteps.denominator != 1:
+        fatal("Uh-oh, we don't support microtones yet")
+
+    pitch = p.octave * 12 + \
+            C_MAJOR_SCALE_STEPS[p.note] + \
+            accidentalSemitoneSteps
+
+    return int(pitch)
+
+def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
+                          tokens, parser, midiTicks, notesInTicks):
     """
     Build a list of note indices (grouped by page) which align with
     the ticks in midiTicks, by sequentially comparing the notes at
     each index in the images with the notes at each tick in the MIDI
     stream.
 
-    At each note index, look to see if the index to the right of the
-    current one has more notes, and if so, it skips the current index.
-    If *not*, it skips the other one (i.e. the one to the right of the
-    current one).  Jiri explained that this was to deal with the case
-    where you would have multiple notes sharing the same note stem,
-    but with more to the right of the stem than to the left.  However,
-    in theory those notes should have been merged into a single index
-    by now by mergeNearbyIndices(), which is a better approach because
-    it places a +/-10 pixels threshold on the merging.
+    If MIDI events are found with no corresponding notation (e.g. due
+    to notes hidden via \hideNotes, or accompanying chords), they are
+    skipped and the containing tick is removed from midiTicks.  If
+    notes are found in the index with no corresponding MIDI event,
+    then currently we flag an error.  If this turns out to be a valid
+    use case then we can change this behaviour.
 
-    The MIDI information is currently unaltered.  FIXME: if we find
-    spurious MIDI events (e.g. due to hidden notes), we will want to
-    skip them too.
+    FIXME: there is probably a bug which will be triggered when a
+    chord appears on a beat containing no notated notes, but the next
+    note index contains one or more notes in the chord.  In this case,
+    I would expect the latter to match the MIDI tick containing the
+    chord, which would throw synchronization off.  But chords in MIDI
+    probably sound lousy and should be turned off:
+
+    http://article.gmane.org/gmane.comp.gnu.lilypond.general/61500
 
     Parameters:
       - indexNoteSourcesByPage: as returned by getFilteredIndices()
       - noteIndicesByPage:      as returned by getFilteredIndices()
+      - tokens:                 as returned by getNotePositions()
+      - parser:                 as returned by getNotePositions()
       - notesInTicks:           as returned by getNotesInTicks()
       - midiTicks: a sorted list of which ticks contain NoteOn events.
                    The last tick corresponds to the earliest
                    EndOfTrackEvent found across all MIDI channels.
-
     Returns:
-      - noteIndicesByPage: a list of sorted lists, one per page, containing
-                           all the indices on that page in order
+      - alignedNoteIndicesByPage:
+          a list of sorted lists, one per page, containing all the
+          indices on that page aligned in order with the MIDI ticks
+
+    Side-effect:
+      - entries may be removed from midiTicks (see above)
     """
 
-    newNoteIndicesByPage = []
+    alignedNoteIndicesByPage = []
 
     # index into list of MIDI ticks
     midiIndex = 0
 
     for pageNum, noteIndicesInPage in enumerate(noteIndicesByPage):
         # final indices of notes on one page
-        newNoteIndicesInPage = []
+        alignedNoteIndicesInPage = []
 
-        # When this is set to true, the index to the right of this one
-        # will be dropped, and incremental of midiIndex will be
-        # skipped.
-        skipNextIndex = False
+        indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
 
-        for i, index in enumerate(noteIndicesInPage):
-            # if we run out of midi indices, then exit
+        # index into list of note indices
+        i = 0
+
+        while i < len(noteIndicesInPage):
             if midiIndex == len(midiTicks):
                 fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
                       (midiIndex, index))
 
-            if skipNextIndex:
-                skipNextIndex = False
-                continue
-
-            # figure out which notes are at this index in the image
-            indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
+            index = noteIndicesInPage[i]
             indexNoteSources = indexNoteSourcesInPage[index]
 
-            # figure out which NoteOn events are at this tick
             tick = midiTicks[midiIndex]
-            notesInTick = notesInTicks[tick]
+            events = notesInTicks[tick]
 
-            if tickMatchesIndex(notesInTick, indexNoteSources):
-                # MIDI <= notes at index
-                newNoteIndicesInPage.append(index)
-            else:
-                # More MIDI notes than notes at this index; if there
-                # are more notes at the index to the right of this
-                # one, out of the two indices choose *only* the one
-                # with the most notes and skip the other one.
+            print "index %d, tick %d" % (index, tick)
 
-                # next time around we won't append an index
-                # to newNoteIndicesInPage
-                skipNextIndex = True
+            # Build a dict tracking which MIDI pitches (modulo the
+            # octave) are present in the current tick.  Pitches will
+            # be removed from this as they match notes in
+            # indexNoteSources.
+            midiPitches = { }
+            for event in events:
+                pitch = event.get_pitch() % 12
+                midiPitches[pitch] = event
 
-                # if there is another index on my right
-                if index != noteIndicesInPage[-1]:
-                    # get the notes at that index
-                    rightIndex = noteIndicesInPage[i + 1]
-                    rightIndexNoteSources = indexNoteSourcesInPage[rightIndex]
+            print "    midiPitches: %s" % repr(midiPitches)
 
-                    # append the index which has the most notes (if
-                    # they have the same number, append this index not
-                    # the one to its right)
-                    if len(indexNoteSources) >= len(rightIndexNoteSources):
-                        newNoteIndicesInPage.append(index)
-                    else:
-                        newNoteIndicesInPage.append(rightIndex)
-                else:
-                    # just add that index (it's the last index on that page)
-                    newNoteIndicesInPage.append(index)
+            # Check every note from the source is in the MIDI tick.
+            # If only some are, abort with an error.  If none are, we
+            # skip this MIDI tick, assuming it corresponds to a
+            # transparent note caused by \hideNotes or similar, or a
+            # chord.
+            matchCount = 0
+            for indexNoteSource in indexNoteSources:
+                token = tokens[indexNoteSource]
+                notePitch = pitchValue(token, parser) % 12
+                if notePitch in midiPitches:
+                    matchCount += 1
+                    del midiPitches[notePitch]
+                    print "        matched '%s' @ %d:%d to MIDI pitch %d" % \
+                          (token, indexNoteSource[0], indexNoteSource[1], notePitch)
 
-            # go to next MIDI index
+            if matchCount == 0:
+                # No pitches in this index matched this MIDI tick -
+                # maybe it was a note hidden by \hideNotes.  So let's
+                # skip the tick.
+                midiTicks.pop(midiIndex)
+                print "    WARNING: skipping MIDI tick %d; contents:" % tick
+                for event in events:
+                    print "        pitch %d length %d" % (event.get_pitch(),
+                                                          event.length)
+                continue
+
+            # Regardless of what we found, we're going to move onto
+            # the next tick now.
             midiIndex += 1
 
-        # add indices on one page into final noteIndicesByPage
-        newNoteIndicesByPage.append(newNoteIndicesInPage)
+            if midiPitches:
+                print("    WARNING: only matched %d/%d MIDI notes "
+                      "at index %d tick %d\n" %
+                      (matchCount, len(events), index, tick))
+                for event in midiPitches.values():
+                    print "        pitch %d length %d" % (event.get_pitch(),
+                                                          event.length)
+                continue
 
-    return newNoteIndicesByPage
+            print "    all pitches matched in this MIDI tick!"
+            alignedNoteIndicesInPage.append(index)
+            i += 1
+
+        # add indices on one page into final noteIndicesByPage
+        alignedNoteIndicesByPage.append(alignedNoteIndicesInPage)
+
+    if midiIndex < len(midiTicks) - 1:
+        print "WARNING: ran out of notes in PDF at MIDI tick %d (%d/%d ticks)" % \
+            (midiTicks[midiIndex], midiIndex + 1, len(midiTicks))
+
+    pprint(alignedNoteIndicesByPage)
+    return alignedNoteIndicesByPage
 
 def getNoteIndices(pdfFileName, imageWidth, lySrcLines, midiTicks, notesInTicks):
     """
@@ -702,14 +766,16 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcLines, midiTicks, notesInTicks)
     - notesInTicks:     how many notes starts in each tick
     """
 
-    notePositionsByPage, notesAndTies, tokens, pageWidth = \
+    notePositionsByPage, notesAndTies, tokens, parser, pageWidth = \
         getNotePositions(pdfFileName, lySrcLines)
 
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies,
                            lySrcLines, imageWidth, pageWidth)
 
-    return alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage, midiTicks, notesInTicks)
+    return alignIndicesWithTicks(indexNoteSourcesByPage,
+                                 noteIndicesByPage, tokens, parser,
+                                 midiTicks, notesInTicks)
 
 def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
                    noteIndicesByPage, notesImages, cursorLineColor):
@@ -754,7 +820,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
         # open image of staff
         notesPic = Image.open(notesImages[pageNum])
 
-        # add index for the last note
+        # duplicate last index
         indices.append(indices[-1])
 
         for index in indices[:-1]:
