@@ -944,7 +944,6 @@ def delete_tmp_files(paths):
     return (errors == 0)
 
 def parseOptions():
-    # create parser and add options
     parser = OptionParser("usage: %prog [options]")
 
     parser.add_option("-i", "--input", dest="input",
@@ -977,12 +976,10 @@ def parseOptions():
                   help="don't remove temporary working files",
                       action="store_true", default=False)
 
-    # if there is only one arg, then show help and exit
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(0)
 
-    # and parse input
     return parser.parse_args()
 
 def portableDevNull():
