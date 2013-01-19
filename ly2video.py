@@ -955,17 +955,36 @@ def fatal(text, status=1):
     sys.exit(status)
 
 def delete_tmp_files(paths):
-    return True
     errors = 0
+    if isinstance(paths, str):
+        paths = [ paths ]
     for path in paths:
+        if path == '.' or path == '/':
+            import traceback
+            traceback.print_stack()
+            fatal("tried to rmtree '%s' - aborting !" % path)
+
+        if KEEP_TMP_FILES and not os.path.exists(path):
+            import traceback
+            traceback.print_stack()
+            fatal("Would have tried to delete non-existent temporary file %s" % path)
+            errors += 1
+            continue
+
         if os.path.isdir(path):
-            shutil.rmtree(path)
+            if KEEP_TMP_FILES:
+                progress("Skipping recursive deletion of: %s" % path)
+            else:
+                shutil.rmtree(path)
         else:
-            try:
-                os.remove(path)
-            except Exception as err:
-                warn("ly2video can't delete %s: %s" % (path, err))
-                errors += 1
+            if KEEP_TMP_FILES:
+                progress("Skipping deletion of: %s" % path)
+            else:
+                try:
+                    os.remove(path)
+                except Exception as err:
+                    warn("ly2video can't delete %s: %s" % (path, err))
+                    errors += 1
     return (errors == 0)
 
 def parseOptions():
@@ -1329,6 +1348,8 @@ def main():
     (options, args) = parseOptions()
 
     if options.keepTempFiles:
+        progress("Will keep temporary files.")
+        global KEEP_TMP_FILES
         KEEP_TMP_FILES = True
 
     lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
@@ -1343,7 +1364,9 @@ def main():
     titleText.author = "<author>"
 
     # delete old created folders
-    delete_tmp_files(["notes", "title"])
+    for path in ("notes", "title"):
+        if os.path.isdir(path):
+            delete_tmp_files(path)
     for fileName in os.listdir("."):
         if "ly2videoConvert" in fileName:
             if not delete_tmp_files(fileName):
