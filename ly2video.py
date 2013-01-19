@@ -64,14 +64,14 @@ def lineIndices(image, lineLength):
     - image:        name of image with staff lines
     - lineLength:   needed length of line to accept it as staff line
     """
-    
+
     fImage = Image.open(image)
 
     # position of the first line on image
-    firstLinePos = (-1, -1)             
+    firstLinePos = (-1, -1)
 
     # for every pixel of image
-    for x in range(fImage.size[0]):   
+    for x in range(fImage.size[0]):
         for y in range(fImage.size[1]):
             for length in range(lineLength):
                 # testing color of pixels in range (startPos, startPos + lineLength)
@@ -126,7 +126,7 @@ def generateTitle(titleText, resolution, fps, titleLength):
     # create image of title screen
     titleScreen = Image.new("RGB", resolution, (255,255,255))
     # it will draw text on titleScreen
-    drawer = ImageDraw.Draw(titleScreen)    
+    drawer = ImageDraw.Draw(titleScreen)
     # save folder for frames
     if not os.path.exists("title"):
         os.mkdir("title")
@@ -201,7 +201,7 @@ sudden jumps in your video.
     fFile.write("}\n")
     fFile.write("#(set-global-staff-size %d)\n\n" %
                 int(round((resolution[1] - 2 * (resolution[1] / 10)) / numOfLines)))
-    
+
     return 0
 
 def getTemposList(midiFile):
@@ -290,9 +290,9 @@ def getMidiEvents(midiFileName):
             if endOfTrack < eventsList[-1].tick:
                 endOfTrack = eventsList[-1].tick
     midiTicks.append(endOfTrack)
-    
+
     progress("MIDI: Parsing MIDI file has ended.")
-    
+
     return (midiResolution, temposList, notesInTicks, midiTicks)
 
 def getNotePositions(pdfFileName, lySrcLines):
@@ -324,14 +324,14 @@ def getNotePositions(pdfFileName, lySrcLines):
 
     # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdfFileName, "rb")
-    pdfFile = PdfFileReader(fPdf) 
+    pdfFile = PdfFileReader(fPdf)
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
     print "width of first PDF page is %f" % pageWidth
 
     notesAndTies = set()
     notePositionsByPage = []
     tokens = {}
-    
+
     for pageNumber in range(pdfFile.getNumPages()):
         # get informations about page
         page = pdfFile.getPage(pageNumber)
@@ -347,7 +347,7 @@ def getNotePositions(pdfFileName, lySrcLines):
 
         # stores wanted positions on single page
         notePositionsInPage = []
-        
+
         for link in links:
             # Get (x1, y1, x2, y2) coordinates of opposite corners
             # of the annotated rectangle
@@ -364,7 +364,7 @@ def getNotePositions(pdfFileName, lySrcLines):
             lineNum = int(lineNum)
             charNum = int(charNum)
             srcLine = lySrcLines[lineNum - 1]
-            
+
             try:
                 # get name of note
                 token = parser.tokens(srcLine[charNum:]).next()
@@ -419,9 +419,9 @@ def getNotePositions(pdfFileName, lySrcLines):
     # close PDF file
     fPdf.close()
 
-    # create list of notes and ties and sort it        
+    # create list of notes and ties and sort it
     notesAndTies = list(notesAndTies)
-    notesAndTies.sort()    
+    notesAndTies.sort()
     return notePositionsByPage, notesAndTies, tokens, parser, pageWidth
 
 def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth, pageWidth):
@@ -524,10 +524,10 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
         pprint(notesAndTies)
         pprint(indexNoteSourcesInPage)
 
-        # stores info about this page        
+        # stores info about this page
         indexNoteSourcesByPage.append(indexNoteSourcesInPage)
         noteIndicesByPage.append(noteIndicesInPage)
-        
+
         progress("PDF: Page %d/%d has been completed." %
                  (pageNum + 1, len(notePositionsByPage)))
 
@@ -610,11 +610,11 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
     stream.
 
     If MIDI events are found with no corresponding notation (e.g. due
-    to notes hidden via \hideNotes, or accompanying chords), they are
-    skipped and the containing tick is removed from midiTicks.  If
-    notes are found in the index with no corresponding MIDI event,
-    then currently we flag an error.  If this turns out to be a valid
-    use case then we can change this behaviour.
+    to notes hidden via \hideNotes), they are skipped and the
+    containing tick is removed from midiTicks.  If notes are found in
+    the index with no corresponding MIDI event, then currently we flag
+    an error.  If this turns out to be a valid use case then we can
+    change this behaviour.
 
     FIXME: there is probably a bug which will be triggered when a
     chord appears on a beat containing no notated notes, but the next
@@ -847,7 +847,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
             dropFrame += (realFrames - neededFrames)
             # pixel shift for one frame
             shift = (endIndex - startIndex) * 1.0 / neededFrames
-            
+
             for posun in range(realFrames):
                 # if I need drop more than "1.0" frames, drop one
                 if dropFrame >= 1.0:
@@ -886,8 +886,8 @@ def generateSilence(length):
     Params:
     - length: length of that silence
     """
-    
-    # 
+
+    #
     channels = 2    # number of channels
     bps = 16        # bits per sample
     sample = 44100  # sample rate
@@ -1099,13 +1099,13 @@ def callFfmpeg(ffmpeg, options, output):
         delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
 
 def getLyVersion(fileName):
-    # if I don't have input file, end  
+    # if I don't have input file, end
     if fileName == None:
         fatal("LilyPond input file was not specified.", 4)
     else:
         # otherwise try to open fileName
         try:
-            fProject = open(fileName, "r") 
+            fProject = open(fileName, "r")
         except IOError:
             fatal("Couldn't read %s" % fileName, 5)
 
@@ -1197,7 +1197,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
     bracketsHeader = 0
     paperPart = False
     bracketsPaper = 0
-    
+
     line = fProject.readline()
     while line != "":
         # if the line is done
@@ -1226,14 +1226,14 @@ def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
             if line.find("\\header") != -1:
                 fMyProject.write("\\header {\n   tagline = ##f composer = ##f\n}\n")
                 headerPart = True
-                
+
             done = True
-            
+
             if line.find("title = ") != -1:
                 titleText.name = line.split("=")[-1].strip()[1:-1]
             if line.find("composer = ") != -1:
                 titleText.author = line.split("=")[-1].strip()[1:-1]
-            
+
             for znak in line:
                 if znak == "{":
                     bracketsHeader += 1
@@ -1265,7 +1265,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
         # parse other lines, ignore page breaking commands and articulate
         if not headerPart and not paperPart and not done:
             finalLine = ""
-            
+
             if line.find("\\break") != -1:
                 finalLine = (line[:line.find("\\break")]
                              + line[line.find("\\break") + len("\\break"):])
@@ -1280,9 +1280,9 @@ def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
                              + line[line.find("\\articulate") + len("\\articulate"):])
             else:
                 finalLine = line
-                
+
             fMyProject.write(finalLine)
-            
+
         line = fProject.readline()
 
     fProject.close()
@@ -1334,7 +1334,7 @@ def main():
         if "ly2videoConvert" in fileName:
             if not delete_tmp_files(fileName):
                 return 6
-       
+
     # input project from user (string)
     project = options.input
 
@@ -1359,7 +1359,7 @@ def main():
     for line in fMyProject.readlines():
         lySrcLines.append(line)
     fMyProject.close()
-    
+
     # generate PDF, PNG and MIDI file
     if (os.system("lilypond -fpdf --png -dpoint-and-click "
                   + "-dmidi-extension=midi ly2videoConvert.ly") != 0):
@@ -1390,17 +1390,17 @@ def main():
             getMidiEvents(midiFile)
     except Exception as err:
         fatal("MIDI: %s " % err, 10)
-        
+
     output_divider_line()
 
     # find notes indices
     noteIndicesByPage = getNoteIndices("ly2videoConvert.pdf", picWidth,
                                        lySrcLines, midiTicks, notesInTicks)
     output_divider_line()
-    
+
     # frame rate of output video
     fps = options.fps
-    
+
     # generate title screen
     if options.titleAtStart:
         generateTitle(titleText, resolution, fps, titleLength)
@@ -1428,13 +1428,13 @@ def main():
     callFfmpeg(ffmpeg, options, output)
 
     output_divider_line()
-        
+
     # delete wav file and folder with notes frames
     delete_tmp_files([ "ly2videoConvert.wav", "notes" ])
 
     # end
     print("Ly2video has ended. Your generated file: " + output + ".")
-    return 0  
+    return 0
 
 if __name__ == '__main__':
     status = main()
