@@ -199,8 +199,7 @@ def writePaperHeader(fFile, width, height, numOfLines, lilypondVersion):
     if StrictVersion(lilypondVersion) >= StrictVersion('2.15.41'):
         oneLineBreaking = True
     else:
-        sys.stderr.write(
-            """WARNING: you have LilyPond %s which does not support
+        warn("""you have LilyPond %s which does not support
 infinitely long lines.  Upgrade to >= 2.15.41 to avoid
 sudden jumps in your video.
 """ % lilypondVersion)
@@ -749,8 +748,8 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
         alignedNoteIndicesByPage.append(alignedNoteIndicesInPage)
 
     if midiIndex < len(midiTicks) - 1:
-        print "WARNING: ran out of notes in PDF at MIDI tick %d (%d/%d ticks)" % \
-            (midiTicks[midiIndex], midiIndex + 1, len(midiTicks))
+        warn("ran out of notes in PDF at MIDI tick %d (%d/%d ticks)" % \
+                 (midiTicks[midiIndex], midiIndex + 1, len(midiTicks)))
 
     pprint(alignedNoteIndicesByPage)
     return alignedNoteIndicesByPage
@@ -948,6 +947,9 @@ def progress(text):
 def output_divider_line():
     progress(60 * "-")
 
+def warn(text):
+    progress("WARNING: " + text)
+
 def fatal(text, status=1):
     progress("ERROR: " + text)
     sys.exit(status)
@@ -962,8 +964,7 @@ def delete_tmp_files(paths):
             try:
                 os.remove(path)
             except Exception as err:
-                sys.stderr.write("WARNING: ly2video can't delete %s: %s\n" %
-                                 (path, err))
+                warn("ly2video can't delete %s: %s" % (path, err))
                 errors += 1
     return (errors == 0)
 
@@ -1069,8 +1070,7 @@ def getCursorLineColor(options):
     elif options.color == "brown":
         return (165,42,42)
     else:
-        progress("WARNING: Color was not found, " +
-                 'ly2video will use default one ("red").')
+        warn("Color was not found, ly2video will use default one ('red').")
         return (255,0,0)
 
 def getOutputFile(options):
@@ -1221,8 +1221,8 @@ def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion
         done = False
 
         if line.find("\\partial") != -1:
-            progress('WARNING: Ly2video has found "\\partial" command ' +
-                     "in your project. There can be some errors.")
+            warn('Ly2video has found "\\partial" command ' +
+                 "in your project.  This could cause problems.")
 
         # ignore these commands
         if (line.find("\\include \"articulate.ly\"") != -1
@@ -1359,8 +1359,8 @@ def main():
             project = "newProject.ly"
             versionConversion = True
         else:
-            progress("WARNING: Convert of input file has failed, " +
-                     "there can be some errors.")
+            warn("Convert of input file has failed. " +
+                 "This could cause some problems.")
             output_divider_line()
 
     numStaffLines = getNumStaffLines(project)
