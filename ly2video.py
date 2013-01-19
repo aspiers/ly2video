@@ -904,6 +904,23 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
         progress("SYNC: Generating frames for page %d/%d has been completed. (%d/%d)" %
                  (pageNum + 1, len(noteIndicesByPage), frameNum, totalFrames))
 
+def genWavFile(timidity, midiPath):
+    """
+    Call TiMidity++ to convert MIDI to .wav.
+    It has a weird problem where it converts any '.' into '_'
+    in the input path, so we run it on the file's relative path
+    not the absolute path.
+    """
+    progress("Running TiMidity++ on %s to generate .wav audio ..." % midiPath)
+    dirname, midiFile = os.path.split(midiPath)
+    os.chdir(dirname)
+    cmd = [timidity, midiFile, "-Ow"]
+    print safeRun(cmd, exitcode=11)
+    wavExpected = midiPath.replace('.midi', '.wav')
+    if not os.path.exists(wavExpected):
+        fatal("TiMidity++ failed to generate %s ?!" % wavExpected)
+    return wavExpected
+
 def generateSilence(length):
     """
     Generates silent audio for the title screen.
@@ -1091,9 +1108,8 @@ def getOutputFile(options):
         outputFile = basename + '.avi'
     return absPathFromRunDir(outputFile)
 
-def callFfmpeg(ffmpeg, options, outputFile):
+def callFfmpeg(ffmpeg, options, wavPath, outputFile):
     fps = str(options.fps)
-    wavPath   = tmpPath('sanitised.wav')
     framePath = tmpPath('notes', 'frame%d.png')
 
     if not options.titleAtStart:
@@ -1487,23 +1503,15 @@ def main():
                    options.width, options.height, fps,
                    noteIndicesByPage, notesImages,
                    getCursorLineColor(options))
+
     output_divider_line()
 
-    # Call TiMidity++ to convert MIDI to .wav.
-    # It has a weird problem where it converts any '.' into '_'
-    # in the input path, so we run it on the file's relative path
-    # not the absolute path.
-    dirname, midiFile = os.path.split(midiPath)
-    progress("Running TiMidity++ on %s to generate .wav audio ..." % midiPath)
-    cmd = [timidity, midiFile, "-Ow"]
-    print safeRun(cmd, exitcode=11)
-    wavExpected = tmpPath("sanitised.wav")
-    if not os.path.exists(wavExpected):
-        fatal("TiMidity++ failed to generate %s ?!" % wavExpected)
+    wavPath = genWavFile(timidity, midiPath)
+
     output_divider_line()
 
     outputFile = getOutputFile(options)
-    callFfmpeg(ffmpeg, options, outputFile)
+    callFfmpeg(ffmpeg, options, wavPath, outputFile)
 
     output_divider_line()
 
