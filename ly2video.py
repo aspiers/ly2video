@@ -28,6 +28,7 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib
 from distutils.version import StrictVersion
 from   optparse import OptionParser
 from   struct import pack
@@ -39,9 +40,6 @@ from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 
 from pprint import pprint
-
-SANITISED_LY = "ly2videoConvert.ly"
-KEEP_TMP_FILES = False
 
 C_MAJOR_SCALE_STEPS = {
     # Maps notes of the C major scale into semi-tones above C.
@@ -170,7 +168,7 @@ def generateTitle(titleText, width, height, fps, titleLength):
 
     # generate needed number of frames (= fps * titleLength)
     for frameNum in xrange(totalFrames):
-        titleScreen.save("./title/frame%d.png" % frameNum)
+        titleScreen.save(tmpPath("title", "frame%d.png" % frameNum))
 
     progress("TITLE: Generating title screen has ended. (%d/%d)" %
              (totalFrames, totalFrames))
@@ -315,12 +313,12 @@ def getMidiEvents(midiFileName):
 
     return (midiResolution, temposList, notesInTicks, midiTicks)
 
-def getNotePositions(pdfFileName, lySrcLines):
+def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     """
     For every link annotation in the PDF file which is a link to the
-    SANITISED_LY file we generated, store the coordinates of the
+    sanitised .ly file we generated, store the coordinates of the
     annotated rectangle and also the line and column number it points
-    to in the SANITISED_LY file.
+    to in the .ly file.
 
     Parameters:
       - pdfFileName
@@ -328,19 +326,25 @@ def getNotePositions(pdfFileName, lySrcLines):
 
     Returns:
       - notesAndTies: a list of (lineNum, charNum) tuples sorted by
-        line number in SANITISED_LY
+        line number in the .ly file
       - notePositionsByPage: a list with each top-level item
         representing a page, where each page is a sorted list of
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
         representing opposite corners of the rectangle.
       - tokens: a dict mapping every (lineNum, charNum) tuple to the
-        token found at that point in SANITISED_LY.  This will be used
+        token found at that point in the .ly source.  This will be used
         to compare notes in the source with notes in the MIDI
       - parser: the MusicTokenizer() object which can be reused for
         pitch calculations
       - pageWidth: the width of the first PDF page in PDF units (all
         pages are assumed to have the same width)
     """
+
+    progress(("Extracting annotation positions from:\n    %s\n" +
+              "and corresponding source positions in:\n    %s") %
+             (pdfFileName, lySrcFileName))
+
+    escapedLySrcFileName = urllib.quote(lySrcFileName)
 
     # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdfFileName, "rb")
@@ -374,17 +378,15 @@ def getNotePositions(pdfFileName, lySrcLines):
             # Get (x1, y1, x2, y2) coordinates of opposite corners
             # of the annotated rectangle
             coords = link.getObject()['/Rect']
-
-            # if it's not link into ly2videoConvert.ly, then ignore it
-            if link.getObject()['/A']['/URI'].find(SANITISED_LY) == -1:
-                continue
-            # otherwise get coordinates into LY file
+            # if it's not link into .ly, then ignore it
             uri = link.getObject()['/A']['/URI']
+            if uri.find(escapedLySrcFileName) == -1:
+                continue
+            # otherwise get coordinates into .ly file
             lineNum, charNum, columnNum = uri.split(":")[-3:]
-            if charNum != columnNum:
-                print "got char %s col %s on line %s" % (charNum, columnNum, lineNum)
-            lineNum = int(lineNum)
-            charNum = int(charNum)
+            lineNum   = int(lineNum)
+            charNum   = int(charNum)   # the start of the text
+            columnNum = int(columnNum) # the end of the text?
             srcLine = lySrcLines[lineNum - 1]
 
             try:
@@ -430,7 +432,7 @@ def getNotePositions(pdfFileName, lySrcLines):
             except StandardError as err:
                 fatal(("PDF: %s\n"
                        + "ly2video was trying to work with this: "
-                       + "\"%s\", coords in LY (line %d char %d).") %
+                       + "\"%s\", coords in .ly (line %d char %d).") %
                       (err, lySrcLines[lineNum - 1][charNum:][:-1],
                        lineNum, charNum))
 
@@ -460,7 +462,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
         representing opposite corners of the rectangle.
       - notesAndTies: a list of (lineNum, charNum) tuples sorted by
-        line number in SANITISED_LY
+        line number in sanitised .ly file
       - lySrcLines: loaded *.ly file in memory (list)
       - imageWidth: width of PNG file(s)
       - pageWidth: the width of the first PDF page in PDF units (all
@@ -469,7 +471,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
     Returns:
       - indexNoteSourcesByPage:
             a list of dicts, one per page, mapping each index to a
-            list of (lineNum, colNum) tuples in the source project
+            list of (lineNum, colNum) tuples in the .ly source file
             corresponding to the notes at that index, e.g.
                 [
                     # page 1
@@ -563,7 +565,7 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
     Parameters:
       - indexNoteSourcesInPage:
             a dict mapping each index to a list of (lineNum, colNum)
-            tuples in the source project corresponding to the notes at
+            tuples in the .ly source corresponding to the notes at
             that index within the page, e.g.
 
                 {
@@ -756,7 +758,8 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
     pprint(alignedNoteIndicesByPage)
     return alignedNoteIndicesByPage
 
-def getNoteIndices(pdfFileName, imageWidth, lySrcLines, midiTicks, notesInTicks):
+def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
+                   midiTicks, notesInTicks):
     """
     Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
@@ -783,14 +786,14 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcLines, midiTicks, notesInTicks)
     Params:
     - pdfFileName:      name of generated PDF file (string)
     - imageWidth:       width of PNG file(s)
-    - lySrcLines:    loaded *.ly file in memory (list)
+    - lySrcFileName:    name of .ly file
+    - lySrcLines:       loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
     - notesInTicks:     how many notes starts in each tick
     """
 
     notePositionsByPage, notesAndTies, tokens, parser, pageWidth = \
-        getNotePositions(pdfFileName, lySrcLines)
-
+        getNotePositions(pdfFileName, lySrcFileName, lySrcLines)
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies,
                            lySrcLines, imageWidth, pageWidth)
@@ -891,7 +894,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
                         frame.putpixel(((width / 2) + 1, pixel), cursorLineColor)
 
                     # save that frame
-                    frame.save("./notes/frame%d.png" % frameNum)
+                    frame.save(tmpPath("notes", "frame%d.png" % frameNum))
                     frameNum += 1
                     if frameNum % 10 == 0:
                         sys.stdout.write(".")
@@ -956,44 +959,16 @@ def fatal(text, status=1):
     progress("ERROR: " + text)
     sys.exit(status)
 
-def delete_tmp_files(paths):
-    errors = 0
-    if isinstance(paths, str):
-        paths = [ paths ]
-    for path in paths:
-        if path == '.' or path == '/':
-            import traceback
-            traceback.print_stack()
-            fatal("tried to rmtree '%s' - aborting !" % path)
-
-        if KEEP_TMP_FILES and not os.path.exists(path):
-            import traceback
-            traceback.print_stack()
-            fatal("Would have tried to delete non-existent temporary file %s" % path)
-            errors += 1
-            continue
-
-        if os.path.isdir(path):
-            if KEEP_TMP_FILES:
-                progress("Skipping recursive deletion of: %s" % path)
-            else:
-                shutil.rmtree(path)
-        else:
-            if KEEP_TMP_FILES:
-                progress("Skipping deletion of: %s" % path)
-            else:
-                try:
-                    os.remove(path)
-                except Exception as err:
-                    warn("ly2video can't delete %s: %s" % (path, err))
-                    errors += 1
-    return (errors == 0)
+def tmpPath(*dirs):
+    segments = [ 'ly2video.tmp' ]
+    segments.extend(dirs)
+    return os.path.join(runDir, *segments)
 
 def parseOptions():
     parser = OptionParser("usage: %prog [options]")
 
     parser.add_option("-i", "--input", dest="input",
-                      help="input LilyPond project", metavar="FILE")
+                      help="input LilyPond file", metavar="FILE")
     parser.add_option("-o", "--output", dest="output",
                       help='name of output video (e.g. "myNotes.avi", default is input + .avi)',
                       metavar="FILE")
@@ -1043,17 +1018,27 @@ def portableDevNull():
 def applyBeatmap(src, dst, beatmap):
     prog = "midi-rubato"
     cmd = [prog, src, dst, beatmap]
+    progress("Applying beatmap via '%s'" % " ".join(cmd))
+    safeRun(cmd)
+
+def safeRun(cmd, errormsg=None, exitcode=None, shell=False):
     try:
-        print "Applying beatmap via '%s'" % " ".join(cmd)
-        stdout = subprocess.check_output(cmd)
-    except subprocess.CalledProcessError:
-        fatal("%s was not found." % prog, 1)
+        stdout = subprocess.check_output(cmd, shell=shell)
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        excmsg = "%s: %s" % (exc_type.__name__, exc_value)
+        for i in xrange(len(cmd)):
+            if cmd[i].find(' ') != -1 or cmd[i].find('"') != -1:
+                cmd[i] = '"' + cmd[i].replace('"', '\"') + '"'
+        if errormsg is None:
+            errormsg = "Failed to run command: %s: %s" % \
+                (" ".join(cmd), excmsg)
+        fatal(errormsg, exitcode)
+
+    return stdout
 
 def findExecutableDependencies(options):
-    try:
-        stdout = subprocess.check_output(["lilypond", "-v"])
-    except subprocess.CalledProcessError:
-        fatal("LilyPond was not found.", 1)
+    stdout = safeRun(["lilypond", "-v"], "LilyPond was not found.", 1)
     progress("LilyPond was found.")
     m = re.search('\AGNU LilyPond (\d[\d.]+\d)', stdout)
     if not m:
@@ -1094,45 +1079,75 @@ def getCursorLineColor(options):
         warn("Color was not found, ly2video will use default one ('red').")
         return (255,0,0)
 
-def getOutputFile(options):
-    output = options.output
-    if output == None or len(output.split(".")) < 2:
-        return project[:-2] + "avi"
-    return output
+def absPathFromRunDir(path):
+    if os.path.isabs(path):
+        return path
+    return os.path.join(runDir, path)
 
-def callFfmpeg(ffmpeg, options, output):
+def getOutputFile(options):
+    outputFile = options.output
+    if outputFile is None:
+        basename, ext = os.path.splitext(options.input)
+        outputFile = basename + '.avi'
+    return absPathFromRunDir(outputFile)
+
+def callFfmpeg(ffmpeg, options, outputFile):
     fps = str(options.fps)
-    # call FFmpeg (without title)
+    wavPath   = tmpPath('sanitised.wav')
+    framePath = tmpPath('notes', 'frame%d.png')
+
     if not options.titleAtStart:
-        if os.system(ffmpeg + " -f image2 -r " + fps
-                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
-                     + output) != 0:
-            fatal("Calling FFmpeg has failed.", 13)
-    # call FFmpeg (with title)
+        cmd = [
+            ffmpeg,
+            "-f", "image2",
+            "-r", fps,
+            "-i", framePath,
+            "-i", wavPath,
+            outputFile
+        ]
+        safeRun(cmd, exitcode=13)
     else:
-        # create video with title
+        # generate silent title video
         silentAudio = generateSilence(titleLength)
-        if os.system(ffmpeg + " -f image2 -r " + fps
-                     + " -i ./title/frame%d.png -i "
-                     + silentAudio + " -same_quant title.mpg") != 0:
-            fatal("Calling FFmpeg has failed.", 14)
+        titlePath   = tmpPath("title.mpg")
+        cmd = [
+            ffmpeg,
+            "-f", "image2",
+            "-r", fps,
+            "-i", framePath,
+            "-i", silentAudio,
+            "-same_quant",
+            titlePath
+        ]
+        safeRun(cmd, exitcode=14)
+
         # generate video with notes
-        if os.system(ffmpeg + " -f image2 -r " + fps
-                     + " -i ./notes/frame%d.png -i ly2videoConvert.wav "
-                     + "-same_quant notes.mpg") != 0:
-            fatal("Calling FFmpeg has failed.", 15)
+        notesPath = tmpPath("notes.mpg")
+        cmd = [
+            ffmpeg,
+            "-f", "image2",
+            "-r", fps,
+            "-i", framePath,
+            "-i", wavPath,
+            "-same_quant",
+            notesPath
+        ]
+        safeRun(cmd, exitcode=15)
+
         # join the files
+        joinedPath = tmpPath('joined.mpg')
         if sys.platform.startswith("linux"):
-            os.system("cat title.mpg notes.mpg > video.mpg")
+            safeRun("cat '%s' '%s' > %s" % (titlePath, notesPath, joinedPath), shell=True)
         elif sys.platform.startswith("win"):
-            os.system("copy title.mpg /B + notes.mpg /B video.mpg /B")
+            os.system('copy "%s" /B + "%s" /B "%s" /B' % (titlePath, notesPath, joinedPath))
 
         # create output file
-        if os.system(ffmpeg + " -i video.mpg " + output) != 0:
-            fatal("Calling FFmpeg has failed.", 16)
-
-        # delete created videos, silent audio and folder with title frames
-        delete_tmp_files([ "title.mpg", "notes.mpg", "video.mpg", silentAudio, "title" ])
+        cmd = [
+            ffmpeg,
+            "-i", joinedPath,
+            outputFile
+        ]
+        safeRun(cmd, exitcode=16)
 
 def getLyVersion(fileName):
     # if I don't have input file, end
@@ -1141,13 +1156,13 @@ def getLyVersion(fileName):
     else:
         # otherwise try to open fileName
         try:
-            fProject = open(fileName, "r")
+            fLyFile = open(fileName, "r")
         except IOError:
             fatal("Couldn't read %s" % fileName, 5)
 
-    # find version of LilyPond in input project
+    # find version of LilyPond in .ly input file
     version = ""
-    for line in fProject.readlines():
+    for line in fLyFile.readlines():
         if line.find("\\version") != -1:
             parser = Tokenizer()
             for token in parser.tokens(line):
@@ -1156,29 +1171,30 @@ def getLyVersion(fileName):
                     break
             if version != "":
                 break
-    fProject.close()
+    fLyFile.close()
 
     return version
 
-def getNoteImages(fileName):
+def getNoteImages():
     """
     Returns a sorted list of the generated PNG files.
     """
     notesImages = []
-    for fileName in os.listdir("."):
-        m = re.match('ly2videoConvert(?:-page(\d+))?\.png', fileName)
+    for fileName in os.listdir(tmpPath()):
+        m = re.search('(?:.*/)?sanitised(?:-page(\d+))?\.png$', fileName)
         if m:
             progress("Found generated image: %s" % fileName)
             if m.group(1):
                 i = int(m.group(1))
             else:
                 i = 1
-            newFileName = "ly2videoConvert-page%04d.png" % i
+            newFileName = "sanitised-page%04d.png" % i
+            newPath = tmpPath(newFileName)
 
             if newFileName != fileName:
-                os.rename(fileName, newFileName)
+                os.rename(fileName, newPath)
                 progress("  renamed -> %s" % newFileName)
-            notesImages.append(newFileName)
+            notesImages.append(newPath)
     notesImages.sort()
     return notesImages
 
@@ -1194,12 +1210,31 @@ def getImageWidth(notesImages):
     del tmpImage
     return picWidth
 
-def getNumStaffLines(project):
+def getNumStaffLines(lyFile):
     # generate preview of notes
-    if (os.system("lilypond -dpreview -dprint-pages=#f "
-                  + project + " 2>" + portableDevNull()) != 0):
-        fatal("Generating preview has failed.", 7)
-    progress("Generated preview from %s" % project)
+    cmd = [
+        "lilypond",
+        "-dpreview",
+        "-dprint-pages=#f",
+        lyFile
+    ]
+    progress("Generating preview from %s ..." % lyFile)
+    output_divider_line()
+    os.chdir(tmpPath())
+    safeRun(cmd, exitcode=7)
+    output_divider_line()
+    progress("Generated preview from %s" % lyFile)
+
+    # move generated files into temporary directory
+    dirname, filename = os.path.split(lyFile)
+    if dirname != tmpPath():
+        basename, suffix = os.path.splitext(filename)
+        for ext in ('png', 'eps', 'pdf'):
+            generated = basename + '.' + ext
+            src = os.path.join(dirname, generated)
+            dst = tmpPath(generated)
+            os.rename(src, dst)
+            progress("Moved %s to %s" % (src, dst))
 
     # find preview image and get num of staff lines
     previewPic = ""
@@ -1212,20 +1247,16 @@ def getNumStaffLines(project):
                 previewPic = fileName
     numStaffLines = len(lineIndices(previewPic, 50))
 
-    # then delete generated preview files
-    if not delete_tmp_files(previewFiles):
-        sys.exit(8)
-    if not delete_tmp_files(project[:-2] + "midi"):
-        sys.exit(8)
-
     progress("Found %d staff lines" % numStaffLines)
     return numStaffLines
 
-def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion):
-    fProject = open(project, "r")
+def sanitiseLy(lyFile, width, height, numStaffLines, titleText, lilypondVersion):
+    fLyFile = open(lyFile, "r")
 
-    # create own ly project
-    fMyProject = open(SANITISED_LY, "w")
+    sanitisedLyFileName = tmpPath("sanitised.ly")
+
+    # create own ly lyFile
+    fSanitisedLyFile = open(sanitisedLyFileName, "w")
 
     # if I add own paper block
     paperBlock = False
@@ -1236,33 +1267,33 @@ def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion
     paperPart = False
     bracketsPaper = 0
 
-    line = fProject.readline()
+    line = fLyFile.readline()
     while line != "":
         # if the line is done
         done = False
 
         if line.find("\\partial") != -1:
             warn('Ly2video has found "\\partial" command ' +
-                 "in your project.  This could cause problems.")
+                 "in your lyFile.  This could cause problems.")
 
         # ignore these commands
         if (line.find("\\include \"articulate.ly\"") != -1
             or line.find("\\pointAndClickOff") != -1
             or line.find("#(set-global-staff-size") != -1
             or line.find("\\bookOutputName") != -1):
-            line = fProject.readline()
+            line = fLyFile.readline()
 
         # if I find version, write own paper block right behind it
         if line.find("\\version") != -1:
             done = True
-            fMyProject.write(line)
-            writePaperHeader(fMyProject, width, height, numStaffLines, lilypondVersion)
+            fSanitisedLyFile.write(line)
+            writePaperHeader(fSanitisedLyFile, width, height, numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
         if (line.find("\\header") != -1 or headerPart) and not done:
             if line.find("\\header") != -1:
-                fMyProject.write("\\header {\n   tagline = ##f composer = ##f\n}\n")
+                fSanitisedLyFile.write("\\header {\n   tagline = ##f composer = ##f\n}\n")
                 headerPart = True
 
             done = True
@@ -1298,7 +1329,7 @@ def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion
         # add unfoldRepeats right after start of score block
         if (line.find("\\score {") != -1) and not done:
             done = True
-            fMyProject.write(line + " \\unfoldRepeats\n")
+            fSanitisedLyFile.write(line + " \\unfoldRepeats\n")
 
         # parse other lines, ignore page breaking commands and articulate
         if not headerPart and not paperPart and not done:
@@ -1319,16 +1350,20 @@ def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion
             else:
                 finalLine = line
 
-            fMyProject.write(finalLine)
+            fSanitisedLyFile.write(finalLine)
 
-        line = fProject.readline()
+        line = fLyFile.readline()
 
-    fProject.close()
+    fLyFile.close()
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        writePaperHeader(fMyProject, width, height, numStaffLines)
-    fMyProject.close()
+        writePaperHeader(fSanitisedLyFile, width, height, numStaffLines)
+
+    fSanitisedLyFile.close()
+    progress("Wrote sanitised version of %s into %s" % (lyFile, sanitisedLyFileName))
+
+    return sanitisedLyFileName
 
 def main():
     """
@@ -1349,11 +1384,6 @@ def main():
     """
     (options, args) = parseOptions()
 
-    if options.keepTempFiles:
-        progress("Will keep temporary files.")
-        global KEEP_TMP_FILES
-        KEEP_TMP_FILES = True
-
     lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
 
     # title and all about it
@@ -1365,77 +1395,83 @@ def main():
     titleText.name = "<name of song>"
     titleText.author = "<author>"
 
-    # delete old created folders
-    for path in ("notes", "title"):
-        if os.path.isdir(path):
-            delete_tmp_files(path)
-    for fileName in os.listdir("."):
-        if "ly2videoConvert" in fileName:
-            if not delete_tmp_files(fileName):
-                return 6
+    # delete old temporary files
+    global runDir
+    runDir = os.getcwd()
+    if os.path.isdir(tmpPath()):
+        shutil.rmtree(tmpPath())
+    os.mkdir(tmpPath())
 
-    # input project from user (string)
-    project = options.input
+    # .ly input file from user (string)
+    lyFile = options.input
 
     # if it's not 2.14.2, try to convert it
     versionConversion = False
-    if getLyVersion(project) != "2.14.2":
-        if os.system("convert-ly " + project + " > newProject.ly") == 0:
-            project = "newProject.ly"
+    if getLyVersion(lyFile) != "2.14.2":
+        newLyFile = tmpPath('converted.ly')
+        if os.system("convert-ly '%s' > '%s'" % (lyFile, newLyFile)) == 0:
+            lyFile = newLyFile
             versionConversion = True
         else:
             warn("Convert of input file has failed. " +
                  "This could cause some problems.")
+            newLyFile = tmpPath('unconverted.ly')
+            os.copy(lyFile, newLyFile)
+            lyFile = newLyFile
             output_divider_line()
 
-    numStaffLines = getNumStaffLines(project)
+    numStaffLines = getNumStaffLines(lyFile)
 
-    sanitiseLy(project, options.width, options.height,
-               numStaffLines, titleText, lilypondVersion)
+    sanitisedLyFileName = \
+        sanitiseLy(lyFile, options.width, options.height,
+                   numStaffLines, titleText, lilypondVersion)
 
-    # load own project into memory
-    fMyProject = open(SANITISED_LY, "r")
+    # load .ly file into memory
+    fLyFile = open(sanitisedLyFileName, "r")
     lySrcLines = []
-    for line in fMyProject.readlines():
+    for line in fLyFile.readlines():
         lySrcLines.append(line)
-    fMyProject.close()
+    fLyFile.close()
 
-    # generate PDF, PNG and MIDI file
-    if (os.system("lilypond -fpdf --png -dpoint-and-click "
-                  + "-dmidi-extension=midi ly2videoConvert.ly") != 0):
-        fatal("Calling LilyPond has failed.", 9)
+    progress("Generating PDF, PNG and MIDI files ...")
+    os.chdir(tmpPath())
+    cmd = [
+        "lilypond",
+        "-fpdf",
+        "--png",
+        "-dpoint-and-click",
+        "-dmidi-extension=midi",
+        sanitisedLyFileName
+    ]
     output_divider_line()
-
-    # delete created project
-    delete_tmp_files(SANITISED_LY)
-
-    # and try to delete converted project
-    if versionConversion:
-        delete_tmp_files(project)
-
-    # find generated images
-    notesImages = getNoteImages(fileName)
+    safeRun(cmd, exitcode=9)
     output_divider_line()
+    progress("Generated PDF, PNG and MIDI files")
+
+    notesImages = getNoteImages()
     picWidth = getImageWidth(notesImages)
 
-    midiFile = "ly2videoConvert.midi"
+    midiPath = tmpPath("sanitised.midi")
     if options.beatmap:
-        newMidiFile = "ly2videoConvert-adjusted.midi"
-        applyBeatmap(midiFile, newMidiFile, options.beatmap)
-        midiFile = newMidiFile
+        newMidiPath = tmpPath("sanitised-adjusted.midi")
+        applyBeatmap(midiPath, newMidiPath,
+                     absPathFromRunDir(options.beatmap))
+        midiPath = newMidiPath
 
     # find needed data in MIDI
     try:
         midiResolution, temposList, notesInTicks, midiTicks = \
-            getMidiEvents(midiFile)
+            getMidiEvents(midiPath)
     except Exception as err:
         fatal("MIDI: %s " % err, 10)
 
     output_divider_line()
 
     # find notes indices
-    noteIndicesByPage = getNoteIndices("ly2videoConvert.pdf", picWidth,
-                                       lySrcLines, midiTicks, notesInTicks)
+    noteIndicesByPage = getNoteIndices(tmpPath("sanitised.pdf"),
+                                       picWidth,
+                                       sanitisedLyFileName, lySrcLines,
+                                       midiTicks, notesInTicks)
     output_divider_line()
 
     # frame rate of output video
@@ -1453,28 +1489,31 @@ def main():
                    getCursorLineColor(options))
     output_divider_line()
 
-    # call TiMidity++ to convert MIDI (ly2videoConvert.wav)
-    try:
-        subprocess.check_call([timidity, "ly2videoConvert.midi", "-Ow"])
-    except (subprocess.CalledProcessError, OSError) as err:
-        fatal("TiMidity++: %s" % err, 11)
+    # Call TiMidity++ to convert MIDI to .wav.
+    # It has a weird problem where it converts any '.' into '_'
+    # in the input path, so we run it on the file's relative path
+    # not the absolute path.
+    dirname, midiFile = os.path.split(midiPath)
+    progress("Running TiMidity++ on %s to generate .wav audio ..." % midiPath)
+    cmd = [timidity, midiFile, "-Ow"]
+    print safeRun(cmd, exitcode=11)
+    wavExpected = tmpPath("sanitised.wav")
+    if not os.path.exists(wavExpected):
+        fatal("TiMidity++ failed to generate %s ?!" % wavExpected)
     output_divider_line()
 
-    # delete old files
-    delete_tmp_files(notesImages)
-    delete_tmp_files("ly2videoConvert.pdf")
-    delete_tmp_files("ly2videoConvert.midi")
-
-    output = getOutputFile(options)
-    callFfmpeg(ffmpeg, options, output)
+    outputFile = getOutputFile(options)
+    callFfmpeg(ffmpeg, options, outputFile)
 
     output_divider_line()
 
-    # delete wav file and folder with notes frames
-    delete_tmp_files([ "ly2videoConvert.wav", "notes" ])
+    if options.keepTempFiles:
+        progress("Left temporary files in %s" % tmpPath())
+    else:
+        shutil.rmtree(tmpPath())
 
     # end
-    progress("Ly2video has ended. Your generated file: " + output + ".")
+    progress("Ly2video has ended. Your generated file: " + outputFile + ".")
     return 0
 
 if __name__ == '__main__':
