@@ -76,7 +76,7 @@ def findTopStaffLine(image, lineLength):
     # Start searching at the hard left but allow for a left margin.
     for x in xrange(width):
         for y in xrange(height):
-            for length in range(lineLength):
+            for length in xrange(lineLength):
                 # testing color of pixels in range (startPos, startPos + lineLength)
                 if image.getpixel((x + length, y)) == (255,255,255):
                     # if it's white then it's not a staff line
@@ -169,7 +169,7 @@ def generateTitle(titleText, width, height, fps, titleLength):
                 titleText.author, font=authorFont, fill=(0,0,0))
 
     # generate needed number of frames (= fps * titleLength)
-    for frameNum in range(totalFrames):
+    for frameNum in xrange(totalFrames):
         titleScreen.save("./title/frame%d.png" % frameNum)
 
     progress("TITLE: Generating title screen has ended. (%d/%d)" %
@@ -352,7 +352,7 @@ def getNotePositions(pdfFileName, lySrcLines):
     notePositionsByPage = []
     tokens = {}
 
-    for pageNumber in range(pdfFile.getNumPages()):
+    for pageNumber in xrange(pdfFile.getNumPages()):
         # get informations about page
         page = pdfFile.getPage(pageNumber)
         info = page.getObject()
@@ -590,7 +590,7 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
             continue
         # gets next index
         nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
-        if index in range(nextIndex - 10, nextIndex + 10):
+        if index in xrange(nextIndex - 10, nextIndex + 10):
             # merges them and remove next index
             indexNoteSourcesInPage[index].extend(indexNoteSourcesInPage[nextIndex])
             del indexNoteSourcesInPage[nextIndex]
@@ -871,7 +871,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
             # pixel shift for one frame
             shift = (endIndex - startIndex) * 1.0 / neededFrames
 
-            for posun in range(realFrames):
+            for posun in xrange(realFrames):
                 # if I need drop more than "1.0" frames, drop one
                 if dropFrame >= 1.0:
                     dropFrame -= 1.0
@@ -884,7 +884,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
                                      + (width / 2))
                     frame = notesPic.copy().crop((leftUpper, 0, rightUpper, height))
                     # add middle line
-                    for pixel in range(height):
+                    for pixel in xrange(height):
                         frame.putpixel((width / 2, pixel), cursorLineColor)
                         frame.putpixel(((width / 2) + 1, pixel), cursorLineColor)
 
