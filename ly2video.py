@@ -839,7 +839,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
 
     totalFrames = int(round(((temposList[tempoIndex][1] * 1.0)
                         / midiResolution * (midiTicks[-1]) / 1000000 * fps)))
-    progress("SYNC: ly2video will generate cca %d frames." % totalFrames)
+    progress("SYNC: ly2video will generate approx. %d frames." % totalFrames)
     progress("A dot is displayed for every 10 frames generated.")
 
     dropFrame = 0.0
@@ -901,8 +901,8 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
                         sys.stdout.flush()
         print
 
-        progress("SYNC: Generating frames for page %d/%d has been completed. (%d/%d)" %
-                 (pageNum + 1, len(noteIndicesByPage), frameNum, totalFrames))
+        progress("SYNC: Generated %d frames for page %d/%d" %
+                 (frameNum, pageNum + 1, len(noteIndicesByPage)))
 
 def genWavFile(timidity, midiPath):
     """
