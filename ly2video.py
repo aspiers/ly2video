@@ -91,6 +91,7 @@ def findTopStaffLine(image, lineLength):
         if firstLinePos != (-1, -1):
             break
 
+    progress("First staff line found at (%d, %d)" % firstLinePos)
     return firstLinePos
 
 def lineIndices(imageFile, lineLength):
@@ -101,7 +102,7 @@ def lineIndices(imageFile, lineLength):
     - imageFile:    name of image with staff lines
     - lineLength:   needed length of line to accept it as staff line
     """
-
+    progress("Looking for staff lines in %s" % imageFile)
     image = Image.open(imageFile)
     width, height = image.size
 
@@ -1177,6 +1178,7 @@ def getNumStaffLines(project):
     if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
                   + project + " 2>" + portableDevNull()) != 0):
         fatal("Generating preview has failed.", 7)
+    progress("Generated preview from %s" % project)
 
     # find preview image and get num of staff lines
     previewPic = ""
@@ -1195,6 +1197,7 @@ def getNumStaffLines(project):
     if not delete_tmp_files(project[:-2] + "midi"):
         sys.exit(8)
 
+    progress("Found %d staff lines" % numStaffLines)
     return numStaffLines
 
 def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion):
