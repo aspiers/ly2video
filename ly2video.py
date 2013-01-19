@@ -1175,7 +1175,7 @@ def getImageWidth(notesImages):
 
 def getNumStaffLines(project):
     # generate preview of notes
-    if (os.system("lilypond -dmidi-extension=midi -dpreview -dprint-pages=#f "
+    if (os.system("lilypond -dpreview -dprint-pages=#f "
                   + project + " 2>" + portableDevNull()) != 0):
         fatal("Generating preview has failed.", 7)
     progress("Generated preview from %s" % project)
