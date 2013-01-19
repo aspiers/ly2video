@@ -1411,9 +1411,12 @@ def main():
     titleText.name = "<name of song>"
     titleText.author = "<author>"
 
-    # delete old temporary files
+    # FIXME.  Ugh, eventually this will be an instance method, and
+    # we'll have somewhere nice to save state.
     global runDir
     runDir = os.getcwd()
+
+    # Delete old temporary files.
     if os.path.isdir(tmpPath()):
         shutil.rmtree(tmpPath())
     os.mkdir(tmpPath())
