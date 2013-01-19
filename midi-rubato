@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+
+"""
+midi-rubato - inserts tempo change events into a .midi file
+Copyright (C) 2013 Adam Spiers <music@adamspiers.org>
+
+This program inserts MIDI tempo changes from a beat map file into a
+MIDI file.  A beat map file is a text file with a list of beats, one
+per line, where each line is whitespace delimited with the following
+fields:
+
+  - label,     e.g. "C5" for the 5th measure of section C
+  - section,   e.g. "3" for section C
+  - measure,   e.g. "5" for the 5th measure of the section
+  - beat,      e.g. "2" for the 2nd beat of the measure
+  - timestamp, e.g. "0:02:56.280" for just under 3 minutes
+  - tempo,     e.g. "60" for 60 beats per minute
+
+You can generate a beat map file from an .xsc file via the
+xsc2beatmap found in the same location as this program.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+import re
+import sys
+
+from optparse import OptionParser
+
+import midi
+
+def parse_args():
+    parser = OptionParser("Usage: %prog SRC-MIDI BEATMAP DST-MIDI")
+
+    # parser.add_option("-i", "--input", dest="input",
+    #               help="input LilyPond project", metavar="FILE")
+
+    if len(sys.argv) != 4:
+        parser.print_help()
+        sys.exit(0)
+
+    src, beatmap, dst = sys.argv[1:]
+
+    return src, beatmap, dst
+
+def get_tempos_from_beatmap(filename, resolution):
+    xsc = open(filename)
+    tempos = [ ]
+    tick = 0
+    for line in xsc.readlines():
+        fields = line.split()
+        label, section, measure, beat, timestamp = fields[0:5]
+        
+        # There is no tempo for the final beat
+        if len(fields) == 6:
+            tempo = float(fields[5])
+            tempos.append((tick, tempo, int(section), int(measure), int(beat)))
+            tick += resolution
+        else:
+            break
+    xsc.close()
+    return tempos
+
+
+def new_tempo_event(tick, new_tempo, section, measure, beat):
+    print("inserting %.2fbpm @ section %d bar %d beat %d tick %d" %
+          (new_tempo, section, measure, beat, tick))
+    tc = midi.SetTempoEvent()
+    tc.tick = tick
+    tc.set_bpm(new_tempo)
+    return tc
+
+def apply_rubato(tracks, tempos):
+    """Splice MIDI tempo change events into control track 0."""
+    control = tracks[0]
+
+    # Delete EndOfTrackEvent and anything to the right of it
+    # (presumably there shouldn't be anything to the right but you
+    # never know).
+    for i in xrange(len(control)):
+        event = control[i]
+        if isinstance(event, midi.EndOfTrackEvent):
+            del control[i:]
+            break
+
+    event_index = 0
+    while event_index < len(control):
+        event = control[event_index]
+        print "%d: existing %s" % (event_index, event)
+
+        # insert any new tempo changes before the current tick
+        while True:
+            if not tempos:
+                break
+            next_tempo = tempos[0]
+            next_tempo_tick = next_tempo[0]
+            if next_tempo_tick > event.tick:
+                break
+            tc = new_tempo_event(*(tempos.pop(0)))
+            control.insert(event_index, tc)
+            event_index += 1
+
+        # remove any pre-existing SetTempoEvents
+        if isinstance(event, midi.SetTempoEvent):
+            print
+            del control[event_index]
+        else:
+            event_index += 1
+
+    final_tick = get_final_tick(tracks[1:])
+    while tempos:
+        next_tempo = tempos[0]
+        next_tempo_tick = next_tempo[0]
+        if next_tempo_tick > final_tick:
+            break # no point appending tempos after we ran out of notes
+        
+        tc = new_tempo_event(*(tempos.pop(0)))
+        control.append(tc)
+
+    eot = midi.EndOfTrackEvent()
+    eot.tick = control[-1].tick
+    control.append(eot)
+
+    return tracks
+
+def get_final_tick(tracks):
+    final_tick = None
+    for track in tracks:
+        for event in track:
+            if event.tick > final_tick:
+                final_tick = event.tick
+    return final_tick
+
+def timestamp_to_secs(timestamp):
+    hours, mins, secs = timestamp.split(':')
+    return (int(hours)*60 + int(mins))*60.0 + float(secs)
+
+def secs_to_timestamp(secs):
+    mins  = secs / 60
+    secs  = secs % 60
+    hours = mins / 60
+    mins  = mins % 60
+    secs = str(secs)
+    if secs[1] == '.':
+        secs = '0' + secs
+    return "%d:%02d:%s" % (hours, mins, secs)
+
+def main():
+    src, dst, beatmap = parse_args()
+
+    tracks = midi.read_midifile(src)
+    tracks.make_ticks_abs()
+    beats = get_tempos_from_beatmap(beatmap, tracks.resolution)
+    apply_rubato(tracks, beats)
+    from pprint import pprint
+    pprint(tracks[0][-2])
+    pprint(tracks[1][-2])
+    tracks.make_ticks_rel()
+    midi.write_midifile(dst, tracks)
+
+if __name__ == '__main__':
+    main()
