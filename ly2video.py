@@ -817,6 +817,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
     totalFrames = int(round(((temposList[tempoIndex][1] * 1.0)
                         / midiResolution * (midiTicks[-1]) / 1000000 * fps)))
     progress("SYNC: ly2video will generate cca %d frames." % totalFrames)
+    progress("A dot is displayed for every 10 frames generated.")
 
     dropFrame = 0.0
 
