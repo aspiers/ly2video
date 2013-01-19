@@ -345,14 +345,16 @@ def getNotePositions(pdfFileName, lySrcLines):
     # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdfFileName, "rb")
     pdfFile = PdfFileReader(fPdf)
+    numPages = pdfFile.getNumPages()
+    progress("PDF file %s has %d page(s)" % (pdfFileName, numPages))
     pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
-    print "width of first PDF page is %f" % pageWidth
+    progress("Width of first PDF page is %f" % pageWidth)
 
     notesAndTies = set()
     notePositionsByPage = []
     tokens = {}
 
-    for pageNumber in xrange(pdfFile.getNumPages()):
+    for pageNumber in xrange(numPages):
         # get informations about page
         page = pdfFile.getPage(pageNumber)
         info = page.getObject()
