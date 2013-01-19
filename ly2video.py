@@ -56,26 +56,29 @@ C_MAJOR_SCALE_STEPS = {
     6 : 11, # b
 }
 
-def lineIndices(image, lineLength):
+def findTopStaffLine(image, lineLength):
     """
-    Takes a image and returns height indices of staff lines in pixels.
+    Returns the coordinates of the left-most pixel in the top line of
+    the first staff in the image.
+
+    FIXME: The code assumes that the first staff is not indented
+    further right than subsequent staffs.
 
     Params:
-    - image:        name of image with staff lines
+    - image:        image with staff lines
     - lineLength:   needed length of line to accept it as staff line
     """
-
-    fImage = Image.open(image)
-
     # position of the first line on image
     firstLinePos = (-1, -1)
 
-    # for every pixel of image
-    for x in range(fImage.size[0]):
-        for y in range(fImage.size[1]):
+    width, height = image.size
+
+    # Start searching at the hard left but allow for a left margin.
+    for x in xrange(width):
+        for y in xrange(height):
             for length in range(lineLength):
                 # testing color of pixels in range (startPos, startPos + lineLength)
-                if fImage.getpixel((x + length, y)) == (255,255,255):
+                if image.getpixel((x + length, y)) == (255,255,255):
                     # if it's white then it's not a staff line
                     firstLinePos = (-1, -1)
                     break
@@ -88,7 +91,22 @@ def lineIndices(image, lineLength):
         if firstLinePos != (-1, -1):
             break
 
-    # adding 3 pixels to avoid line of pixels connectings all staffs together
+    return firstLinePos
+
+def lineIndices(image, lineLength):
+    """
+    Takes a image and returns height indices of staff lines in pixels.
+
+    Params:
+    - image:        name of image with staff lines
+    - lineLength:   needed length of line to accept it as staff line
+    """
+
+    fImage = Image.open(image)
+
+    firstLinePos = findTopStaffLine(image, lineLength)
+    # move 3 pixels to the right, to avoid line of pixels connectings
+    # all staffs together
     firstLinePos = (firstLinePos[0] + 3, firstLinePos[1])
 
     lines = []
