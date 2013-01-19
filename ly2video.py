@@ -112,19 +112,20 @@ def lineIndices(image, lineLength):
     # return staff line indices
     return lines
 
-def generateTitle(titleText, resolution, fps, titleLength):
+def generateTitle(titleText, width, height, fps, titleLength):
     """
     Generates frames with name of song and its author.
 
     Params:
     - titleText:    collection of name of song and its author
-    - resolution:   wanted resolution of frames (and video)
+    - width:        pixel width of frames (and video)
+    - height        pixel height of frames (and video)
     - fps:          frame rate (frames per second) of final video
     - titleLength:  length of title screen (seconds)
     """
 
     # create image of title screen
-    titleScreen = Image.new("RGB", resolution, (255,255,255))
+    titleScreen = Image.new("RGB", (width, height), (255,255,255))
     # it will draw text on titleScreen
     drawer = ImageDraw.Draw(titleScreen)
     # save folder for frames
@@ -135,17 +136,17 @@ def generateTitle(titleText, resolution, fps, titleLength):
     progress("TITLE: ly2video will generate cca %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
-    nameFont = ImageFont.truetype("arial.ttf", resolution[1] / 15)
+    nameFont = ImageFont.truetype("arial.ttf", height / 15)
     # font for author
-    authorFont = ImageFont.truetype("arial.ttf", resolution[1] / 25)
+    authorFont = ImageFont.truetype("arial.ttf", height / 25)
 
     # args - position of left upper corner of rectangle (around text), text, font and color (black)
-    drawer.text(((resolution[0] - nameFont.getsize(titleText.name)[0]) / 2,
-                 (resolution[1] - nameFont.getsize(titleText.name)[1]) / 2 - resolution[1] / 25),
+    drawer.text(((width - nameFont.getsize(titleText.name)[0]) / 2,
+                 (height - nameFont.getsize(titleText.name)[1]) / 2 - height / 25),
                 titleText.name, font=nameFont, fill=(0,0,0))
     # same thing
-    drawer.text(((resolution[0] - authorFont.getsize(titleText.author)[0]) / 2,
-                 (resolution[1] / 2) + resolution[1] / 25),
+    drawer.text(((width - authorFont.getsize(titleText.author)[0]) / 2,
+                 (height / 2) + height / 25),
                 titleText.author, font=authorFont, fill=(0,0,0))
 
     # generate needed number of frames (= fps * titleLength)
@@ -156,13 +157,14 @@ def generateTitle(titleText, resolution, fps, titleLength):
              (totalFrames, totalFrames))
     return 0
 
-def writePaperHeader(fFile, resolution, numOfLines, lilypondVersion):
+def writePaperHeader(fFile, width, height, numOfLines, lilypondVersion):
     """
     Writes own paper block into given file.
 
     Params:
     - fFile:        given opened file
-    - resolution:   wanted resolution of video
+    - width:        pixel width of frames (and video)
+    - height        pixel height of frames (and video)
     - numOfLines:   number of staff lines
     """
 
@@ -187,20 +189,20 @@ sudden jumps in your video.
     if oneLineBreaking:
         fFile.write("   page-breaking = #ly:one-line-breaking\n")
     else:
-        fFile.write("   paper-width   = %d\\mm\n" % round(10 * resolution[0] * pixelsPerMm))
-        fFile.write("   paper-height  = %d\\mm\n" % round(resolution[1] * pixelsPerMm))
+        fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * pixelsPerMm))
+        fFile.write("   paper-height  = %d\\mm\n" % round(height * pixelsPerMm))
 
-    fFile.write("   top-margin    = %d\\mm\n" % round(resolution[1] * pixelsPerMm / 20))
-    fFile.write("   bottom-margin = %d\\mm\n" % round(resolution[1] * pixelsPerMm / 20))
-    fFile.write("   left-margin   = %d\\mm\n" % round(resolution[0] * pixelsPerMm / 2))
-    fFile.write("   right-margin  = %d\\mm\n" % round(resolution[0] * pixelsPerMm / 2))
+    fFile.write("   top-margin    = %d\\mm\n" % round(height * pixelsPerMm / 20))
+    fFile.write("   bottom-margin = %d\\mm\n" % round(height * pixelsPerMm / 20))
+    fFile.write("   left-margin   = %d\\mm\n" % round(width * pixelsPerMm / 2))
+    fFile.write("   right-margin  = %d\\mm\n" % round(width * pixelsPerMm / 2))
 
     if not oneLineBreaking:
         fFile.write("   print-page-number = ##f\n")
 
     fFile.write("}\n")
     fFile.write("#(set-global-staff-size %d)\n\n" %
-                int(round((resolution[1] - 2 * (resolution[1] / 10)) / numOfLines)))
+                int(round((height - 2 * (height / 10)) / numOfLines)))
 
     return 0
 
@@ -777,7 +779,8 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcLines, midiTicks, notesInTicks)
                                  noteIndicesByPage, tokens, parser,
                                  midiTicks, notesInTicks)
 
-def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
+def genVideoFrames(midiResolution, temposList, midiTicks,
+                   width, height, fps,
                    noteIndicesByPage, notesImages, cursorLineColor):
     """
     Generates frames for the final video, synchronized with audio.
@@ -795,7 +798,8 @@ def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
       - midiResolution:    resolution of MIDI file
       - temposList:        list of possible tempos in MIDI
       - midiTicks:         list of ticks with NoteOnEvent
-      - resolution:        resolution of generated frames (and video)
+      - width:             pixel width of frames (and video)
+      - height:            pixel height of frames (and video)
       - fps:               frame rate of video
       - noteIndicesByPage: indices of notes in pictures
       - notesImages:       names of that images (list of strings)
@@ -856,14 +860,14 @@ def genVideoFrames(midiResolution, temposList, midiTicks, resolution, fps,
                 else:
                     # get frame from image of staff, args - (("left upper corner", "right lower corner"))
                     leftUpper = int(startIndex + round(posun * shift)
-                                    - (resolution[0] / 2))
+                                    - (width / 2))
                     rightUpper = int(startIndex + round(posun * shift)
-                                     + (resolution[0] / 2))
-                    frame = notesPic.copy().crop((leftUpper, 0, rightUpper, resolution[1]))
+                                     + (width / 2))
+                    frame = notesPic.copy().crop((leftUpper, 0, rightUpper, height))
                     # add middle line
-                    for pixel in range(resolution[1]):
-                        frame.putpixel((resolution[0] / 2, pixel), cursorLineColor)
-                        frame.putpixel(((resolution[0] / 2) + 1, pixel), cursorLineColor)
+                    for pixel in range(height):
+                        frame.putpixel((width / 2, pixel), cursorLineColor)
+                        frame.putpixel(((width / 2) + 1, pixel), cursorLineColor)
 
                     # save that frame
                     frame.save("./notes/frame%d.png" % frameNum)
@@ -960,8 +964,11 @@ def parseOptions():
     parser.add_option("-f", "--fps", dest="fps",
                       help='frame rate of final video (default is "30")', type="int", metavar="FPS",
                       default=30)
-    parser.add_option("-r", "--resolution", dest="resolution",
-                      help='resolution of final video (options: 360, 720, 1080, default is "720")',
+    parser.add_option("-x", "--width", dest="width",
+                      help='pixel width of final video (default is 1280)',
+                      metavar="HEIGHT", type="int", default=1280)
+    parser.add_option("-y", "--height", dest="height",
+                      help='pixel height of final video (default is 720)',
                       metavar="HEIGHT", type="int", default=720)
     parser.add_option("--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video (with name of song and its author)',
@@ -1045,18 +1052,6 @@ def getCursorLineColor(options):
         progress("WARNING: Color was not found, " +
                  'ly2video will use default one ("red").')
         return (255,0,0)
-
-def getResolution(options):
-    if options.resolution == 360:
-        return (640, 360)
-    elif options.resolution == 720:
-        return (1280, 720)
-    elif options.resolution == 1080:
-        return (1920, 1080)
-    else:
-        progress("WARNING: Resolution was not found, " +
-                 'ly2video will use default one ("720" => 1280x720).')
-        return (1280, 720)
 
 def getOutputFile(options):
     output = options.output
@@ -1183,7 +1178,7 @@ def getNumStaffLines(project):
 
     return numStaffLines
 
-def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
+def sanitiseLy(project, width, height, numStaffLines, titleText, lilypondVersion):
     fProject = open(project, "r")
 
     # create own ly project
@@ -1218,7 +1213,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
         if line.find("\\version") != -1:
             done = True
             fMyProject.write(line)
-            writePaperHeader(fMyProject, resolution, numStaffLines, lilypondVersion)
+            writePaperHeader(fMyProject, width, height, numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
@@ -1289,7 +1284,7 @@ def sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion):
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        writePaperHeader(fMyProject, resolution, numStaffLines)
+        writePaperHeader(fMyProject, width, height, numStaffLines)
     fMyProject.close()
 
 def main():
@@ -1315,9 +1310,6 @@ def main():
         KEEP_TMP_FILES = True
 
     lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
-
-    # resolution of output video
-    resolution = getResolution(options)
 
     # title and all about it
     if options.titleAtStart:
@@ -1351,7 +1343,8 @@ def main():
 
     numStaffLines = getNumStaffLines(project)
 
-    sanitiseLy(project, resolution, numStaffLines, titleText, lilypondVersion)
+    sanitiseLy(project, options.width, options.height,
+               numStaffLines, titleText, lilypondVersion)
 
     # load own project into memory
     fMyProject = open(SANITISED_LY, "r")
@@ -1403,12 +1396,13 @@ def main():
 
     # generate title screen
     if options.titleAtStart:
-        generateTitle(titleText, resolution, fps, titleLength)
+        generateTitle(titleText, width, height, fps, titleLength)
     output_divider_line()
 
     # generate notes
-    genVideoFrames(midiResolution, temposList, midiTicks, resolution,
-                   fps, noteIndicesByPage, notesImages,
+    genVideoFrames(midiResolution, temposList, midiTicks,
+                   options.width, options.height, fps,
+                   noteIndicesByPage, notesImages,
                    getCursorLineColor(options))
     output_divider_line()
 
