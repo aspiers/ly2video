@@ -951,6 +951,9 @@ def parseOptions():
     parser.add_option("-o", "--output", dest="output",
                       help='name of output video (e.g. "myNotes.avi", default is input + .avi)',
                       metavar="FILE")
+    parser.add_option("-b", "--beatmap", dest="beatmap",
+                      help='name of beatmap file for adjusting MIDI tempo',
+                      metavar="FILE")
     parser.add_option("-c", "--color", dest="color",
                       help='name of color of middle bar (default is "red")', metavar="COLOR",
                       default="red")
@@ -987,6 +990,15 @@ def portableDevNull():
         return "/dev/null"
     elif sys.platform.startswith("win"):
         return "NUL"
+
+def applyBeatmap(src, dst, beatmap):
+    prog = "midi-rubato"
+    cmd = [prog, src, dst, beatmap]
+    try:
+        print "Applying beatmap via '%s'" % " ".join(cmd)
+        stdout = subprocess.check_output(cmd)
+    except subprocess.CalledProcessError:
+        fatal("%s was not found." % prog, 1)
 
 def findExecutableDependencies(options):
     try:
@@ -1366,10 +1378,16 @@ def main():
     output_divider_line()
     picWidth = getImageWidth(notesImages)
 
+    midiFile = "ly2videoConvert.midi"
+    if options.beatmap:
+        newMidiFile = "ly2videoConvert-adjusted.midi"
+        applyBeatmap(midiFile, newMidiFile, options.beatmap)
+        midiFile = newMidiFile
+
     # find needed data in MIDI
     try:
         midiResolution, temposList, notesInTicks, midiTicks = \
-            getMidiEvents("ly2videoConvert.midi")
+            getMidiEvents(midiFile)
     except Exception as err:
         fatal("MIDI: %s " % err, 10)
         
