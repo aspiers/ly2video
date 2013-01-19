@@ -857,18 +857,18 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
             endIndex = indices[indices.index(index) + 1]
 
             # get two indices of MIDI events (ticks)
-            startMidi = midiTicks[midiIndex]
+            startTick = midiTicks[midiIndex]
             midiIndex += 1
-            endMidi = midiTicks[midiIndex]
+            endTick = midiTicks[midiIndex]
 
             # if there's gonna be change in tempo, change it
             if tempoIndex != (len(temposList) - 1):
-                if startMidi == temposList[tempoIndex + 1][0]:
+                if startTick == temposList[tempoIndex + 1][0]:
                     tempoIndex += 1
 
             # how many frames do I need?
             neededFrames = ((temposList[tempoIndex][1] * 1.0) / midiResolution
-                            * (endMidi - startMidi) / 1000000 * fps)
+                            * (endTick - startTick) / 1000000 * fps)
             # how many frames can be generated?
             realFrames = int(round(neededFrames))
             # add that difference between needed and real value into dropFrame
