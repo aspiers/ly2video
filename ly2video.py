@@ -883,11 +883,11 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
                     continue
                 else:
                     # get frame from image of staff, args - (("left upper corner", "right lower corner"))
-                    leftUpper = int(startIndex + round(posun * shift)
+                    left = int(startIndex + round(posun * shift)
                                     - (width / 2))
-                    rightUpper = int(startIndex + round(posun * shift)
+                    right = int(startIndex + round(posun * shift)
                                      + (width / 2))
-                    frame = notesPic.copy().crop((leftUpper, 0, rightUpper, height))
+                    frame = notesPic.copy().crop((left, 0, right, height))
                     # add middle line
                     for pixel in xrange(height):
                         frame.putpixel((width / 2, pixel), cursorLineColor)
