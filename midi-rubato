@@ -54,6 +54,10 @@ def parse_args():
 
     return src, beatmap, dst
 
+def main():
+    src, dst, beatmap = parse_args()
+    generate_adjusted_midi_file(src, dst, beatmap)
+
 def get_tempos_from_beatmap(filename, resolution):
     xsc = open(filename)
     tempos = [ ]
@@ -156,10 +160,10 @@ def secs_to_timestamp(secs):
         secs = '0' + secs
     return "%d:%02d:%s" % (hours, mins, secs)
 
-def main():
-    src, dst, beatmap = parse_args()
-
+def generate_adjusted_midi_file(src, dst, beatmap):
     tracks = midi.read_midifile(src)
+    print "Read from %s" % src
+
     tracks.make_ticks_abs()
     beats = get_tempos_from_beatmap(beatmap, tracks.resolution)
     apply_rubato(tracks, beats)
@@ -167,7 +171,9 @@ def main():
     pprint(tracks[0][-2])
     pprint(tracks[1][-2])
     tracks.make_ticks_rel()
+
     midi.write_midifile(dst, tracks)
+    print "Wrote tempo-adjusted tracks to %s" % dst
 
 if __name__ == '__main__':
     main()
