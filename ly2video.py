@@ -851,10 +851,10 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
         # duplicate last index
         indices.append(indices[-1])
 
-        for index in indices[:-1]:
+        for i in xrange(len(indices) - 1):
             # get two indices of notes (pixels)
-            startIndex = index
-            endIndex = indices[indices.index(index) + 1]
+            startIndex = indices[i]
+            endIndex   = indices[i + 1]
 
             # get two indices of MIDI events (ticks)
             startTick = midiTicks[midiIndex]
