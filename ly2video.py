@@ -93,39 +93,39 @@ def findTopStaffLine(image, lineLength):
 
     return firstLinePos
 
-def lineIndices(image, lineLength):
+def lineIndices(imageFile, lineLength):
     """
     Takes a image and returns height indices of staff lines in pixels.
 
     Params:
-    - image:        name of image with staff lines
+    - imageFile:    name of image with staff lines
     - lineLength:   needed length of line to accept it as staff line
     """
 
-    fImage = Image.open(image)
+    image = Image.open(imageFile)
+    width, height = image.size
 
-    firstLinePos = findTopStaffLine(image, lineLength)
+    firstLineX, firstLineY = findTopStaffLine(image, lineLength)
     # move 3 pixels to the right, to avoid line of pixels connectings
     # all staffs together
-    firstLinePos = (firstLinePos[0] + 3, firstLinePos[1])
+    firstLineX += 3
 
     lines = []
     newLine = True
 
-    # for every pixel in range (height of first line, height of image)
-    for height in range(firstLinePos[1], fImage.size[1]):
+    for y in xrange(firstLineY, height):
         # if color of that pixel isn't white
-        if fImage.getpixel((firstLinePos[0], height)) != (255,255,255):
+        if image.getpixel((firstLineX, y)) != (255,255,255):
             # and it can be new staff line
             if newLine:
                 # accept it
                 newLine = False
-                lines.append(height)
+                lines.append(y)
         else:
             # it's space between lines
             newLine = True
 
-    del fImage
+    del image
 
     # return staff line indices
     return lines
