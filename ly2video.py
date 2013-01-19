@@ -690,7 +690,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             tick = midiTicks[midiIndex]
             events = notesInTicks[tick]
 
-            print "index %d, tick %d" % (index, tick)
+            progress("index %d, tick %d" % (index, tick))
 
             # Build a dict tracking which MIDI pitches (modulo the
             # octave) are present in the current tick.  Pitches will
@@ -701,7 +701,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                 pitch = event.get_pitch() % 12
                 midiPitches[pitch] = event
 
-            print "    midiPitches: %s" % repr(midiPitches)
+            progress("    midiPitches: %s" % repr(midiPitches))
 
             # Check every note from the source is in the MIDI tick.
             # If only some are, abort with an error.  If none are, we
@@ -715,18 +715,18 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                 if notePitch in midiPitches:
                     matchCount += 1
                     del midiPitches[notePitch]
-                    print "        matched '%s' @ %d:%d to MIDI pitch %d" % \
-                          (token, indexNoteSource[0], indexNoteSource[1], notePitch)
+                    progress("        matched '%s' @ %d:%d to MIDI pitch %d" % 
+                             (token, indexNoteSource[0], indexNoteSource[1], notePitch))
 
             if matchCount == 0:
                 # No pitches in this index matched this MIDI tick -
                 # maybe it was a note hidden by \hideNotes.  So let's
                 # skip the tick.
                 midiTicks.pop(midiIndex)
-                print "    WARNING: skipping MIDI tick %d; contents:" % tick
+                progress("    WARNING: skipping MIDI tick %d; contents:" % tick)
                 for event in events:
-                    print "        pitch %d length %d" % (event.get_pitch(),
-                                                          event.length)
+                    progress("        pitch %d length %d" %
+                             (event.get_pitch(), event.length))
                 continue
 
             # Regardless of what we found, we're going to move onto
@@ -734,15 +734,15 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             midiIndex += 1
 
             if midiPitches:
-                print("    WARNING: only matched %d/%d MIDI notes "
-                      "at index %d tick %d\n" %
-                      (matchCount, len(events), index, tick))
+                progress("    WARNING: only matched %d/%d MIDI notes "
+                         "at index %d tick %d\n" %
+                         (matchCount, len(events), index, tick))
                 for event in midiPitches.values():
-                    print "        pitch %d length %d" % (event.get_pitch(),
-                                                          event.length)
+                    progress("        pitch %d length %d" %
+                             (event.get_pitch(), event.length))
                 continue
 
-            print "    all pitches matched in this MIDI tick!"
+            progress("    all pitches matched in this MIDI tick!")
             alignedNoteIndicesInPage.append(index)
             i += 1
 
@@ -1190,7 +1190,7 @@ def getImageWidth(notesImages):
     """
     tmpImage = Image.open(notesImages[0])
     picWidth = tmpImage.size[0]
-    print "width of %s is %d pixels" % (notesImages[0], picWidth)
+    progress("Width of %s is %d pixels" % (notesImages[0], picWidth))
     del tmpImage
     return picWidth
 
@@ -1474,7 +1474,7 @@ def main():
     delete_tmp_files([ "ly2videoConvert.wav", "notes" ])
 
     # end
-    print("Ly2video has ended. Your generated file: " + output + ".")
+    progress("Ly2video has ended. Your generated file: " + output + ".")
     return 0
 
 if __name__ == '__main__':
