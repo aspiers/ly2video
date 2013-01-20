@@ -545,10 +545,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
             else:
                 fatal("didn't know what to do with %s" % repr(token))
 
-        pprint(indexNoteSourcesInPage)
         noteIndicesInPage = mergeNearbyIndices(indexNoteSourcesInPage)
-        pprint(notesAndTies)
-        pprint(indexNoteSourcesInPage)
 
         # stores info about this page
         indexNoteSourcesByPage.append(indexNoteSourcesInPage)
@@ -756,7 +753,6 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
         warn("ran out of notes in PDF at MIDI tick %d (%d/%d ticks)" % \
                  (midiTicks[midiIndex], midiIndex + 1, len(midiTicks)))
 
-    pprint(alignedNoteIndicesByPage)
     return alignedNoteIndicesByPage
 
 def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
