@@ -837,8 +837,9 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
     if not os.path.exists("notes"):
         os.mkdir("notes")
 
-    totalFrames = int(round(((temposList[tempoIndex][1] * 1.0)
-                        / midiResolution * (midiTicks[-1]) / 1000000 * fps)))
+    firstTempo = temposList[tempoIndex][1]
+    totalFrames = int(round(float(firstTempo) / midiResolution *
+                            midiTicks[-1] / 1000000 * fps))
     progress("SYNC: ly2video will generate approx. %d frames." % totalFrames)
     progress("A dot is displayed for every 10 frames generated.")
 
@@ -860,15 +861,17 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
             startTick = midiTicks[midiIndex]
             midiIndex += 1
             endTick = midiTicks[midiIndex]
+            ticks = endTick - startTick
 
+            tempoTick, tempo = temposList[tempoIndex]
             # if there's gonna be change in tempo, change it
-            if tempoIndex != (len(temposList) - 1):
+            if tempoIndex < len(temposList) - 1:
                 if startTick == temposList[tempoIndex + 1][0]:
                     tempoIndex += 1
 
             # how many frames do I need?
-            neededFrames = ((temposList[tempoIndex][1] * 1.0) / midiResolution
-                            * (endTick - startTick) / 1000000 * fps)
+            neededFrames = (float(tempo) / midiResolution
+                            * ticks / 1000000 * fps)
             # how many frames can be generated?
             realFrames = int(round(neededFrames))
             # add that difference between needed and real value into dropFrame
