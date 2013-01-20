@@ -611,7 +611,6 @@ def pitchValue(token, parser):
     This facilitates comparison to MIDI NoteOn events, although
     arithmetic modulo 12 may be required.
     """
-    print "!!! FIXME: assuming english !!!"
     parser.language = 'english'
     p = ly.tools.Pitch.fromToken(token, parser)
 
