@@ -235,16 +235,7 @@ def getTemposList(midiFile):
     for event in midiHeader:
         # if it's SetTempoEvent
         if isinstance(event, midi.SetTempoEvent):
-            # convert value from hexadecimal into decimal
-            base = 0
-            tempoValue = 0
-            data = event.data
-            data.reverse()
-            for value in data:
-                tempoValue += value * (256 ** base)
-                base += 1
-            # and add that new tempo with its start into temposList
-            temposList.append((event.tick, tempoValue))
+            temposList.append((event.tick, event.bpm))
 
     return temposList
 
@@ -826,9 +817,19 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
       - cursorLineColor:   color of middle line
     """
 
-    midiIndex = 0
-    tempoIndex = 0
-    frameNum = 0
+    midiIndex   = 0
+    tempoIndex  = 0
+    frameNum    = 0
+
+    # Keep track of wall clock time to ensure that rounding errors
+    # when aligning indices to frames don't accumulate over time.
+    secs = 0.0
+
+    # If we have 1+ tempo changes in between adjacent indices, we need
+    # to keep track of how many seconds elapsed since the last one,
+    # since this will allow us to calculate how many frames we need in
+    # between the current pair of indices.
+    secsSinceIndex  = 0.0
 
     # folder to store frames for video
     if not os.path.exists("notes"):
@@ -841,8 +842,6 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
     if not DEBUG:
         progress("A dot is displayed for every 10 frames generated.")
 
-    dropFrame = 0.0
-
     for pageNum, indices in enumerate(noteIndicesByPage):
         # open image of staff
         notesPic = Image.open(notesImages[pageNum])
@@ -850,62 +849,133 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
         # duplicate last index
         indices.append(indices[-1])
 
+        # generate all frames in between each pair of adjacent indices
         for i in xrange(len(indices) - 1):
             # get two indices of notes (pixels)
-            startIndex = indices[i]
-            endIndex   = indices[i + 1]
+            startIndex  = indices[i]
+            endIndex    = indices[i + 1]
+            indexTravel = endIndex - startIndex
+
+            debug("\nwall-clock secs: %f" % secs)
+            debug("index: %d -> %d (indexTravel %d)" %
+                  (startIndex, endIndex, indexTravel))
 
             # get two indices of MIDI events (ticks)
             startTick = midiTicks[midiIndex]
             midiIndex += 1
             endTick = midiTicks[midiIndex]
             ticks = endTick - startTick
+            debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
 
-            tempoTick, tempo = temposList[tempoIndex]
-            # if there's gonna be change in tempo, change it
-            if tempoIndex < len(temposList) - 1:
-                if startTick == temposList[tempoIndex + 1][0]:
-                    tempoIndex += 1
+            # handle any tempo ticks which occur before endIndex
+            secsSinceIndex = 0.0
+            lastTick = startTick
+            while True:
+                tempoTick, tempo = temposList[tempoIndex]
+                debug("  checking tempo #%d @ tick %d: %.3f bpm" %
+                      (tempoIndex, tempoTick, tempo))
+                if tempoTick >= endTick:
+                    break
+
+                tempoIndex += 1
+
+                if tempoTick == startTick:
+                    continue
+
+                # startTick < tempoTick < endTick
+                tempoTick - lastTick
+                secsSinceIndex += ticksToSecs(lastTick, tempoTick,
+                                              midiResolution, tempo)
+                debug("    secs since index %d: %f" %
+                      (startIndex, secsSinceIndex))
+                lastTick = tempoTick
+
+            secsSinceIndex += ticksToSecs(lastTick, endTick,
+                                          midiResolution, tempo)
+            debug("  secs between indices %d and %d: %f" %
+                  (startIndex, endIndex, secsSinceIndex))
+
+            # This is the exact time we are *aiming* for the frameset
+            # to finish at (i.e. the start time of the first frame
+            # generated after the writeVideoFrames() invocation below
+            # has written all the frames for the current frameset).
+            # However, since we have less than an infinite number of
+            # frames per second, there will typically be a rounding
+            # error and we'll miss our target by a small amount.
+            targetSecs = secs + secsSinceIndex
+
+            debug("  secs at new index %d: %f" %
+                  (endIndex, targetSecs))
+
+            # The ideal duration of the current frameset is the target
+            # end time minus the *actual* start time, not the ideal
+            # start time.  This is crucially important to avoid
+            # rounding errors from accumulating over the course of the
+            # video.
+            neededFrameSetSecs = targetSecs - float(frameNum)/fps
+            debug("  need next frameset to last %f secs" %
+                  neededFrameSetSecs)
+
             debug("  need %f frames @ %d fps" %
                   (neededFrameSetSecs * fps, fps))
+            neededFrames = int(round(neededFrameSetSecs * fps))
 
-            # how many frames do I need?
-            neededFrames = (float(tempo) / midiResolution
-                            * ticks / 1000000 * fps)
-            # how many frames can be generated?
-            realFrames = int(round(neededFrames))
-            # add that difference between needed and real value into dropFrame
-            dropFrame += (realFrames - neededFrames)
-            # pixel shift for one frame
-            shift = (endIndex - startIndex) * 1.0 / neededFrames
+            # Update time in the *ideal* (i.e. not real) world - this
+            # is totally independent of fps.
+            secs = targetSecs
 
-            for posun in xrange(realFrames):
-                # if I need drop more than "1.0" frames, drop one
-                if dropFrame >= 1.0:
-                    dropFrame -= 1.0
-                    continue
-                else:
-                    # get frame from image of staff, args - (("left upper corner", "right lower corner"))
-                    left = int(startIndex + round(posun * shift)
-                                    - (width / 2))
-                    right = int(startIndex + round(posun * shift)
-                                     + (width / 2))
-                    frame = notesPic.copy().crop((left, 0, right, height))
-                    # add middle line
-                    for pixel in xrange(height):
-                        frame.putpixel((width / 2, pixel), cursorLineColor)
-                        frame.putpixel(((width / 2) + 1, pixel), cursorLineColor)
+            if neededFrames > 0:
+                writeVideoFrames(frameNum, neededFrames,
+                                 startIndex, indexTravel,
+                                 notesPic, width, height,
+                                 cursorLineColor)
+            frameNum += neededFrames
 
-                    # save that frame
-                    frame.save(tmpPath("notes", "frame%d.png" % frameNum))
-                    frameNum += 1
-                    if not DEBUG and frameNum % 10 == 0:
-                        sys.stdout.write(".")
-                        sys.stdout.flush()
         print
 
         progress("SYNC: Generated %d frames for page %d/%d" %
                  (frameNum, pageNum + 1, len(noteIndicesByPage)))
+
+def writeVideoFrames(startFrame, neededFrames, startIndex, indexTravel,
+                     notesPic, width, height, cursorLineColor):
+    travelPerFrame = float(indexTravel) / neededFrames
+    debug("  travel per frame: %f pixels" % travelPerFrame)
+    debug("  generating %d frames: %d -> %d" %
+          (neededFrames, startFrame, startFrame + neededFrames - 1))
+
+    for i in xrange(neededFrames):
+        frameNum = startFrame + i
+        index = startIndex + round(i * travelPerFrame)
+        debug("    writing frame %d index %d" %
+              (frameNum, index))
+        # Get frame from image of staff
+        left = int(index - (width / 2))
+        right = int(index + (width / 2))
+        # Args to crop() are coords of left upper corner then
+        # right lower corner
+        frame = notesPic.copy().crop((left, 0, right, height))
+        # Add cursor line in middle
+        for pixel in xrange(height):
+            frame.putpixel((width / 2, pixel), cursorLineColor)
+            frame.putpixel(((width / 2) + 1, pixel), cursorLineColor)
+
+        # Save the frame.  ffmpeg doesn't work if the numbers in these
+        # filenames are zero-padded.
+        frame.save(tmpPath("notes", "frame%d.png" % frameNum))
+        if not DEBUG and frameNum % 10 == 0:
+            sys.stdout.write(".")
+            sys.stdout.flush()
+
+def ticksToSecs(startTick, endTick, midiResolution, tempo):
+    beatsSinceTick = float(endTick - startTick) / midiResolution
+    debug("    beats from tick %d -> %d: %f (%d ticks per beat)" %
+          (startTick, endTick, beatsSinceTick, midiResolution))
+
+    secsSinceTick = beatsSinceTick * 60.0 / tempo
+    debug("    secs  from tick %d -> %d: %f (%.3f bpm)" %
+          (startTick, endTick, secsSinceTick, tempo))
+
+    return secsSinceTick
 
 def genWavFile(timidity, midiPath):
     """
