@@ -30,8 +30,8 @@ import subprocess
 import sys
 import urllib
 from distutils.version import StrictVersion
-from   optparse import OptionParser
-from   struct import pack
+from optparse import OptionParser
+from struct import pack
 
 from PIL import Image, ImageDraw, ImageFont
 from ly.tokenize import MusicTokenizer, Tokenizer
