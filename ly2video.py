@@ -39,7 +39,9 @@ import ly.tools
 from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 
-from pprint import pprint
+from pprint import pprint, pformat
+
+DEBUG = False # --debug sets to True
 
 C_MAJOR_SCALE_STEPS = {
     # Maps notes of the C major scale into semi-tones above C.
@@ -691,7 +693,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             tick = midiTicks[midiIndex]
             events = notesInTicks[tick]
 
-            progress("index %d, tick %d" % (index, tick))
+            debug("index %d, tick %d" % (index, tick))
 
             # Build a dict tracking which MIDI pitches (modulo the
             # octave) are present in the current tick.  Pitches will
@@ -702,7 +704,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                 pitch = event.get_pitch() % 12
                 midiPitches[pitch] = event
 
-            progress("    midiPitches: %s" % repr(midiPitches))
+            debug("    midiPitches: %s" % repr(midiPitches))
 
             # Check every note from the source is in the MIDI tick.
             # If only some are, abort with an error.  If none are, we
@@ -716,18 +718,18 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                 if notePitch in midiPitches:
                     matchCount += 1
                     del midiPitches[notePitch]
-                    progress("        matched '%s' @ %d:%d to MIDI pitch %d" % 
-                             (token, indexNoteSource[0], indexNoteSource[1], notePitch))
+                    debug("        matched '%s' @ %d:%d to MIDI pitch %d" %
+                          (token, indexNoteSource[0], indexNoteSource[1], notePitch))
 
             if matchCount == 0:
                 # No pitches in this index matched this MIDI tick -
                 # maybe it was a note hidden by \hideNotes.  So let's
                 # skip the tick.
                 midiTicks.pop(midiIndex)
-                progress("    WARNING: skipping MIDI tick %d; contents:" % tick)
+                debug("    WARNING: skipping MIDI tick %d; contents:" % tick)
                 for event in events:
-                    progress("        pitch %d length %d" %
-                             (event.get_pitch(), event.length))
+                    debug("        pitch %d length %d" %
+                          (event.get_pitch(), event.length))
                 continue
 
             # Regardless of what we found, we're going to move onto
@@ -735,15 +737,15 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             midiIndex += 1
 
             if midiPitches:
-                progress("    WARNING: only matched %d/%d MIDI notes "
-                         "at index %d tick %d\n" %
-                         (matchCount, len(events), index, tick))
+                debug("    WARNING: only matched %d/%d MIDI notes "
+                      "at index %d tick %d\n" %
+                      (matchCount, len(events), index, tick))
                 for event in midiPitches.values():
-                    progress("        pitch %d length %d" %
-                             (event.get_pitch(), event.length))
+                    debug("        pitch %d length %d" %
+                          (event.get_pitch(), event.length))
                 continue
 
-            progress("    all pitches matched in this MIDI tick!")
+            debug("    all pitches matched in this MIDI tick!")
             alignedNoteIndicesInPage.append(index)
             i += 1
 
@@ -840,7 +842,8 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
     totalFrames = int(round(float(firstTempo) / midiResolution *
                             midiTicks[-1] / 1000000 * fps))
     progress("SYNC: ly2video will generate approx. %d frames." % totalFrames)
-    progress("A dot is displayed for every 10 frames generated.")
+    if not DEBUG:
+        progress("A dot is displayed for every 10 frames generated.")
 
     dropFrame = 0.0
 
@@ -867,6 +870,8 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
             if tempoIndex < len(temposList) - 1:
                 if startTick == temposList[tempoIndex + 1][0]:
                     tempoIndex += 1
+            debug("  need %f frames @ %d fps" %
+                  (neededFrameSetSecs * fps, fps))
 
             # how many frames do I need?
             neededFrames = (float(tempo) / midiResolution
@@ -898,7 +903,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
                     # save that frame
                     frame.save(tmpPath("notes", "frame%d.png" % frameNum))
                     frameNum += 1
-                    if frameNum % 10 == 0:
+                    if not DEBUG and frameNum % 10 == 0:
                         sys.stdout.write(".")
                         sys.stdout.flush()
         print
@@ -965,17 +970,21 @@ def generateSilence(length):
     fSilence.close()
     return "silence.wav"
 
-def progress(text):
-    sys.stderr.write(text + "\n")
-
 def output_divider_line():
     progress(60 * "-")
 
+def debug(text):
+    if DEBUG:
+        print text
+
+def progress(text):
+    print text
+
 def warn(text):
-    progress("WARNING: " + text)
+    sys.stderr.write("WARNING: " + text)
 
 def fatal(text, status=1):
-    progress("ERROR: " + text)
+    sys.stderr.write("ERROR: " + text)
     sys.exit(status)
 
 def tmpPath(*dirs):
@@ -1018,6 +1027,9 @@ def parseOptions():
     parser.add_option("--windows-timidity", dest="winTimidity",
                       help='(for Windows users) folder with timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
+    parser.add_option("-d", "--debug", dest="debug",
+                      help="don't remove temporary working files",
+                      action="store_true", default=False)
     parser.add_option("-k", "--keep", dest="keepTempFiles",
                       help="don't remove temporary working files",
                       action="store_true", default=False)
@@ -1026,7 +1038,13 @@ def parseOptions():
         parser.print_help()
         sys.exit(0)
 
-    return parser.parse_args()
+    options, args = parser.parse_args()
+
+    if options.debug:
+        global DEBUG
+        DEBUG = True
+
+    return options, args
 
 def portableDevNull():
     if sys.platform.startswith("linux"):
@@ -1038,7 +1056,7 @@ def applyBeatmap(src, dst, beatmap):
     prog = "midi-rubato"
     cmd = [prog, src, dst, beatmap]
     progress("Applying beatmap via '%s'" % " ".join(cmd))
-    safeRun(cmd)
+    progress(safeRun(cmd))
 
 def safeRun(cmd, errormsg=None, exitcode=None, shell=False):
     try:
