@@ -1502,7 +1502,7 @@ def main():
     # generate title screen
     if options.titleAtStart:
         generateTitle(titleText, width, height, fps, titleLength)
-    output_divider_line()
+        output_divider_line()
 
     # generate notes
     genVideoFrames(midiResolution, temposList, midiTicks,
