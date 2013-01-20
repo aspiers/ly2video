@@ -152,7 +152,7 @@ def generateTitle(titleText, width, height, fps, titleLength):
         os.mkdir("title")
 
     totalFrames = fps * titleLength
-    progress("TITLE: ly2video will generate cca %d frames." % totalFrames)
+    progress("TITLE: ly2video will generate approx. %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
     nameFont = ImageFont.truetype("arial.ttf", height / 15)
