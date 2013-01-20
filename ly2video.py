@@ -917,7 +917,7 @@ def genWavFile(timidity, midiPath):
     dirname, midiFile = os.path.split(midiPath)
     os.chdir(dirname)
     cmd = [timidity, midiFile, "-Ow"]
-    print safeRun(cmd, exitcode=11)
+    progress(safeRun(cmd, exitcode=11))
     wavExpected = midiPath.replace('.midi', '.wav')
     if not os.path.exists(wavExpected):
         fatal("TiMidity++ failed to generate %s ?!" % wavExpected)
