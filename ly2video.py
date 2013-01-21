@@ -713,12 +713,13 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             matchCount = 0
             for indexNoteSource in indexNoteSources:
                 token = tokens[indexNoteSource]
+                lineNum, colNum = indexNoteSource
                 notePitch = pitchValue(token, parser) % 12
                 if notePitch in midiPitches:
                     matchCount += 1
                     del midiPitches[notePitch]
                     debug("        matched '%s' @ %d:%d to MIDI pitch %d" %
-                          (token, indexNoteSource[0], indexNoteSource[1], notePitch))
+                          (token, lineNum, colNum, notePitch))
 
             if matchCount == 0:
                 # No pitches in this index matched this MIDI tick -
