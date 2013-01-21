@@ -704,16 +704,23 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
 
             events = notesInTicks[tick]
 
-            # Build a dict tracking which MIDI pitches (modulo the
-            # octave) are present in the current tick.  Pitches will
-            # be removed from this as they match notes in
-            # indexNoteSources.
+            # Build dicts tracking which pitches (modulo the octave)
+            # are present in the current tick and index.  Pitches will
+            # be removed from these as they match.
             midiPitches = { }
             for event in events:
                 pitch = event.get_pitch() % 12
                 midiPitches[pitch] = event
 
-            debug("    midiPitches: %s" % repr(midiPitches))
+            indexPitches = { }
+            for indexNoteSource in indexNoteSources:
+                token = tokens[indexNoteSource]
+                lineNum, colNum = indexNoteSource
+                notePitch = pitchValue(token, parser) % 12
+                indexPitches[float(notePitch)] = (token, lineNum, colNum)
+
+            debug("    midiPitches:  %s" % repr(midiPitches))
+            debug("    indexPitches: %s" % repr(indexPitches))
 
             # Check every note from the source is in the MIDI tick.
             # If only some are, abort with an error.  If none are, we
@@ -721,28 +728,25 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             # transparent note caused by \hideNotes or similar, or a
             # chord.
             matchCount = 0
-            for indexNoteSource in indexNoteSources:
-                token = tokens[indexNoteSource]
-                lineNum, colNum = indexNoteSource
-                notePitch = pitchValue(token, parser) % 12
-                if notePitch in midiPitches:
+            for indexPitch in indexPitches.keys():
+                token, lineNum, colNum = indexPitches[indexPitch]
+                if indexPitch in midiPitches:
                     matchCount += 1
-                    del midiPitches[notePitch]
+                    del midiPitches[indexPitch]
+                    del indexPitches[indexPitch]
                     debug("        matched '%s' @ %d:%d to MIDI pitch %d" %
-                          (token, lineNum, colNum, notePitch))
-                else:
-                    fatal("No corresponding MIDI event in tick %d for '%s' @ %d:%d" %
-                          (tick, token, lineNum, colNum))
+                          (token, lineNum, colNum, indexPitch))
 
             if matchCount == 0:
                 # No pitches in this index matched this MIDI tick -
                 # maybe it was a note hidden by \hideNotes, or notes
                 # from a chord.  So let's skip the tick.
                 midiTicks.pop(midiIndex)
-                warn("    skipping MIDI tick %d; contents:" % tick)
+                msg = "    WARNING: skipping MIDI tick %d; contents:" % tick
                 for event in events:
-                    warn("        pitch %d length %d" %
-                         (event.get_pitch(), event.length))
+                    msg += ("\n        pitch %d length %d" %
+                            (event.get_pitch(), event.length))
+                stderr(msg)
                 continue
 
             # If we get this far, regardless of what we found, we're
@@ -751,12 +755,22 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
 
             if midiPitches:
                 debug("    WARNING: only matched %d/%d MIDI notes "
-                      "at index %d tick %d\n" %
+                      "at index %d tick %d" %
                       (matchCount, len(events), index, tick))
                 for event in midiPitches.values():
                     debug("        pitch %d length %d" %
                           (event.get_pitch(), event.length))
-                continue
+                if not indexPitches:
+                    continue
+
+            if indexPitches:
+                err = ("only matched %d/%d notes at index %d with tick %d" %
+                       (matchCount, len(indexNoteSources), index, tick))
+                for indexPitch in indexPitches:
+                    token, lineNum, colNum = indexPitches[indexPitch]
+                    err += ("\n        pitch %d for '%s' @ %d:%d" %
+                            (indexPitch, token, lineNum, colNum))
+                fatal(err)
 
             debug("    all pitches matched in this MIDI tick!")
             alignedNoteIndicesInPage.append(index)
