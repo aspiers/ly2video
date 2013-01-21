@@ -720,6 +720,9 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                     del midiPitches[notePitch]
                     debug("        matched '%s' @ %d:%d to MIDI pitch %d" %
                           (token, lineNum, colNum, notePitch))
+                else:
+                    fatal("No corresponding MIDI event in tick %d for '%s' @ %d:%d" %
+                          (tick, token, lineNum, colNum))
 
             if matchCount == 0:
                 # No pitches in this index matched this MIDI tick -
