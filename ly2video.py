@@ -241,24 +241,49 @@ def getTemposList(midiFile):
 
 def getNotesInTicks(midiFile):
     """
-    Returns a dict mapping ticks to a list of NoteOn events in that tick.
+    Returns a tuple of the following items:
+      - a dict mapping ticks to a list of NoteOn events in that tick
+      - a dict mapping NoteOn events to their corresponding pitch bends
     """
     notesInTicks = {}
+    pitchBends   = {}
 
     # for every channel in MIDI (except the first one)
     for i in xrange(1, len(midiFile)):
         debug("reading MIDI track %d" % i)
         track = midiFile[i]
+        pendingPitchBend = None
         for event in track:
             tick = event.tick
             eventClass = event.__class__.__name__
 
-            if isinstance(event, midi.NoteOnEvent):
+            if pendingPitchBend:
+                if pendingPitchBend.tick != tick:
+                    fatal("found orphaned pitch bend in tick %d" %
+                          pendingPitchBend.tick)
+                if not isinstance(event, midi.NoteOnEvent):
+                    fatal("pitch bend was not followed by NoteOn in tick %d" %
+                          tick)
+                if event.get_velocity() == 0:
+                    fatal("pitch bend was followed by NoteOff")
+
+            if isinstance(event, midi.PitchWheelEvent):
+                bend = event.get_pitch()
+                debug("    tick %d: read %s(%d)" %
+                      (tick, eventClass, bend))
+                if bend != 0:
+                    pendingPitchBend = event
+                continue
+            elif isinstance(event, midi.NoteOnEvent):
                 if event.get_velocity() == 0:
                     # velocity is zero (that's basically "NoteOffEvent")
                     debug("    tick %d: read NoteOffEvent(%d)" %
                           (tick, event.get_pitch()))
+                    continue
                 else:
+                    if pendingPitchBend:
+                        pitchBends[event] = pendingPitchBend
+                        pendingPitchBend = None
                     debug("    tick %d: read %s(%d)" %
                           (tick, eventClass, event.get_pitch()))
             else:
@@ -271,7 +296,7 @@ def getNotesInTicks(midiFile):
                 notesInTicks[tick] = []
             notesInTicks[tick].append(event)
 
-    return notesInTicks
+    return notesInTicks, pitchBends
 
 def getMidiEvents(midiFileName):
     """
@@ -287,6 +312,7 @@ def getMidiEvents(midiFileName):
                    The last tick corresponds to the earliest
                    EndOfTrackEvent found across all MIDI channels.
       - notesInTicks: as returned by getNotesInTicks()
+      - pitchBends: as returned by getNotesInTicks()
     """
 
     # open MIDI with external library
@@ -298,7 +324,7 @@ def getMidiEvents(midiFileName):
     midiResolution = midiFile.resolution
 
     temposList = getTemposList(midiFile)
-    notesInTicks = getNotesInTicks(midiFile)
+    notesInTicks, pitchBends = getNotesInTicks(midiFile)
 
     # get all ticks with notes and sorts it
     midiTicks = notesInTicks.keys()
@@ -315,7 +341,7 @@ def getMidiEvents(midiFileName):
 
     progress("MIDI: Parsing MIDI file has ended.")
 
-    return (midiResolution, temposList, notesInTicks, midiTicks)
+    return (midiResolution, temposList, midiTicks, notesInTicks, pitchBends)
 
 def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     """
@@ -633,17 +659,16 @@ def pitchValue(token, parser):
     p = ly.tools.Pitch.fromToken(token, parser)
 
     accidentalSemitoneSteps = 2 * p.alter
-    if accidentalSemitoneSteps.denominator != 1:
-        fatal("Uh-oh, we don't support microtones yet")
 
     pitch = (p.octave + 4) * 12 + \
             C_MAJOR_SCALE_STEPS[p.note] + \
             accidentalSemitoneSteps
 
-    return int(pitch)
+    return pitch
 
 def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
-                          tokens, parser, midiTicks, notesInTicks):
+                          tokens, parser,
+                          midiTicks, notesInTicks, pitchBends):
     """
     Build a list of note indices (grouped by page) which align with
     the ticks in midiTicks, by sequentially comparing the notes at
@@ -686,6 +711,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                    The last tick corresponds to the earliest
                    EndOfTrackEvent found across all MIDI channels.
       - notesInTicks:           as returned by getNotesInTicks()
+      - pitchBends:             as returned by getNotesInTicks()
 
     Returns:
       - alignedNoteIndicesByPage:
@@ -744,6 +770,8 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             midiPitches = { }
             for event in events:
                 pitch = event.get_pitch()
+                if event in pitchBends:
+                    pitch += float(pitchBends[event].get_pitch()) / 4096
                 midiPitches[pitch] = event
 
             indexPitches = { }
@@ -826,7 +854,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
     return alignedNoteIndicesByPage
 
 def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
-                   midiTicks, notesInTicks):
+                   midiTicks, notesInTicks, pitchBends):
     """
     Returns indices of notes in generated PNG images (through PDF
     file).  A note's index is the x-coordinate of its center in the
@@ -855,6 +883,7 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
     - lySrcLines:       loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
     - notesInTicks:     how many notes starts in each tick
+    - pitchBends:       as returned by getNotesInTicks()
 
     Returns a list of note indices in the PNG image, grouped by page.
     """
@@ -867,7 +896,7 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
 
     return alignIndicesWithTicks(indexNoteSourcesByPage,
                                  noteIndicesByPage, tokens, parser,
-                                 midiTicks, notesInTicks)
+                                 midiTicks, notesInTicks, pitchBends)
 
 def genVideoFrames(midiResolution, temposList, midiTicks,
                    width, height, fps,
@@ -1647,7 +1676,7 @@ def main():
 
     # find needed data in MIDI
     try:
-        midiResolution, temposList, notesInTicks, midiTicks = \
+        midiResolution, temposList, midiTicks, notesInTicks, pitchBends = \
             getMidiEvents(midiPath)
     except Exception as err:
         fatal("MIDI: %s " % err, 10)
@@ -1658,7 +1687,7 @@ def main():
     noteIndicesByPage = getNoteIndices(tmpPath("sanitised.pdf"),
                                        picWidth,
                                        sanitisedLyFileName, lySrcLines,
-                                       midiTicks, notesInTicks)
+                                       midiTicks, notesInTicks, pitchBends)
     output_divider_line()
 
     # frame rate of output video
