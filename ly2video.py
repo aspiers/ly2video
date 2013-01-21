@@ -1061,11 +1061,14 @@ def debug(text):
 def progress(text):
     print text
 
+def stderr(text):
+    sys.stderr.write(text + "\n")
+
 def warn(text):
-    sys.stderr.write("WARNING: " + text)
+    stderr("WARNING: " + text)
 
 def fatal(text, status=1):
-    sys.stderr.write("ERROR: " + text)
+    stderr("ERROR: " + text)
     sys.exit(status)
 
 def tmpPath(*dirs):
