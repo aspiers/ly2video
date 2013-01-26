@@ -351,13 +351,16 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     notePositionsByPage = []
     tokens = {}
 
+    # ly parser (from Frescobaldi)
+    parser = MusicTokenizer()
+    language, keyPitch = ly.tools.languageAndKey(''.join(lySrcLines))
+    progress('Detected language in %s as %s' % (lySrcFileName, language))
+    parser.language = language
+
     for pageNumber in xrange(numPages):
         # get informations about page
         page = pdfFile.getPage(pageNumber)
         info = page.getObject()
-
-        # ly parser (from Frescobaldi)
-        parser = MusicTokenizer()
 
         if not info.has_key('/Annots'):
             continue
@@ -601,7 +604,6 @@ def pitchValue(token, parser):
     This facilitates comparison to MIDI NoteOn events, although
     arithmetic modulo 12 may be required.
     """
-    parser.language = 'english'
     p = ly.tools.Pitch.fromToken(token, parser)
 
     accidentalSemitoneSteps = 2 * p.alter
