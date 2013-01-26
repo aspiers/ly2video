@@ -672,6 +672,11 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
     # index into list of MIDI ticks
     midiIndex = 0
 
+    # Keep track of how many times we've consecutively skipped a MIDI
+    # tick, so that we can place a threshold on it in order to catch
+    # a total loss of synchronization between ticks and note indices.
+    consecutiveTicksSkipped = 0
+
     for pageNum, noteIndicesInPage in enumerate(noteIndicesByPage):
         # final indices of notes on one page
         alignedNoteIndicesInPage = []
@@ -741,12 +746,17 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
                 # No pitches in this index matched this MIDI tick -
                 # maybe it was a note hidden by \hideNotes, or notes
                 # from a chord.  So let's skip the tick.
+                consecutiveTicksSkipped += 1
                 midiTicks.pop(midiIndex)
                 msg = "    WARNING: skipping MIDI tick %d; contents:" % tick
                 for event in events:
                     msg += ("\n        pitch %d length %d" %
                             (event.get_pitch(), event.length))
                 stderr(msg)
+                if consecutiveTicksSkipped >= 5:
+                    fatal("Wanted to skip 5 consecutive MIDI ticks "
+                          "which suggests a catastrophic loss of "
+                          "synchronization; aborting.")
                 continue
 
             # If we get this far, regardless of what we found, we're
@@ -774,6 +784,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
 
             debug("    all pitches matched in this MIDI tick!")
             alignedNoteIndicesInPage.append(index)
+            consecutiveTicksSkipped = 0
             i += 1
 
         # add indices on one page into final noteIndicesByPage
