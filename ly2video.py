@@ -690,9 +690,19 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             indexNoteSources = indexNoteSourcesInPage[index]
 
             tick = midiTicks[midiIndex]
-            events = notesInTicks[tick]
-
             debug("index %d, tick %d" % (index, tick))
+
+            if not tick in notesInTicks:
+                # This should mean that we reached the tick
+                # corresponding to the final EndOfTrackEvent
+                # (see getMidiEvents()).
+                midiIndex += 1
+                if midiIndex < len(midiTicks):
+                    fatal("    BUG: no notes in tick but more ticks still to go?!")
+                debug("    no notes in final tick %d" % tick)
+                continue
+
+            events = notesInTicks[tick]
 
             # Build a dict tracking which MIDI pitches (modulo the
             # octave) are present in the current tick.  Pitches will
