@@ -194,7 +194,7 @@ def generateTitle(titleText, width, height, fps, titleLength):
              (totalFrames, totalFrames))
     return 0
 
-def writePaperHeader(fFile, width, height, numOfLines, lilypondVersion):
+def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     """
     Writes own paper block into given file.
 
@@ -204,8 +204,8 @@ def writePaperHeader(fFile, width, height, numOfLines, lilypondVersion):
     - height        pixel height of frames (and video)
     - numOfLines:   number of staff lines
     """
-
-    pixelsPerMm = 181.0 / 720 # 1 px = 0.251375 mm
+    inchesPerPixel = 1.0 / dpi
+    mmPerPixel = inchesPerPixel * 25.4
 
     fFile.write("\\paper {\n")
 
@@ -225,13 +225,13 @@ sudden jumps in your video.
     if oneLineBreaking:
         fFile.write("   page-breaking = #ly:one-line-breaking\n")
     else:
-        fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * pixelsPerMm))
-        fFile.write("   paper-height  = %d\\mm\n" % round(height * pixelsPerMm))
+        fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * mmPerPixel))
+        fFile.write("   paper-height  = %d\\mm\n" % round(height * mmPerPixel))
 
-    fFile.write("   top-margin    = %d\\mm\n" % round(height * pixelsPerMm / 20))
-    fFile.write("   bottom-margin = %d\\mm\n" % round(height * pixelsPerMm / 20))
-    fFile.write("   left-margin   = %d\\mm\n" % round(width * pixelsPerMm / 2))
-    fFile.write("   right-margin  = %d\\mm\n" % round(width * pixelsPerMm / 2))
+    fFile.write("   top-margin    = %d\\mm\n" % round(height * mmPerPixel / 20))
+    fFile.write("   bottom-margin = %d\\mm\n" % round(height * mmPerPixel / 20))
+    fFile.write("   left-margin   = %d\\mm\n" % round(width * mmPerPixel / 2))
+    fFile.write("   right-margin  = %d\\mm\n" % round(width * mmPerPixel / 2))
 
     if not oneLineBreaking:
         fFile.write("   print-page-number = ##f\n")
@@ -1315,6 +1315,9 @@ def parseOptions():
     parser.add_option("-f", "--fps", dest="fps",
                       help='frame rate of final video [30]',
                       type="float", metavar="FPS", default=30.0)
+    parser.add_option("-r", "--resolution", dest="dpi",
+                      help='resolution in DPI [110]',
+                      metavar="DPI", type="int", default=110)
     parser.add_option("-x", "--width", dest="width",
                       help='pixel width of final video [1280]',
                       metavar="HEIGHT", type="int", default=1280)
@@ -1564,12 +1567,13 @@ def getImageWidth(notesImages):
     del tmpImage
     return picWidth
 
-def getNumStaffLines(lyFile):
+def getNumStaffLines(lyFile, dpi):
     # generate preview of notes
     cmd = [
         "lilypond",
         "-dpreview",
         "-dprint-pages=#f",
+        "-dresolution=%d" % dpi,
         lyFile
     ]
     progress("Generating preview from %s ..." % lyFile)
@@ -1606,7 +1610,8 @@ def getNumStaffLines(lyFile):
     progress("Found %d staff lines" % numStaffLines)
     return numStaffLines
 
-def sanitiseLy(lyFile, width, height, numStaffLines, titleText, lilypondVersion):
+def sanitiseLy(lyFile, width, height, dpi, numStaffLines,
+               titleText, lilypondVersion):
     fLyFile = open(lyFile, "r")
 
     sanitisedLyFileName = tmpPath("sanitised.ly")
@@ -1643,7 +1648,8 @@ def sanitiseLy(lyFile, width, height, numStaffLines, titleText, lilypondVersion)
         if line.find("\\version") != -1:
             done = True
             fSanitisedLyFile.write(line)
-            writePaperHeader(fSanitisedLyFile, width, height, numStaffLines, lilypondVersion)
+            writePaperHeader(fSanitisedLyFile, width, height, dpi,
+                             numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
@@ -1779,10 +1785,11 @@ def main():
             lyFile = newLyFile
             output_divider_line()
 
-    numStaffLines = getNumStaffLines(lyFile)
+    numStaffLines = getNumStaffLines(lyFile, options.dpi)
 
     sanitisedLyFileName = \
-        sanitiseLy(lyFile, options.width, options.height,
+        sanitiseLy(lyFile,
+                   options.width, options.height, options.dpi,
                    numStaffLines, titleText, lilypondVersion)
 
     # load .ly file into memory
@@ -1800,6 +1807,7 @@ def main():
         "--png",
         "-dpoint-and-click",
         "-dmidi-extension=midi",
+        "-dresolution=%d" % options.dpi,
         sanitisedLyFileName
     ]
     output_divider_line()
