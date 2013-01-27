@@ -94,18 +94,34 @@ def findTopStaffLine(image, lineLength):
     progress("First staff line found at (%d, %d)" % firstLinePos)
     return firstLinePos
 
-def lineIndices(imageFile, lineLength):
+def findStaffLines(imageFile, lineLength):
     """
-    Takes a image and returns height indices of staff lines in pixels.
+    Takes a image and returns y co-ordinates of staff lines in pixels.
 
     Params:
-    - imageFile:    name of image with staff lines
-    - lineLength:   needed length of line to accept it as staff line
+      - imageFile:    filename of image containing staff lines
+      - lineLength:   required length of line for acceptance as staff line
+
+    Returns a list of y co-ordinates of staff lines.
     """
     progress("Looking for staff lines in %s" % imageFile)
     image = Image.open(imageFile)
-    width, height = image.size
 
+    x, ys = findStaffLinesInImage(image, lineLength)
+    return ys
+
+def findStaffLinesInImage(image, lineLength):
+    """
+    Takes a image and returns co-ordinates of staff lines in pixels.
+
+    Params:
+      - image:        image object containing staff lines
+      - lineLength:   required length of line for acceptance as staff line
+
+    Returns a tuple of the following items:
+      - x:   x co-ordinate of left end of staff lines
+      - ys:  list of y co-ordinates of staff lines
+    """
     firstLineX, firstLineY = findTopStaffLine(image, lineLength)
     # move 3 pixels to the right, to avoid line of pixels connectings
     # all staffs together
@@ -113,6 +129,8 @@ def lineIndices(imageFile, lineLength):
 
     lines = []
     newLine = True
+
+    width, height = image.size
 
     for y in xrange(firstLineY, height):
         # if color of that pixel isn't white
@@ -129,7 +147,7 @@ def lineIndices(imageFile, lineLength):
     del image
 
     # return staff line indices
-    return lines
+    return firstLineX, lines
 
 def generateTitle(titleText, width, height, fps, titleLength):
     """
@@ -1526,7 +1544,9 @@ def getNumStaffLines(lyFile):
             previewFiles.append(fileName)
             if fileName.split(".")[-1] == "png":
                 previewPic = fileName
-    numStaffLines = len(lineIndices(previewPic, 50))
+
+    staffYs = findStaffLines(previewPic, 50)
+    numStaffLines = len(staffYs)
 
     progress("Found %d staff lines" % numStaffLines)
     return numStaffLines
