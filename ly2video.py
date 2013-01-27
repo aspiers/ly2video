@@ -283,10 +283,10 @@ def getMidiEvents(midiFileName):
     Returns a tuple of the following items:
       - midiResolution: the resolution of the MIDI file
       - temposList: as returned by getTemposList()
-      - notesInTicks: as returned by getNotesInTicks()
       - midiTicks: a sorted list of which ticks contain NoteOn events.
                    The last tick corresponds to the earliest
                    EndOfTrackEvent found across all MIDI channels.
+      - notesInTicks: as returned by getNotesInTicks()
     """
 
     # open MIDI with external library
@@ -682,10 +682,11 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
       - noteIndicesByPage:      as returned by getFilteredIndices()
       - tokens:                 as returned by getNotePositions()
       - parser:                 as returned by getNotePositions()
-      - notesInTicks:           as returned by getNotesInTicks()
       - midiTicks: a sorted list of which ticks contain NoteOn events.
                    The last tick corresponds to the earliest
                    EndOfTrackEvent found across all MIDI channels.
+      - notesInTicks:           as returned by getNotesInTicks()
+
     Returns:
       - alignedNoteIndicesByPage:
           a list of sorted lists, one per page, containing all the
@@ -847,8 +848,6 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
     notesInTicks).  Then it compares the next image index with MIDI
     index, and so on.
 
-    Returns a list of note indices in the PNG image, grouped by page.
-
     Params:
     - pdfFileName:      name of generated PDF file (string)
     - imageWidth:       width of PNG file(s)
@@ -856,6 +855,8 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
     - lySrcLines:       loaded *.ly file in memory (list)
     - midiTicks:        all ticks with notes in MIDI file
     - notesInTicks:     how many notes starts in each tick
+
+    Returns a list of note indices in the PNG image, grouped by page.
     """
 
     notePositionsByPage, notesAndTies, tokens, parser, pageWidth = \
