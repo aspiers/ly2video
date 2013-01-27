@@ -1301,27 +1301,29 @@ def parseOptions():
     parser = OptionParser("usage: %prog [options]")
 
     parser.add_option("-i", "--input", dest="input",
-                      help="input LilyPond file", metavar="FILE")
+                      help="input LilyPond file", metavar="INPUT-FILE")
     parser.add_option("-o", "--output", dest="output",
-                      help='name of output video (e.g. "myNotes.avi", default is input + .avi)',
-                      metavar="FILE")
+                      help='name of output video (e.g. "myNotes.avi") '
+                           '[INPUT-FILE.avi]',
+                      metavar="OUTPUT-FILE")
     parser.add_option("-b", "--beatmap", dest="beatmap",
                       help='name of beatmap file for adjusting MIDI tempo',
                       metavar="FILE")
     parser.add_option("-c", "--color", dest="color",
-                      help='name of color of middle bar (default is "red")', metavar="COLOR",
-                      default="red")
+                      help='name of color of middle bar [red]',
+                      metavar="COLOR", default="red")
     parser.add_option("-f", "--fps", dest="fps",
-                      help='frame rate of final video (default is "30")', type="float", metavar="FPS",
-                      default=30.0)
+                      help='frame rate of final video [30]',
+                      type="float", metavar="FPS", default=30.0)
     parser.add_option("-x", "--width", dest="width",
-                      help='pixel width of final video (default is 1280)',
+                      help='pixel width of final video [1280]',
                       metavar="HEIGHT", type="int", default=1280)
     parser.add_option("-y", "--height", dest="height",
-                      help='pixel height of final video (default is 720)',
+                      help='pixel height of final video [720]',
                       metavar="HEIGHT", type="int", default=720)
     parser.add_option("-m", "--cursor-margins", dest="cursorMargins",
-                      help='width of left/right margins for scrolling in pixels (default is 50,100)',
+                      help='width of left/right margins for scrolling '
+                           'in pixels [50,100]',
                       metavar="WIDTH,WIDTH", type="string", default='50,100')
     parser.add_option("-s", "--scroll-notes", dest="scrollNotes",
                       help='rather than scrolling the cursor from left to right, '
@@ -1329,16 +1331,19 @@ def parseOptions():
                            'cursor in the centre',
                       action="store_true", default=False)
     parser.add_option("--title-at-start", dest="titleAtStart",
-                      help='adds title screen at the start of video (with name of song and its author)',
+                      help='adds title screen at the start of video '
+                           '(with name of song and its author)',
                       action="store_true", default=False)
     parser.add_option("--title-delay", dest="titleDelay",
-                      help='time to display the title screen (default is "3" seconds)', type="int",
-                      metavar="SECONDS", default=3)
+                      help='time to display the title screen [3]',
+                      type="int", metavar="SECONDS", default=3)
     parser.add_option("--windows-ffmpeg", dest="winFfmpeg",
-                      help='(for Windows users) folder with ffpeg.exe (e.g. "C:\\ffmpeg\\bin\\")',
+                      help='(for Windows users) folder with ffpeg.exe '
+                           '(e.g. "C:\\ffmpeg\\bin\\")',
                       metavar="PATH", default="")
     parser.add_option("--windows-timidity", dest="winTimidity",
-                      help='(for Windows users) folder with timidity.exe (e.g. "C:\\timidity\\")',
+                      help='(for Windows users) folder with '
+                           'timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
     parser.add_option("-d", "--debug", dest="debug",
                       help="don't remove temporary working files",
