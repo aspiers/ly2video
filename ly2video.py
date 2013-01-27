@@ -953,9 +953,16 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
         os.mkdir("notes")
 
     firstTempo = temposList[tempoIndex][1]
-    totalFrames = int(round(float(firstTempo) / midiResolution *
-                            midiTicks[-1] / 1000000 * fps))
-    progress("SYNC: ly2video will generate approx. %d frames." % totalFrames)
+    debug("first tempo is %.3f bpm" % firstTempo)
+    debug("final MIDI tick is %d" % midiTicks[-1])
+    approxBeats = float(midiTicks[-1]) / midiResolution
+    debug("approx %.2f MIDI beats" % approxBeats)
+    beatsPerSec = 60.0 / firstTempo
+    approxDuration = approxBeats * beatsPerSec
+    debug("approx duration: %.2f seconds" % approxDuration)
+    estimatedFrames = approxDuration * fps
+    progress("SYNC: ly2video will generate approx. %d frames at %d frames/sec." %
+             (estimatedFrames, fps))
     if not DEBUG:
         progress("A dot is displayed for every 10 frames generated.")
 
