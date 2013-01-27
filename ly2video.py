@@ -251,7 +251,7 @@ def getNotesInTicks(midiFile):
 
     # for every channel in MIDI (except the first one)
     for i in xrange(1, len(midiFile)):
-        debug("reading MIDI track %d" % i)
+        debug("Reading MIDI track %d" % i)
         track = midiFile[i]
         pendingPitchBend = None
         for event in track:
@@ -326,6 +326,9 @@ def getMidiEvents(midiFileName):
     progress("MIDI resolution (ticks per beat) is %d" % midiResolution)
 
     temposList = getTemposList(midiFile)
+
+    output_divider_line()
+
     notesInTicks, pitchBends = getNotesInTicks(midiFile)
 
     # get all ticks with notes and sorts it
@@ -372,12 +375,6 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
         pages are assumed to have the same width)
     """
 
-    progress(("Extracting annotation positions from:\n    %s\n" +
-              "and corresponding source positions in:\n    %s") %
-             (pdfFileName, lySrcFileName))
-
-    escapedLySrcFileName = urllib.quote(lySrcFileName)
-
     # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdfFileName, "rb")
     pdfFile = PdfFileReader(fPdf)
@@ -397,6 +394,14 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     progress('Detected language in %s as %s' % (lySrcFileName, language))
     parser.language = language
     absolutePitches = ly.tools.relativeToAbsolute(lySrc)
+
+    output_divider_line()
+
+    progress(("Extracting annotation positions from:\n    %s\n" +
+              "and corresponding source positions in:\n    %s") %
+             (pdfFileName, lySrcFileName))
+
+    escapedLySrcFileName = urllib.quote(lySrcFileName)
 
     for pageNumber in xrange(numPages):
         # get informations about page
@@ -549,6 +554,8 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
     """
     indexNoteSourcesByPage = []
     noteIndicesByPage = []
+
+    progress("Removing silent notes ...")
 
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
         parser = Tokenizer()
@@ -899,6 +906,9 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
 
     notePositionsByPage, notesAndTies, tokens, parser, pageWidth = \
         getNotePositions(pdfFileName, lySrcFileName, lySrcLines)
+
+    output_divider_line()
+
     indexNoteSourcesByPage, noteIndicesByPage = \
         getFilteredIndices(notePositionsByPage, notesAndTies,
                            lySrcLines, imageWidth, pageWidth)
@@ -1716,10 +1726,13 @@ def main():
 
     midiPath = tmpPath("sanitised.midi")
     if options.beatmap:
+        output_divider_line()
         newMidiPath = tmpPath("sanitised-adjusted.midi")
         applyBeatmap(midiPath, newMidiPath,
                      absPathFromRunDir(options.beatmap))
         midiPath = newMidiPath
+
+    output_divider_line()
 
     # find needed data in MIDI
     try:
