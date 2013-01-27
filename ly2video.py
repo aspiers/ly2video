@@ -950,6 +950,7 @@ class VideoFrameWriter(object):
     """
 
     def __init__(self, width, height, fps, cursorLineColor,
+                 scrollNotes, leftMargin, rightMargin,
                  midiResolution, midiTicks, temposList):
         """
         Params:
@@ -957,9 +958,17 @@ class VideoFrameWriter(object):
           - height:            pixel height of frames (and video)
           - fps:               frame rate of video
           - cursorLineColor:   color of middle line
+          - scrollNotes:       False selects cursor scrolling mode,
+                               True selects note scrolling mode
+          - leftMargin:        left margin for cursor when
+                               cursor scrolling mode is enabled
+          - rightMargin:       right margin for cursor when
+                               cursor scrolling mode is enabled
           - midiResolution:    resolution of MIDI file
           - midiTicks:         list of ticks with NoteOnEvent
           - temposList:        list of possible tempos in MIDI
+          - leftMargin:        width of left margin for cursor
+          - rightMargin:       width of right margin for cursor
         """
         self.midiIndex   = 0
         self.tempoIndex  = 0
@@ -969,6 +978,13 @@ class VideoFrameWriter(object):
         # when aligning indices to frames don't accumulate over time.
         self.secs = 0.0
 
+        self.scrollNotes = scrollNotes
+
+        # In cursor scrolling mode, this is the x-coordinate in the
+        # original image of the left edge of the frame (i.e. the
+        # left edge of the cropping rectangle).
+        self.leftEdge = None
+
         self.width = width
         self.height = height
         self.fps = fps
@@ -976,6 +992,8 @@ class VideoFrameWriter(object):
         self.midiResolution = midiResolution
         self.midiTicks = midiTicks
         self.temposList = temposList
+        self.leftMargin = leftMargin
+        self.rightMargin = rightMargin
         
     def write(self, noteIndicesByPage, notesImages):
         """
@@ -987,7 +1005,7 @@ class VideoFrameWriter(object):
         if not os.path.exists("notes"):
             os.mkdir("notes")
 
-        firstTempo = self.temposList[self.tempoIndex][1]
+        firstTempoTick, firstTempo = self.temposList[self.tempoIndex]
         debug("first tempo is %.3f bpm" % firstTempo)
         debug("final MIDI tick is %d" % self.midiTicks[-1])
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
@@ -1134,18 +1152,12 @@ class VideoFrameWriter(object):
               (neededFrames, self.frameNum, self.frameNum + neededFrames - 1))
 
         for i in xrange(neededFrames):
-            index = startIndex + round(i * travelPerFrame)
+            index = startIndex + int(round(i * travelPerFrame))
             debug("        writing frame %d index %d" %
                   (self.frameNum, index))
-            # Get frame from image of staff
-            centre = self.width / 2
-            left  = int(index - centre)
-            right = int(index + centre)
-            # Args to crop() are coords of left upper corner then
-            # right lower corner
-            frame = notesPic.copy().crop((left, 0, right, self.height))
 
-            self.writeCursorLine(frame, centre)
+            frame, cursorX = self.cropFrame(notesPic, index)
+            self.writeCursorLine(frame, cursorX)
 
             # Save the frame.  ffmpeg doesn't work if the numbers in these
             # filenames are zero-padded.
@@ -1154,6 +1166,36 @@ class VideoFrameWriter(object):
             if not DEBUG and self.frameNum % 10 == 0:
                 sys.stdout.write(".")
                 sys.stdout.flush()
+
+    def cropFrame(self, notesPic, index):
+        if self.scrollNotes:
+            # Get frame from image of staff
+            centre = self.width / 2
+            left  = int(index - centre)
+            right = int(index + centre)
+            # Args to crop() are (x, y) coords of left upper corner
+            # then right lower corner
+            frame = notesPic.copy().crop((left, 0, right, self.height))
+            cursorX = centre
+        else:
+            if self.leftEdge is None:
+                # first frame
+                staffX, staffYs = findStaffLinesInImage(notesPic, 50)
+                self.leftEdge = staffX - self.leftMargin
+
+            cursorX = index - self.leftEdge
+            debug("        left edge at %d, cursor at %d" %
+                  (self.leftEdge, cursorX))
+            if cursorX > self.width - self.rightMargin:
+                self.leftEdge = index - self.leftMargin
+                cursorX = index - self.leftEdge
+                debug("        <<< left edge at %d, cursor at %d" %
+                      (self.leftEdge, cursorX))
+
+            rightEdge = self.leftEdge + self.width
+            frame = notesPic.copy().crop((self.leftEdge, 0,
+                                          rightEdge, self.height))
+        return frame, cursorX
 
     def writeCursorLine(self, frame, x):
         for pixel in xrange(self.height):
@@ -1278,6 +1320,14 @@ def parseOptions():
     parser.add_option("-y", "--height", dest="height",
                       help='pixel height of final video (default is 720)',
                       metavar="HEIGHT", type="int", default=720)
+    parser.add_option("-m", "--cursor-margins", dest="cursorMargins",
+                      help='width of left/right margins for scrolling in pixels (default is 50,100)',
+                      metavar="WIDTH,WIDTH", type="string", default='50,100')
+    parser.add_option("-s", "--scroll-notes", dest="scrollNotes",
+                      help='rather than scrolling the cursor from left to right, '
+                           'scroll the notation from right to left and keep the '
+                           'cursor in the centre',
+                      action="store_true", default=False)
     parser.add_option("--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video (with name of song and its author)',
                       action="store_true", default=False)
@@ -1790,8 +1840,10 @@ def main():
         output_divider_line()
 
     # generate notes
+    leftMargin, rightMargin = options.cursorMargins.split(",")
     frameWriter = VideoFrameWriter(
         options.width, options.height, fps, getCursorLineColor(options),
+        options.scrollNotes, int(leftMargin), int(rightMargin),
         midiResolution, midiTicks, temposList)
     frameWriter.write(noteIndicesByPage, notesImages)
 
