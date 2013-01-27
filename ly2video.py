@@ -919,43 +919,43 @@ class VideoFrameWriter(object):
     number and because a fractional number of frames can't be
     generated, they are stored in dropFrame and if that is > 1, it
     skips generating one frame.
-
-    Params:
-      - midiResolution:    resolution of MIDI file
-      - temposList:        list of possible tempos in MIDI
-      - midiTicks:         list of ticks with NoteOnEvent
-      - width:             pixel width of frames (and video)
-      - height:            pixel height of frames (and video)
-      - fps:               frame rate of video
-      - noteIndicesByPage: indices of notes in pictures
-      - notesImages:       names of that images (list of strings)
-      - cursorLineColor:   color of middle line
     """
 
-
-    def __init__(self, midiResolution, temposList, midiTicks,
-                 width, height, fps,
-                 noteIndicesByPage, notesImages, cursorLineColor):
-
-        midiIndex   = 0
-        tempoIndex  = 0
-        frameNum    = 0
+    def __init__(self):
+        self.midiIndex   = 0
+        self.tempoIndex  = 0
+        self.frameNum    = 0
 
         # Keep track of wall clock time to ensure that rounding errors
         # when aligning indices to frames don't accumulate over time.
-        secs = 0.0
+        self.secs = 0.0
 
         # If we have 1+ tempo changes in between adjacent indices, we need
         # to keep track of how many seconds elapsed since the last one,
         # since this will allow us to calculate how many frames we need in
         # between the current pair of indices.
-        secsSinceIndex  = 0.0
+        self.secsSinceIndex  = 0.0
         
+    def write(self, midiResolution, temposList, midiTicks,
+              width, height, fps,
+              noteIndicesByPage, notesImages, cursorLineColor):
+        """
+        Params:
+          - midiResolution:    resolution of MIDI file
+          - temposList:        list of possible tempos in MIDI
+          - midiTicks:         list of ticks with NoteOnEvent
+          - width:             pixel width of frames (and video)
+          - height:            pixel height of frames (and video)
+          - fps:               frame rate of video
+          - noteIndicesByPage: indices of notes in pictures
+          - notesImages:       names of that images (list of strings)
+          - cursorLineColor:   color of middle line
+        """
         # folder to store frames for video
         if not os.path.exists("notes"):
             os.mkdir("notes")
 
-        firstTempo = temposList[tempoIndex][1]
+        firstTempo = temposList[self.tempoIndex][1]
         debug("first tempo is %.3f bpm" % firstTempo)
         debug("final MIDI tick is %d" % midiTicks[-1])
         approxBeats = float(midiTicks[-1]) / midiResolution
@@ -983,47 +983,47 @@ class VideoFrameWriter(object):
                 endIndex    = indices[i + 1]
                 indexTravel = endIndex - startIndex
 
-                debug("\nwall-clock secs: %f" % secs)
+                debug("\nwall-clock secs: %f" % self.secs)
                 debug("index: %d -> %d (indexTravel %d)" %
                       (startIndex, endIndex, indexTravel))
 
                 # get two indices of MIDI events (ticks)
-                startTick = midiTicks[midiIndex]
-                midiIndex += 1
-                endTick = midiTicks[midiIndex]
+                startTick = midiTicks[self.midiIndex]
+                self.midiIndex += 1
+                endTick = midiTicks[self.midiIndex]
                 ticks = endTick - startTick
                 debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
 
                 # handle any tempo ticks which occur before endIndex
-                secsSinceIndex = 0.0
+                self.secsSinceIndex = 0.0
                 lastTick = startTick
                 while True:
-                    if tempoIndex == len(temposList):
+                    if self.tempoIndex == len(temposList):
                         break
 
-                    tempoTick, tempo = temposList[tempoIndex]
+                    tempoTick, tempo = temposList[self.tempoIndex]
                     debug("  checking tempo #%d @ tick %d: %.3f bpm" %
-                          (tempoIndex, tempoTick, tempo))
+                          (self.tempoIndex, tempoTick, tempo))
                     if tempoTick >= endTick:
                         break
 
-                    tempoIndex += 1
+                    self.tempoIndex += 1
 
                     if tempoTick == startTick:
                         continue
 
                     # startTick < tempoTick < endTick
                     tempoTick - lastTick
-                    secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
+                    self.secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
                                                        midiResolution, tempo)
                     debug("    secs since index %d: %f" %
-                          (startIndex, secsSinceIndex))
+                          (startIndex, self.secsSinceIndex))
                     lastTick = tempoTick
 
-                secsSinceIndex += self.ticksToSecs(lastTick, endTick,
+                self.secsSinceIndex += self.ticksToSecs(lastTick, endTick,
                                                    midiResolution, tempo)
                 debug("  secs between indices %d and %d: %f" %
-                      (startIndex, endIndex, secsSinceIndex))
+                      (startIndex, endIndex, self.secsSinceIndex))
 
                 # This is the exact time we are *aiming* for the frameset
                 # to finish at (i.e. the start time of the first frame
@@ -1032,7 +1032,7 @@ class VideoFrameWriter(object):
                 # However, since we have less than an infinite number of
                 # frames per second, there will typically be a rounding
                 # error and we'll miss our target by a small amount.
-                targetSecs = secs + secsSinceIndex
+                targetSecs = self.secs + self.secsSinceIndex
 
                 debug("  secs at new index %d: %f" %
                       (endIndex, targetSecs))
@@ -1042,7 +1042,7 @@ class VideoFrameWriter(object):
                 # start time.  This is crucially important to avoid
                 # rounding errors from accumulating over the course of the
                 # video.
-                neededFrameSetSecs = targetSecs - float(frameNum)/fps
+                neededFrameSetSecs = targetSecs - float(self.frameNum)/fps
                 debug("  need next frameset to last %f secs" %
                       neededFrameSetSecs)
 
@@ -1052,33 +1052,36 @@ class VideoFrameWriter(object):
 
                 # Update time in the *ideal* (i.e. not real) world - this
                 # is totally independent of fps.
-                secs = targetSecs
+                self.secs = targetSecs
 
                 if neededFrames > 0:
                     self.writeVideoFrames(
-                        frameNum, neededFrames,
+                        neededFrames,
                         startIndex, indexTravel,
                         notesPic, width, height,
                         cursorLineColor)
-                frameNum += neededFrames
 
             print
 
             progress("SYNC: Generated %d frames for page %d/%d" %
-                     (frameNum, pageNum + 1, len(noteIndicesByPage)))
+                     (self.frameNum, pageNum + 1, len(noteIndicesByPage)))
 
-    def writeVideoFrames(self, startFrame, neededFrames, startIndex, indexTravel,
+    def writeVideoFrames(self, neededFrames, startIndex, indexTravel,
                          notesPic, width, height, cursorLineColor):
+        """
+        Writes the required number of frames to travel indexTravel
+        pixels from startIndex, incrementing frameNum for each frame
+        written.
+        """
         travelPerFrame = float(indexTravel) / neededFrames
         debug("  travel per frame: %f pixels" % travelPerFrame)
         debug("  generating %d frames: %d -> %d" %
-              (neededFrames, startFrame, startFrame + neededFrames - 1))
+              (neededFrames, self.frameNum, self.frameNum + neededFrames - 1))
 
         for i in xrange(neededFrames):
-            frameNum = startFrame + i
             index = startIndex + round(i * travelPerFrame)
             debug("    writing frame %d index %d" %
-                  (frameNum, index))
+                  (self.frameNum, index))
             # Get frame from image of staff
             left = int(index - (width / 2))
             right = int(index + (width / 2))
@@ -1092,8 +1095,9 @@ class VideoFrameWriter(object):
 
             # Save the frame.  ffmpeg doesn't work if the numbers in these
             # filenames are zero-padded.
-            frame.save(tmpPath("notes", "frame%d.png" % frameNum))
-            if not DEBUG and frameNum % 10 == 0:
+            frame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
+            self.frameNum += 1
+            if not DEBUG and self.frameNum % 10 == 0:
                 sys.stdout.write(".")
                 sys.stdout.flush()
 
@@ -1722,7 +1726,8 @@ def main():
         output_divider_line()
 
     # generate notes
-    frameWriter = VideoFrameWriter(
+    frameWriter = VideoFrameWriter()
+    frameWriter.write(
         midiResolution, temposList, midiTicks,
         options.width, options.height, fps,
         noteIndicesByPage, notesImages,
