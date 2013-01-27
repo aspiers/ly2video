@@ -808,10 +808,6 @@ class Cursor(object):
 class ChangeList(object):
     """
     Manages a list of changes to a string.
-    Each entry is a tuple(pos, end, text).
-    
-    pos and end define the slice of the original string to remove, text
-    is the text to insert at that position.
     """
     
     # whether our items must be sorted.
@@ -842,6 +838,10 @@ class ChangeList(object):
     def changes(self):
         """
         Return an iterator over the changes.
+
+        Each entry from the iterator is a tuple(pos, end, text).  pos
+        and end define the slice of the original string to remove,
+        text is the text to insert at that position.
         """
         if self.sortItems:
             return sorted(self._changes)
