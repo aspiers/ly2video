@@ -681,7 +681,23 @@ class Tokenizer(object):
         ) + cls.lilybaseItems())
         
 
-class MusicTokenizer(Tokenizer):
+class LineColumnMixin(object):
+    """
+    Mixin to iterate over tokens, adding line and column attributes
+    to every token.
+    """
+    def tokens(self, text, pos = 0):
+        cursor = Cursor()
+        if pos:
+            cursor.walk(text[:pos])
+        for token in super(LineColumnMixin, self).tokens(text, pos):
+            token.line = cursor.line
+            token.column = cursor.column
+            yield token
+            cursor.walk(token)
+
+
+class MusicTokenizer(LineColumnMixin, Tokenizer):
     """
     A Tokenizer more directed to parsing music.
     It detects full pitches, chords, etc.
@@ -717,22 +733,6 @@ class MusicTokenizer(Tokenizer):
 
     def readStep(self, pitchToken):
         return ly.pitch.pitchReader[self.language](pitchToken.step)
-
-
-class LineColumnMixin(object):
-    """
-    Mixin to iterate over tokens, adding line and column attributes
-    to every token.
-    """
-    def tokens(self, text, pos = 0):
-        cursor = Cursor()
-        if pos:
-            cursor.walk(text[:pos])
-        for token in super(LineColumnMixin, self).tokens(text, pos):
-            token.line = cursor.line
-            token.column = cursor.column
-            yield token
-            cursor.walk(token)
 
 
 class LineColumnTokenizer(LineColumnMixin, Tokenizer):
@@ -816,6 +816,8 @@ class ChangeList(object):
     
     def __init__(self, text):
         self._changes = []
+        # maps (line, column) tuples to new text
+        self._token_changes_by_coords = {}
         self._text = text
         
     def replace(self, pos, end, text):
@@ -825,6 +827,7 @@ class ChangeList(object):
     def replaceToken(self, token, text):
         if token != text:
             self._changes.append((token.pos, token.end, text))
+            self._token_changes_by_coords[(token.line, token.column)] = text
             
     def remove(self, pos, end):
         self._changes.append((pos, end, None))
@@ -848,6 +851,13 @@ class ChangeList(object):
         else:
             return self._changes
         
+    def newTextForLineColumn(self, line, column):
+        """
+        Return the replacement text for a token at the given line and
+        column, or None if the token has no change.
+        """
+        return self._token_changes_by_coords.get((line, column))
+
     def apply(self):
         """
         Return a new string constructed from the original string
