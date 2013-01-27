@@ -1082,15 +1082,15 @@ class VideoFrameWriter(object):
                   (neededFrameSetSecs * self.fps, self.fps))
             neededFrames = int(round(neededFrameSetSecs * self.fps))
 
-            # Update time in the *ideal* (i.e. not real) world - this
-            # is totally independent of fps.
-            self.secs = targetSecs
-
             if neededFrames > 0:
                 self.writeVideoFrames(
                     neededFrames,
                     startIndex, indexTravel,
                     notesPic)
+
+            # Update time in the *ideal* (i.e. not real) world - this
+            # is totally independent of fps.
+            self.secs = targetSecs
 
         print
 
