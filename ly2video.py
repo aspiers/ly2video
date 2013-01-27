@@ -323,6 +323,7 @@ def getMidiEvents(midiFileName):
 
     # get MIDI resolution and header
     midiResolution = midiFile.resolution
+    progress("MIDI resolution (ticks per beat) is %d" % midiResolution)
 
     temposList = getTemposList(midiFile)
     notesInTicks, pitchBends = getNotesInTicks(midiFile)
