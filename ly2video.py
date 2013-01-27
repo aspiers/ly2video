@@ -531,11 +531,15 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
             lineNum, charNum = linkLy
             # get that token
             token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
+            debug("checking token '%s' @ %d:%d for ties" %
+                  (token, lineNum, charNum))
 
             if isinstance(token, MusicTokenizer.PitchWord):
                 # It's a note; if it's silent, remove it and ignore it
                 if linkLy in silentNotes:
                     silentNotes.remove(linkLy)
+                    debug("    removed silent note %s @ %d:%d" %
+                          (token, lineNum, charNum))
                     continue
                 # otherwise get its index in pixels
                 xcenter = (coords[0] + coords[2]) / 2
@@ -547,15 +551,18 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
             elif token == "~":
                 # It's a tie.
                 # If next note isn't in silent notes, add it
-                nextNote = notesAndTies[notesAndTies.index(linkLy) + 1]
-                if nextNote not in silentNotes:
-                    silentNotes.append(nextNote)
+                nextNoteCoords = notesAndTies[notesAndTies.index(linkLy) + 1]
+                if nextNoteCoords not in silentNotes:
+                    silentNotes.append(nextNoteCoords)
+                    debug("    marked note @ %d:%d as silent" % nextNoteCoords)
                 # otherwise add next one (after the last silent one (if it's tie of harmony))
                 else:
                     lastSilentSrcIndex = notesAndTies.index(silentNotes[-1])
                     srcIndexAfterLastSilent = lastSilentSrcIndex + 1
-                    linkLyAfterLastSilent = notesAndTies[srcIndexAfterLastSilent]
-                    silentNotes.append(linkLyAfterLastSilent)
+                    coordsAfterLastSilent = notesAndTies[srcIndexAfterLastSilent]
+                    silentNotes.append(coordsAfterLastSilent)
+                    debug("    marked note @ %d:%d after last silent one as silent" %
+                          coordsAfterLastSilent)
             else:
                 fatal("didn't know what to do with %s" % repr(token))
 
@@ -608,7 +615,7 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
         # gets next index
         nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
         if index in xrange(nextIndex - 10, nextIndex + 10):
-            # merges them and remove next index
+            debug("merging index %d with %d" % (index, nextIndex))
             indexNoteSourcesInPage[index].extend(indexNoteSourcesInPage[nextIndex])
             del indexNoteSourcesInPage[nextIndex]
             noteIndicesInPage.remove(nextIndex)
