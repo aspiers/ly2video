@@ -1120,7 +1120,7 @@ class VideoFrameWriter(object):
             frame = notesPic.copy().crop((left, 0, right, self.height))
             # Add cursor line in middle
             for pixel in xrange(self.height):
-                frame.putpixel((self.width / 2, pixel), self.cursorLineColor)
+                frame.putpixel(( self.width / 2     , pixel), self.cursorLineColor)
                 frame.putpixel(((self.width / 2) + 1, pixel), self.cursorLineColor)
 
             # Save the frame.  ffmpeg doesn't work if the numbers in these
