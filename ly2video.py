@@ -1120,15 +1120,14 @@ class VideoFrameWriter(object):
             debug("        writing frame %d index %d" %
                   (self.frameNum, index))
             # Get frame from image of staff
-            left = int(index - (self.width / 2))
-            right = int(index + (self.width / 2))
+            centre = self.width / 2
+            left  = int(index - centre)
+            right = int(index + centre)
             # Args to crop() are coords of left upper corner then
             # right lower corner
             frame = notesPic.copy().crop((left, 0, right, self.height))
-            # Add cursor line in middle
-            for pixel in xrange(self.height):
-                frame.putpixel(( self.width / 2     , pixel), self.cursorLineColor)
-                frame.putpixel(((self.width / 2) + 1, pixel), self.cursorLineColor)
+
+            self.writeCursorLine(frame, centre)
 
             # Save the frame.  ffmpeg doesn't work if the numbers in these
             # filenames are zero-padded.
@@ -1137,6 +1136,11 @@ class VideoFrameWriter(object):
             if not DEBUG and self.frameNum % 10 == 0:
                 sys.stdout.write(".")
                 sys.stdout.flush()
+
+    def writeCursorLine(self, frame, x):
+        for pixel in xrange(self.height):
+            frame.putpixel((x    , pixel), self.cursorLineColor)
+            frame.putpixel((x + 1, pixel), self.cursorLineColor)
 
     def ticksToSecs(self, startTick, endTick, midiResolution, tempo):
         beatsSinceTick = float(endTick - startTick) / midiResolution
