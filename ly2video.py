@@ -995,6 +995,9 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
             secsSinceIndex = 0.0
             lastTick = startTick
             while True:
+                if tempoIndex == len(temposList):
+                    break
+
                 tempoTick, tempo = temposList[tempoIndex]
                 debug("  checking tempo #%d @ tick %d: %.3f bpm" %
                       (tempoIndex, tempoTick, tempo))
