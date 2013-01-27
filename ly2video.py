@@ -151,7 +151,7 @@ def generateTitle(titleText, width, height, fps, titleLength):
     if not os.path.exists("title"):
         os.mkdir("title")
 
-    totalFrames = fps * titleLength
+    totalFrames = int(round(fps * titleLength))
     progress("TITLE: ly2video will generate approx. %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
@@ -961,7 +961,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
     approxDuration = approxBeats * beatsPerSec
     debug("approx duration: %.2f seconds" % approxDuration)
     estimatedFrames = approxDuration * fps
-    progress("SYNC: ly2video will generate approx. %d frames at %d frames/sec." %
+    progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
              (estimatedFrames, fps))
     if not DEBUG:
         progress("A dot is displayed for every 10 frames generated.")
@@ -1043,7 +1043,7 @@ def genVideoFrames(midiResolution, temposList, midiTicks,
             debug("  need next frameset to last %f secs" %
                   neededFrameSetSecs)
 
-            debug("  need %f frames @ %d fps" %
+            debug("  need %f frames @ %.3f fps" %
                   (neededFrameSetSecs * fps, fps))
             neededFrames = int(round(neededFrameSetSecs * fps))
 
@@ -1203,8 +1203,8 @@ def parseOptions():
                       help='name of color of middle bar (default is "red")', metavar="COLOR",
                       default="red")
     parser.add_option("-f", "--fps", dest="fps",
-                      help='frame rate of final video (default is "30")', type="int", metavar="FPS",
-                      default=30)
+                      help='frame rate of final video (default is "30")', type="float", metavar="FPS",
+                      default=30.0)
     parser.add_option("-x", "--width", dest="width",
                       help='pixel width of final video (default is 1280)',
                       metavar="HEIGHT", type="int", default=1280)
