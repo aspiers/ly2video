@@ -457,7 +457,12 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
             if isNote:
                 isNote = isinstance(token, MusicTokenizer.Pitch) and \
                          str(token) not in "rR"
-                if isNote or token == '~':
+                # Note "a-2~b" will rest in two Unparsed tokens: "-2~"
+                # and "~", but we don't want to count both.  Also, a
+                # tie token could contain other artifacts, e.g. "~["
+                # or "~]".  So we have to be careful about how we do
+                # the comparison.
+                if isNote or token[0] == '~':
                     # add it
                     sourceCoords = (lineNum, charNum)
                     notePositionsInPage.append((sourceCoords, coords))
@@ -574,7 +579,9 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
                 if noteIndex not in indexNoteSourcesInPage:
                     indexNoteSourcesInPage[noteIndex] = []
                 indexNoteSourcesInPage[noteIndex].append(linkLy)
-            elif token == "~":
+            # The comments in getNotePositions() about the "~" string
+            # comparison apply here too:
+            elif token[0] == "~":
                 # It's a tie.
                 # If next note isn't in silent notes, add it
                 nextNoteCoords = notesAndTies[notesAndTies.index(linkLy) + 1]
