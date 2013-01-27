@@ -1168,7 +1168,7 @@ def applyBeatmap(src, dst, beatmap):
     prog = "midi-rubato"
     cmd = [prog, src, dst, beatmap]
     progress("Applying beatmap via '%s'" % " ".join(cmd))
-    progress(safeRun(cmd))
+    debug(safeRun(cmd))
 
 def safeRun(cmd, errormsg=None, exitcode=None, shell=False):
     try:
