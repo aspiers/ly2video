@@ -352,10 +352,12 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     tokens = {}
 
     # ly parser (from Frescobaldi)
+    lySrc = ''.join(lySrcLines)
     parser = MusicTokenizer()
-    language, keyPitch = ly.tools.languageAndKey(''.join(lySrcLines))
+    language, keyPitch = ly.tools.languageAndKey(lySrc)
     progress('Detected language in %s as %s' % (lySrcFileName, language))
     parser.language = language
+    absolutePitches = ly.tools.relativeToAbsolute(lySrc)
 
     for pageNumber in xrange(numPages):
         # get informations about page
@@ -380,13 +382,15 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
                 continue
             # otherwise get coordinates into .ly file
             lineNum, charNum, columnNum = uri.split(":")[-3:]
-            lineNum   = int(lineNum)
-            charNum   = int(charNum)   # the start of the text
+            lineNum   = int(lineNum)   # counting from 1
+            charNum   = int(charNum)   # the start of the text,
+                                       # counting from 0
             columnNum = int(columnNum) # the end of the text?
             srcLine = lySrcLines[lineNum - 1]
 
             # get name of note
             token = parser.tokens(srcLine[charNum:]).next()
+            debug("PDF links to token '%s' at %d:%d" % (token, lineNum, charNum))
 
             # Is the note immediately followed by \rest?  If so,
             # it's actually a rest not a note:
@@ -421,7 +425,12 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
                     sourceCoords = (lineNum, charNum)
                     notePositionsInPage.append((sourceCoords, coords))
                     notesAndTies.add(sourceCoords)
-                    tokens[sourceCoords] = token
+                    tokens[sourceCoords] = \
+                        absolutePitch(absolutePitches, token,
+                                      lineNum, charNum, parser)
+                    debug("    added token '%s' @ %d:%d" % (token, lineNum, charNum))
+                elif not isNote:
+                    debug("    ! isNote, class %s" % token.__class__)
 
         # sort wanted positions on that page and add it into whole wanted positions
         notePositionsInPage.sort()
@@ -434,6 +443,15 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()
     return notePositionsByPage, notesAndTies, tokens, parser, pageWidth
+
+def absolutePitch(absolutePitches, token, lineNum, charNum, parser):
+    absolutePitchText = \
+        absolutePitches.newTextForLineColumn(lineNum - 1, charNum)
+    if absolutePitchText:
+        absolutePitchToken = parser.tokens(absolutePitchText).next()
+        debug("    absolute pitch: %s" % absolutePitchToken)
+        return absolutePitchToken
+    return token
 
 def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth, pageWidth):
     """
