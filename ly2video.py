@@ -217,7 +217,7 @@ def writePaperHeader(fFile, width, height, numOfLines, lilypondVersion):
     if StrictVersion(lilypondVersion) >= StrictVersion('2.15.41'):
         oneLineBreaking = True
     else:
-        warn("""you have LilyPond %s which does not support
+        warn("""You have LilyPond %s which does not support
 infinitely long lines.  Upgrade to >= 2.15.41 to avoid
 sudden jumps in your video.
 """ % lilypondVersion)
