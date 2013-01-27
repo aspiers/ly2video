@@ -235,6 +235,7 @@ def getTemposList(midiFile):
     for event in midiHeader:
         # if it's SetTempoEvent
         if isinstance(event, midi.SetTempoEvent):
+            debug("tick %d: tempo change to %.3f bpm" % (event.tick, event.bpm))
             temposList.append((event.tick, event.bpm))
 
     return temposList
