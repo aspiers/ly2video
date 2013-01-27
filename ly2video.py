@@ -610,8 +610,7 @@ def pitchValue(token, parser):
     Returns the numerical pitch of the token representing a note,
     where the token is treated as an absolute pitch, and each
     increment of 1 is equivalent to going up a semi-tone (half-step).
-    This facilitates comparison to MIDI NoteOn events, although
-    arithmetic modulo 12 may be required.
+    This facilitates comparison to MIDI NoteOn events.
     """
     p = ly.tools.Pitch.fromToken(token, parser)
 
@@ -619,7 +618,7 @@ def pitchValue(token, parser):
     if accidentalSemitoneSteps.denominator != 1:
         fatal("Uh-oh, we don't support microtones yet")
 
-    pitch = p.octave * 12 + \
+    pitch = (p.octave + 4) * 12 + \
             C_MAJOR_SCALE_STEPS[p.note] + \
             accidentalSemitoneSteps
 
@@ -725,14 +724,14 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
             # be removed from these as they match.
             midiPitches = { }
             for event in events:
-                pitch = event.get_pitch() % 12
+                pitch = event.get_pitch()
                 midiPitches[pitch] = event
 
             indexPitches = { }
             for indexNoteSource in indexNoteSources:
                 token = tokens[indexNoteSource]
                 lineNum, colNum = indexNoteSource
-                notePitch = pitchValue(token, parser) % 12
+                notePitch = pitchValue(token, parser)
                 indexPitches[float(notePitch)] = (token, lineNum, colNum)
 
             debug("    midiPitches:  %s" % repr(midiPitches))
