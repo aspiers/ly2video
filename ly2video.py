@@ -385,52 +385,43 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
             columnNum = int(columnNum) # the end of the text?
             srcLine = lySrcLines[lineNum - 1]
 
-            try:
-                # get name of note
-                token = parser.tokens(srcLine[charNum:]).next()
+            # get name of note
+            token = parser.tokens(srcLine[charNum:]).next()
 
-                # Is the note immediately followed by \rest?  If so,
-                # it's actually a rest not a note:
-                # http://lilypond.org/doc/v2.14/Documentation/notation/writing-rests
-                # We default to assuming it's a note, in case there
-                # isn't any other note to the right of it.
-                isNote = True
+            # Is the note immediately followed by \rest?  If so,
+            # it's actually a rest not a note:
+            # http://lilypond.org/doc/v2.14/Documentation/notation/writing-rests
+            # We default to assuming it's a note, in case there
+            # isn't any other note to the right of it.
+            isNote = True
 
-                restOfLine = srcLine[charNum + len(token):]
-                for rightToken in parser.tokens(restOfLine):
-                    # if there is another note (or rest etc.) to the
-                    # right of it, it's a real note
-                    if isinstance(rightToken, MusicTokenizer.Pitch):
-                        break
-                    # if \rest appears after it and before the next
-                    # note, it's a rest not a note, so we ignore it
-                    elif isinstance(rightToken, Tokenizer.Command) and \
-                         rightToken == '\\rest':
-                        isNote = False
-                        break
+            restOfLine = srcLine[charNum + len(token):]
+            for rightToken in parser.tokens(restOfLine):
+                # if there is another note (or rest etc.) to the
+                # right of it, it's a real note
+                if isinstance(rightToken, MusicTokenizer.Pitch):
+                    break
+                # if \rest appears after it and before the next
+                # note, it's a rest not a note, so we ignore it
+                elif isinstance(rightToken, Tokenizer.Command) and \
+                     rightToken == '\\rest':
+                    isNote = False
+                    break
 
-                # If the note is not followed by \rest, and it's a
-                # note rather than an "r"-style rest or it's a tie, we
-                # keep track of it.  In the next phase,
-                # getFilteredIndices() will filter out notes to the
-                # right of ties.
-                if isNote:
-                    isNote = isinstance(token, MusicTokenizer.Pitch) and \
-                             str(token) not in "rR"
-                    if isNote or token == '~':
-                        # add it
-                        sourceCoords = (lineNum, charNum)
-                        notePositionsInPage.append((sourceCoords, coords))
-                        notesAndTies.add(sourceCoords)
-                        tokens[sourceCoords] = token
-
-            #if there is some error, write that statement and exit
-            except StandardError as err:
-                fatal(("PDF: %s\n"
-                       + "ly2video was trying to work with this: "
-                       + "\"%s\", coords in .ly (line %d char %d).") %
-                      (err, lySrcLines[lineNum - 1][charNum:][:-1],
-                       lineNum, charNum))
+            # If the note is not followed by \rest, and it's a
+            # note rather than an "r"-style rest or it's a tie, we
+            # keep track of it.  In the next phase,
+            # getFilteredIndices() will filter out notes to the
+            # right of ties.
+            if isNote:
+                isNote = isinstance(token, MusicTokenizer.Pitch) and \
+                         str(token) not in "rR"
+                if isNote or token == '~':
+                    # add it
+                    sourceCoords = (lineNum, charNum)
+                    notePositionsInPage.append((sourceCoords, coords))
+                    notesAndTies.add(sourceCoords)
+                    tokens[sourceCoords] = token
 
         # sort wanted positions on that page and add it into whole wanted positions
         notePositionsInPage.sort()
