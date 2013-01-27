@@ -1036,7 +1036,7 @@ class VideoFrameWriter(object):
             # error and we'll miss our target by a small amount.
             targetSecs = self.secs + secsSinceIndex
 
-            debug("  secs at new index %d: %f" %
+            debug("    secs at new index %d: %f" %
                   (endIndex, targetSecs))
 
             # The ideal duration of the current frameset is the target
@@ -1045,10 +1045,10 @@ class VideoFrameWriter(object):
             # rounding errors from accumulating over the course of the
             # video.
             neededFrameSetSecs = targetSecs - float(self.frameNum)/self.fps
-            debug("  need next frameset to last %f secs" %
+            debug("    need next frameset to last %f secs" %
                   neededFrameSetSecs)
 
-            debug("  need %f frames @ %.3f fps" %
+            debug("    need %f frames @ %.3f fps" %
                   (neededFrameSetSecs * self.fps, self.fps))
             neededFrames = int(round(neededFrameSetSecs * self.fps))
 
@@ -1078,7 +1078,7 @@ class VideoFrameWriter(object):
         lastTick = startTick
         while self.tempoIndex < len(self.temposList):
             tempoTick, tempo = self.temposList[self.tempoIndex]
-            debug("  checking tempo #%d @ tick %d: %.3f bpm" %
+            debug("    checking tempo #%d @ tick %d: %.3f bpm" %
                   (self.tempoIndex, tempoTick, tempo))
             if tempoTick >= endTick:
                 break
@@ -1091,7 +1091,7 @@ class VideoFrameWriter(object):
             # startTick < tempoTick < endTick
             secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
                                                self.midiResolution, tempo)
-            debug("    secs since index %d: %f" %
+            debug("        secs since index %d: %f" %
                   (startIndex, secsSinceIndex))
             lastTick = tempoTick
 
@@ -1100,7 +1100,7 @@ class VideoFrameWriter(object):
         secsSinceIndex += self.ticksToSecs(lastTick, endTick,
                                            self.midiResolution, tempo)
 
-        debug("  secs between indices %d and %d: %f" %
+        debug("    secs between indices %d and %d: %f" %
               (startIndex, endIndex, secsSinceIndex))
         return secsSinceIndex
 
@@ -1111,13 +1111,13 @@ class VideoFrameWriter(object):
         written.
         """
         travelPerFrame = float(indexTravel) / neededFrames
-        debug("  travel per frame: %f pixels" % travelPerFrame)
-        debug("  generating %d frames: %d -> %d" %
+        debug("    travel per frame: %f pixels" % travelPerFrame)
+        debug("    generating %d frames: %d -> %d" %
               (neededFrames, self.frameNum, self.frameNum + neededFrames - 1))
 
         for i in xrange(neededFrames):
             index = startIndex + round(i * travelPerFrame)
-            debug("    writing frame %d index %d" %
+            debug("        writing frame %d index %d" %
                   (self.frameNum, index))
             # Get frame from image of staff
             left = int(index - (self.width / 2))
@@ -1140,11 +1140,11 @@ class VideoFrameWriter(object):
 
     def ticksToSecs(self, startTick, endTick, midiResolution, tempo):
         beatsSinceTick = float(endTick - startTick) / midiResolution
-        debug("    beats from tick %d -> %d: %f (%d ticks per beat)" %
+        debug("        beats from tick %d -> %d: %f (%d ticks per beat)" %
               (startTick, endTick, beatsSinceTick, midiResolution))
 
         secsSinceTick = beatsSinceTick * 60.0 / tempo
-        debug("    secs  from tick %d -> %d: %f (%.3f bpm)" %
+        debug("        secs  from tick %d -> %d: %f (%.3f bpm)" %
               (startTick, endTick, secsSinceTick, tempo))
 
         return secsSinceTick
