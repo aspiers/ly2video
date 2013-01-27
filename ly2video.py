@@ -931,13 +931,17 @@ class VideoFrameWriter(object):
     skips generating one frame.
     """
 
-    def __init__(self, width, height, fps, cursorLineColor):
+    def __init__(self, width, height, fps, cursorLineColor,
+                 midiResolution, midiTicks, temposList):
         """
         Params:
           - width:             pixel width of frames (and video)
           - height:            pixel height of frames (and video)
           - fps:               frame rate of video
           - cursorLineColor:   color of middle line
+          - midiResolution:    resolution of MIDI file
+          - midiTicks:         list of ticks with NoteOnEvent
+          - temposList:        list of possible tempos in MIDI
         """
         self.midiIndex   = 0
         self.tempoIndex  = 0
@@ -947,24 +951,17 @@ class VideoFrameWriter(object):
         # when aligning indices to frames don't accumulate over time.
         self.secs = 0.0
 
-        # If we have 1+ tempo changes in between adjacent indices, we need
-        # to keep track of how many seconds elapsed since the last one,
-        # since this will allow us to calculate how many frames we need in
-        # between the current pair of indices.
-        self.secsSinceIndex  = 0.0
-
         self.width = width
         self.height = height
         self.fps = fps
         self.cursorLineColor = cursorLineColor
+        self.midiResolution = midiResolution
+        self.midiTicks = midiTicks
+        self.temposList = temposList
         
-    def write(self, midiResolution, midiTicks, temposList,
-              noteIndicesByPage, notesImages):
+    def write(self, noteIndicesByPage, notesImages):
         """
         Params:
-          - midiResolution:    resolution of MIDI file
-          - temposList:        list of possible tempos in MIDI
-          - midiTicks:         list of ticks with NoteOnEvent
           - noteIndicesByPage: indices of notes in pictures
           - notesImages:       names of that images (list of strings)
         """
@@ -972,10 +969,10 @@ class VideoFrameWriter(object):
         if not os.path.exists("notes"):
             os.mkdir("notes")
 
-        firstTempo = temposList[self.tempoIndex][1]
+        firstTempo = self.temposList[self.tempoIndex][1]
         debug("first tempo is %.3f bpm" % firstTempo)
-        debug("final MIDI tick is %d" % midiTicks[-1])
-        approxBeats = float(midiTicks[-1]) / midiResolution
+        debug("final MIDI tick is %d" % self.midiTicks[-1])
+        approxBeats = float(self.midiTicks[-1]) / self.midiResolution
         debug("approx %.2f MIDI beats" % approxBeats)
         beatsPerSec = 60.0 / firstTempo
         approxDuration = approxBeats * beatsPerSec
@@ -987,23 +984,17 @@ class VideoFrameWriter(object):
             progress("A dot is displayed for every 10 frames generated.")
 
         for pageNum, indices in enumerate(noteIndicesByPage):
-            self.writePage(pageNum, indices, notesImages,
-                           midiResolution, midiTicks, temposList)
+            self.writePage(pageNum, indices, notesImages[pageNum])
 
-    def writePage(self, pageNum, indices, notesImages,
-                  midiResolution, midiTicks, temposList):
+    def writePage(self, pageNum, indices, notesImage):
         """
         Params:
           - pageNum:           number of page to write
           - indices:           indices of notes in page
-          - midiResolution:    resolution of MIDI file
-          - temposList:        list of possible tempos in MIDI
-          - midiTicks:         list of ticks with NoteOnEvent
-          - noteIndicesByPage: indices of notes in pictures
-          - notesImages:       names of that images (list of strings)
+          - notesImageFile:    name of that images (list of strings)
         """
         # open image of staff
-        notesPic = Image.open(notesImages[pageNum])
+        notesPic = Image.open(notesImage)
 
         # duplicate last index
         indices.append(indices[-1])
@@ -1020,42 +1011,21 @@ class VideoFrameWriter(object):
                   (startIndex, endIndex, indexTravel))
 
             # get two indices of MIDI events (ticks)
-            startTick = midiTicks[self.midiIndex]
+            startTick = self.midiTicks[self.midiIndex]
             self.midiIndex += 1
-            endTick = midiTicks[self.midiIndex]
+            endTick = self.midiTicks[self.midiIndex]
             ticks = endTick - startTick
             debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
 
-            # handle any tempo ticks which occur before endIndex
-            self.secsSinceIndex = 0.0
-            lastTick = startTick
-            while True:
-                if self.tempoIndex == len(temposList):
-                    break
 
-                tempoTick, tempo = temposList[self.tempoIndex]
-                debug("  checking tempo #%d @ tick %d: %.3f bpm" %
-                      (self.tempoIndex, tempoTick, tempo))
-                if tempoTick >= endTick:
-                    break
-
-                self.tempoIndex += 1
-
-                if tempoTick == startTick:
-                    continue
-
-                # startTick < tempoTick < endTick
-                tempoTick - lastTick
-                self.secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
-                                                   midiResolution, tempo)
-                debug("    secs since index %d: %f" %
-                      (startIndex, self.secsSinceIndex))
-                lastTick = tempoTick
-
-            self.secsSinceIndex += self.ticksToSecs(lastTick, endTick,
-                                               midiResolution, tempo)
-            debug("  secs between indices %d and %d: %f" %
-                  (startIndex, endIndex, self.secsSinceIndex))
+            # If we have 1+ tempo changes in between adjacent indices,
+            # we need to keep track of how many seconds elapsed since
+            # the last one, since this will allow us to calculate how
+            # many frames we need in between the current pair of
+            # indices.
+            secsSinceIndex = \
+                self.measureTempoChanges(startTick, endTick,
+                                         startIndex, endIndex)
 
             # This is the exact time we are *aiming* for the frameset
             # to finish at (i.e. the start time of the first frame
@@ -1064,7 +1034,7 @@ class VideoFrameWriter(object):
             # However, since we have less than an infinite number of
             # frames per second, there will typically be a rounding
             # error and we'll miss our target by a small amount.
-            targetSecs = self.secs + self.secsSinceIndex
+            targetSecs = self.secs + secsSinceIndex
 
             debug("  secs at new index %d: %f" %
                   (endIndex, targetSecs))
@@ -1096,6 +1066,43 @@ class VideoFrameWriter(object):
 
         progress("SYNC: Generated %d frames for page %d/%d" %
                  (self.frameNum, pageNum + 1, len(indices)))
+
+    def measureTempoChanges(self, startTick, endTick,
+                            startIndex, endIndex):
+        """
+        Returns the time elapsed in between startTick and endTick,
+        where the only MIDI events in between (if any) are tempo
+        change events.
+        """
+        secsSinceIndex = 0.0
+        lastTick = startTick
+        while self.tempoIndex < len(self.temposList):
+            tempoTick, tempo = self.temposList[self.tempoIndex]
+            debug("  checking tempo #%d @ tick %d: %.3f bpm" %
+                  (self.tempoIndex, tempoTick, tempo))
+            if tempoTick >= endTick:
+                break
+
+            self.tempoIndex += 1
+
+            if tempoTick == startTick:
+                continue
+
+            # startTick < tempoTick < endTick
+            secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
+                                               self.midiResolution, tempo)
+            debug("    secs since index %d: %f" %
+                  (startIndex, secsSinceIndex))
+            lastTick = tempoTick
+
+        # Add on the time elapsed between the final tempo change
+        # and endTick:
+        secsSinceIndex += self.ticksToSecs(lastTick, endTick,
+                                           self.midiResolution, tempo)
+
+        debug("  secs between indices %d and %d: %f" %
+              (startIndex, endIndex, secsSinceIndex))
+        return secsSinceIndex
 
     def writeVideoFrames(self, neededFrames, startIndex, indexTravel, notesPic):
         """
@@ -1760,11 +1767,9 @@ def main():
 
     # generate notes
     frameWriter = VideoFrameWriter(
-        options.width, options.height,
-        fps, getCursorLineColor(options))
-    frameWriter.write(
-        midiResolution, midiTicks, temposList,
-        noteIndicesByPage, notesImages)
+        options.width, options.height, fps, getCursorLineColor(options),
+        midiResolution, midiTicks, temposList)
+    frameWriter.write(noteIndicesByPage, notesImages)
 
     output_divider_line()
 
