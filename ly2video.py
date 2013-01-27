@@ -329,8 +329,8 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
       - lySrcLines: loaded *.ly file in memory (list)
 
     Returns:
-      - notesAndTies: a list of (lineNum, charNum) tuples sorted by
-        line number in the .ly file
+      - notesAndTies: a sorted list of (lineNum, charNum) tuples
+        containing the locations of notes and ties in the .ly file
       - notePositionsByPage: a list with each top-level item
         representing a page, where each page is a sorted list of
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
@@ -477,8 +477,8 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
         representing a page, where each page is a sorted list of
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
         representing opposite corners of the rectangle.
-      - notesAndTies: a list of (lineNum, charNum) tuples sorted by
-        line number in sanitised .ly file
+      - notesAndTies: a sorted list of (lineNum, charNum) tuples
+        containing the locations of notes and ties in the .ly file
       - lySrcLines: loaded *.ly file in memory (list)
       - imageWidth: width of PNG file(s)
       - pageWidth: the width of the first PDF page in PDF units (all
