@@ -246,19 +246,30 @@ def getNotesInTicks(midiFile):
     notesInTicks = {}
 
     # for every channel in MIDI (except the first one)
-    for eventsList in midiFile[1:]:
-        for event in eventsList:
-            if not isinstance(event, midi.NoteOnEvent):
-                continue
+    for i in xrange(1, len(midiFile)):
+        debug("reading MIDI track %d" % i)
+        track = midiFile[i]
+        for event in track:
+            tick = event.tick
+            eventClass = event.__class__.__name__
 
-            if event.get_velocity() == 0:
-                # velocity is zero (that's basically "NoteOffEvent")
+            if isinstance(event, midi.NoteOnEvent):
+                if event.get_velocity() == 0:
+                    # velocity is zero (that's basically "NoteOffEvent")
+                    debug("    tick %d: read NoteOffEvent(%d)" %
+                          (tick, event.get_pitch()))
+                else:
+                    debug("    tick %d: read %s(%d)" %
+                          (tick, eventClass, event.get_pitch()))
+            else:
+                debug("    tick %d: read %s - skipping" %
+                      (tick, eventClass))
                 continue
 
             # add it into notesInTicks
-            if event.tick not in notesInTicks:
-                notesInTicks[event.tick] = []
-            notesInTicks[event.tick].append(event)
+            if tick not in notesInTicks:
+                notesInTicks[tick] = []
+            notesInTicks[tick].append(event)
 
     return notesInTicks
 
