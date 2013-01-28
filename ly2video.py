@@ -228,8 +228,8 @@ sudden jumps in your video.
         fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * mmPerPixel))
         fFile.write("   paper-height  = %d\\mm\n" % round(height * mmPerPixel))
 
-    fFile.write("   top-margin    = %d\\mm\n" % round(height * mmPerPixel / 20))
-    fFile.write("   bottom-margin = %d\\mm\n" % round(height * mmPerPixel / 20))
+    fFile.write("   top-margin    = %d\\mm\n" % round(height * mmPerPixel / 5))
+    fFile.write("   bottom-margin = %d\\mm\n" % round(height * mmPerPixel / 5))
     fFile.write("   left-margin   = %d\\mm\n" % round(width * mmPerPixel / 2))
     fFile.write("   right-margin  = %d\\mm\n" % round(width * mmPerPixel / 2))
 
