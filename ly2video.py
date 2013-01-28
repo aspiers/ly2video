@@ -994,7 +994,7 @@ class VideoFrameWriter(object):
         self.temposList = temposList
         self.leftMargin = leftMargin
         self.rightMargin = rightMargin
-        
+
     def write(self, noteIndicesByPage, notesImages):
         """
         Params:
@@ -1029,8 +1029,10 @@ class VideoFrameWriter(object):
           - indices:           indices of notes in page
           - notesImageFile:    name of that images (list of strings)
         """
-        # open image of staff
+        progress("Writing frames for page %d ..." % pageNum)
+
         notesPic = Image.open(notesImage)
+        cropTop, cropBottom = self.getCropTopAndBottom(notesPic)
 
         # duplicate last index
         indices.append(indices[-1])
@@ -1090,9 +1092,8 @@ class VideoFrameWriter(object):
 
             if neededFrames > 0:
                 self.writeVideoFrames(
-                    neededFrames,
-                    startIndex, indexTravel,
-                    notesPic)
+                    neededFrames, startIndex, indexTravel,
+                    notesPic, cropTop, cropBottom)
 
             # Update time in the *ideal* (i.e. not real) world - this
             # is totally independent of fps.
@@ -1102,6 +1103,106 @@ class VideoFrameWriter(object):
 
         progress("SYNC: Generated %d frames for page %d/%d" %
                  (self.frameNum, pageNum + 1, len(indices)))
+
+    def getCropTopAndBottom(self, image):
+        """
+        Returns a tuple containing the y-coordinates of the top and
+        bottom edges of the cropping rectangle, relative to the given
+        (non-cropped) image.
+        """
+        width, height = image.size
+        progress("      Image height: %5d pixels" % height)
+
+        topMarginSize, bottomMarginSize = self.getTopAndBottomMarginSizes(image)
+        bottomY = height - bottomMarginSize
+        progress("   Top margin size: %5d pixels" % topMarginSize)
+        progress("Bottom margin size: %5d pixels (y=%d)" %
+                 (bottomMarginSize, bottomY))
+
+        nonWhiteRows = height - topMarginSize - bottomMarginSize
+        progress("Visible content is formed of %d non-white rows of pixels" %
+                 nonWhiteRows)
+
+        # y-coordinate of centre of the visible content, relative to
+        # the original non-cropped image
+        nonWhiteCentre = topMarginSize + int(round(nonWhiteRows/2))
+        progress("Centre of visible content is %d pixels from top" %
+                 nonWhiteCentre)
+
+        # Now choose top/bottom cropping coordinates which center
+        # the content in the video frame.
+        cropTop    = nonWhiteCentre - int(round(self.height / 2))
+        cropBottom = cropTop + self.height
+
+        if cropTop < 0:
+            fatal("Would have to crop %d pixels above top of image! "
+                  "Try increasing the resolution DPI "
+                  "(which would increase the size of the PNG to be cropped), "
+                  "or reducing the video height" % -cropTop)
+            cropTop = 0
+
+        if cropBottom > height:
+            fatal("Would have to crop %d pixels below bottom of image! "
+                  "Try increasing the resolution DPI "
+                  "(which would increase the size of the PNG to be cropped), "
+                  "or reducing the video height" % (cropBottom - height))
+            cropBottom = height
+
+        if cropTop > topMarginSize:
+            fatal("Would have to crop %d pixels below top of visible content!"
+                 % (cropTop - topMarginSize))
+            cropTop = topMarginSize
+
+        if cropBottom < bottomY:
+            fatal("Would have to crop %d pixels above bottom of visible content!"
+                 % (bottomY - cropBottom))
+            cropBottom = bottomY
+
+        progress("Will crop from y=%d to y=%d" % (cropTop, cropBottom))
+
+        return cropTop, cropBottom
+
+    def getTopAndBottomMarginSizes(self, image):
+        """
+        Counts the number of white-only rows of pixels at the top and
+        bottom of the given image.
+        """
+        width, height = image.size
+
+        # This is way faster than width*height invocations of getPixel()
+        pixels = image.load()
+
+        topMargin = 0
+        for y in xrange(height):
+            if self.isLineBlank(pixels, width, y):
+                topMargin += 1
+            else:
+                break
+
+        bottomMargin = 0
+        for y in xrange(height - 1, -1, -1):
+            if self.isLineBlank(pixels, width, y):
+                bottomMargin += 1
+            else:
+                break
+
+        bottomY = height - bottomMargin
+        if topMargin >= bottomY:
+            fatal("Image was entirely white?  "
+                  "Top margin %d, bottom margin %d (y=%d), height %d" %
+                  (topMargin, bottomMargin, bottomY, height))
+
+        return topMargin, bottomMargin
+
+    def isLineBlank(self, pixels, width, y):
+        """
+        Returns True iff the line with the given y coordinate
+        is entirely white.
+        """
+        for x in xrange(width):
+            if pixels[x, y] != (255, 255, 255):
+                return False
+        return True
 
     def measureTempoChanges(self, startTick, endTick,
                             startIndex, endIndex):
@@ -1140,7 +1241,8 @@ class VideoFrameWriter(object):
               (startIndex, endIndex, secsSinceIndex))
         return secsSinceIndex
 
-    def writeVideoFrames(self, neededFrames, startIndex, indexTravel, notesPic):
+    def writeVideoFrames(self, neededFrames, startIndex, indexTravel,
+                         notesPic, cropTop, cropBottom):
         """
         Writes the required number of frames to travel indexTravel
         pixels from startIndex, incrementing frameNum for each frame
@@ -1156,7 +1258,8 @@ class VideoFrameWriter(object):
             debug("        writing frame %d index %d" %
                   (self.frameNum, index))
 
-            frame, cursorX = self.cropFrame(notesPic, index)
+            frame, cursorX = self.cropFrame(notesPic, index,
+                                            cropTop, cropBottom)
             self.writeCursorLine(frame, cursorX)
 
             # Save the frame.  ffmpeg doesn't work if the numbers in these
@@ -1167,15 +1270,13 @@ class VideoFrameWriter(object):
                 sys.stdout.write(".")
                 sys.stdout.flush()
 
-    def cropFrame(self, notesPic, index):
+    def cropFrame(self, notesPic, index, top, bottom):
         if self.scrollNotes:
             # Get frame from image of staff
             centre = self.width / 2
             left  = int(index - centre)
             right = int(index + centre)
-            # Args to crop() are (x, y) coords of left upper corner
-            # then right lower corner
-            frame = notesPic.copy().crop((left, 0, right, self.height))
+            frame = notesPic.copy().crop((left, top, right, bottom))
             cursorX = centre
         else:
             if self.leftEdge is None:
@@ -1193,8 +1294,8 @@ class VideoFrameWriter(object):
                       (self.leftEdge, cursorX))
 
             rightEdge = self.leftEdge + self.width
-            frame = notesPic.copy().crop((self.leftEdge, 0,
-                                          rightEdge, self.height))
+            frame = notesPic.copy().crop((self.leftEdge, top,
+                                          rightEdge, bottom))
         return frame, cursorX
 
     def writeCursorLine(self, frame, x):
