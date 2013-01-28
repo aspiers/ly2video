@@ -1481,17 +1481,24 @@ def applyBeatmap(src, dst, beatmap):
     debug(safeRun(cmd))
 
 def safeRun(cmd, errormsg=None, exitcode=None, shell=False):
+    quotedCmd = []
+    for arg in cmd:
+        if arg.find(' ') != -1 or arg.find('"') != -1:
+            quotedCmd.append('"' + arg.replace('"', '\"') + '"')
+        else:
+            quotedCmd.append(arg)
+    quotedCmdStr = " ".join(quotedCmd)
+
+    debug("Running: %s" % quotedCmdStr)
+
     try:
         stdout = subprocess.check_output(cmd, shell=shell)
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         excmsg = "%s: %s" % (exc_type.__name__, exc_value)
-        for i in xrange(len(cmd)):
-            if cmd[i].find(' ') != -1 or cmd[i].find('"') != -1:
-                cmd[i] = '"' + cmd[i].replace('"', '\"') + '"'
         if errormsg is None:
             errormsg = "Failed to run command: %s: %s" % \
-                (" ".join(cmd), excmsg)
+                (quotedCmdStr, excmsg)
         fatal(errormsg, exitcode)
 
     return stdout
