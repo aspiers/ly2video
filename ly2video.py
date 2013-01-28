@@ -1320,7 +1320,7 @@ def parseOptions():
                       metavar="DPI", type="int", default=110)
     parser.add_option("-x", "--width", dest="width",
                       help='pixel width of final video [1280]',
-                      metavar="HEIGHT", type="int", default=1280)
+                      metavar="WIDTH", type="int", default=1280)
     parser.add_option("-y", "--height", dest="height",
                       help='pixel height of final video [720]',
                       metavar="HEIGHT", type="int", default=720)
