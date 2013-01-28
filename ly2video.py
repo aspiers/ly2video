@@ -1416,6 +1416,10 @@ def parseOptions():
     parser.add_option("-f", "--fps", dest="fps",
                       help='frame rate of final video [30]',
                       type="float", metavar="FPS", default=30.0)
+    parser.add_option("-q", "--quality", dest="quality",
+                      help="video encoding quality as used by ffmpeg's -q option "
+                           '(1 is best, 31 is worst) [30]',
+                      type="int", metavar="N", default=10)
     parser.add_option("-r", "--resolution", dest="dpi",
                       help='resolution in DPI [110]',
                       metavar="DPI", type="int", default=110)
@@ -1568,6 +1572,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-r", fps,
             "-i", framePath,
             "-i", wavPath,
+            "-q:v", str(options.quality),
             outputFile
         ]
         safeRun(cmd, exitcode=13)
@@ -1582,6 +1587,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-i", framePath,
             "-i", silentAudio,
             "-same_quant",
+            "-q:v", str(options.quality),
             titlePath
         ]
         safeRun(cmd, exitcode=14)
@@ -1595,6 +1601,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-i", framePath,
             "-i", wavPath,
             "-same_quant",
+            "-q:v", str(options.quality),
             notesPath
         ]
         safeRun(cmd, exitcode=15)
@@ -1610,6 +1617,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         cmd = [
             ffmpeg,
             "-i", joinedPath,
+            "-q:v", str(options.quality),
             outputFile
         ]
         safeRun(cmd, exitcode=16)
