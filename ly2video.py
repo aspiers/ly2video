@@ -589,8 +589,8 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
             lineNum, charNum = linkLy
             # get that token
             token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
-            debug("checking token '%s' @ %d:%d for ties" %
-                  (token, lineNum, charNum))
+            debug("PDF box (%d, %d, %d, %d) linked to token '%s' @ %d:%d" %
+                  tuple(list(coords) + [token, lineNum, charNum]))
 
             if isinstance(token, MusicTokenizer.PitchWord):
                 # It's a note; if it's silent, remove it and ignore it
