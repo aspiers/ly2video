@@ -1754,10 +1754,10 @@ def sanitiseLy(lyFile, width, height, dpi, numStaffLines,
                  "in your lyFile.  This could cause problems.")
 
         # ignore these commands
-        if (line.find("\\include \"articulate.ly\"") != -1
-            or line.find("\\pointAndClickOff") != -1
-            or line.find("#(set-global-staff-size") != -1
-            or line.find("\\bookOutputName") != -1):
+        if re.search('\\\\include\\s+\\"articulate.ly\\"', line) or \
+            line.find("\\pointAndClickOff") != -1                or \
+            line.find("#(set-global-staff-size") != -1           or \
+            line.find("\\bookOutputName") != -1:
             line = fLyFile.readline()
 
         # if I find version, write own paper block right behind it
@@ -1776,9 +1776,9 @@ def sanitiseLy(lyFile, width, height, dpi, numStaffLines,
 
             done = True
 
-            if line.find("title = ") != -1:
+            if re.search("title\\s*=", line):
                 titleText.name = line.split("=")[-1].strip()[1:-1]
-            if line.find("composer = ") != -1:
+            if re.search("composer\\s*=", line):
                 titleText.author = line.split("=")[-1].strip()[1:-1]
 
             for znak in line:
@@ -1805,7 +1805,7 @@ def sanitiseLy(lyFile, width, height, dpi, numStaffLines,
                 paperPart = False
 
         # add unfoldRepeats right after start of score block
-        if (line.find("\\score {") != -1) and not done:
+        if re.search("\\\\score\\s*\\{", line) and not done:
             done = True
             fSanitisedLyFile.write(line + " \\unfoldRepeats\n")
 
