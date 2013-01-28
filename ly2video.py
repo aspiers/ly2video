@@ -596,8 +596,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
                 # It's a note; if it's silent, remove it and ignore it
                 if linkLy in silentNotes:
                     silentNotes.remove(linkLy)
-                    debug("    removed silent note %s @ %d:%d" %
-                          (token, lineNum, charNum))
+                    debug("    removed silent note %s" % token)
                     continue
                 # otherwise get its index in pixels
                 xcenter = (coords[0] + coords[2]) / 2
@@ -606,6 +605,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
                 if noteIndex not in indexNoteSourcesInPage:
                     indexNoteSourcesInPage[noteIndex] = []
                 indexNoteSourcesInPage[noteIndex].append(linkLy)
+                debug("    added index %d" % noteIndex)
             # The comments in getNotePositions() about the "~" string
             # comparison apply here too:
             elif token[0] == "~":
