@@ -237,8 +237,6 @@ sudden jumps in your video.
         fFile.write("   print-page-number = ##f\n")
 
     fFile.write("}\n")
-    fFile.write("#(set-global-staff-size %d)\n\n" %
-                int(round(0.8 * height / numOfLines)))
 
     return 0
 
