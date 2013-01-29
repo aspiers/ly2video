@@ -1245,15 +1245,14 @@ class VideoFrameWriter(object):
 
             # startTick < tempoTick < endTick
             secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
-                                               self.midiResolution, tempo)
+                                               tempo)
             debug("        secs since index %d: %f" %
                   (startIndex, secsSinceIndex))
             lastTick = tempoTick
 
         # Add on the time elapsed between the final tempo change
         # and endTick:
-        secsSinceIndex += self.ticksToSecs(lastTick, endTick,
-                                           self.midiResolution, tempo)
+        secsSinceIndex += self.ticksToSecs(lastTick, endTick, tempo)
 
         debug("    secs between indices %d and %d: %f" %
               (startIndex, endIndex, secsSinceIndex))
@@ -1321,10 +1320,10 @@ class VideoFrameWriter(object):
             frame.putpixel((x    , pixel), self.cursorLineColor)
             frame.putpixel((x + 1, pixel), self.cursorLineColor)
 
-    def ticksToSecs(self, startTick, endTick, midiResolution, tempo):
-        beatsSinceTick = float(endTick - startTick) / midiResolution
+    def ticksToSecs(self, startTick, endTick, tempo):
+        beatsSinceTick = float(endTick - startTick) / self.midiResolution
         debug("        beats from tick %d -> %d: %f (%d ticks per beat)" %
-              (startTick, endTick, beatsSinceTick, midiResolution))
+              (startTick, endTick, beatsSinceTick, self.midiResolution))
 
         secsSinceTick = beatsSinceTick * 60.0 / tempo
         debug("        secs  from tick %d -> %d: %f (%.3f bpm)" %
