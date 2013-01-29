@@ -1,8 +1,13 @@
 PIL==1.1.7
 pyPDF==1.13
 
-git+git://github.com/aspiers/python-midi.git#egg=midi
+# The upstream repository still has an unmerged pull
+# request fixing a significant tempo calculation bug:
+# https://github.com/vishnubob/python-midi/pull/6
 #git+git://github.com/vishnubob/python-midi.git#egg=midi
+
+# whereas my fork has the pull request merged in:
+git+git://github.com/aspiers/python-midi.git#egg=midi
 
 # Once https://github.com/pypa/pip/pull/526 is completed,
 # this should work instead, for anyone who wants to
