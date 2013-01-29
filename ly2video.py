@@ -575,7 +575,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
     indexNoteSourcesByPage = []
     noteIndicesByPage = []
 
-    progress("Removing silent notes ...")
+    progress("Calculating indices and removing silent notes ...")
 
     for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
         parser = Tokenizer()
