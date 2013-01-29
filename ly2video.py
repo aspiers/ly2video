@@ -544,14 +544,16 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
       - indexNoteSourcesByPage:
             a list of dicts, one per page, mapping each index to a
             list of (lineNum, colNum) tuples in the .ly source file
-            corresponding to the notes at that index, e.g.
+            corresponding to the notes and/or ties at that index, e.g.
                 [
                     # page 1
                     {
+                        ...
                         123 : [    # index
                             (37, 2), # note at index 123, line 37 col 2
                             (37, 5), # note at index 123, line 37 col 5
                         ],
+                        128 :
                         ...
                     }
 
