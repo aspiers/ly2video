@@ -1024,12 +1024,12 @@ class VideoFrameWriter(object):
         if not os.path.exists("notes"):
             os.mkdir("notes")
 
-        firstTempoTick, firstTempo = self.temposList[self.tempoIndex]
-        debug("first tempo is %.3f bpm" % firstTempo)
+        firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
+        debug("first tempo is %.3f bpm" % self.tempo)
         debug("final MIDI tick is %d" % self.midiTicks[-1])
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
         debug("approx %.2f MIDI beats" % approxBeats)
-        beatsPerSec = 60.0 / firstTempo
+        beatsPerSec = 60.0 / self.tempo
         approxDuration = approxBeats * beatsPerSec
         debug("approx duration: %.2f seconds" % approxDuration)
         estimatedFrames = approxDuration * self.fps
@@ -1239,20 +1239,20 @@ class VideoFrameWriter(object):
                 break
 
             self.tempoIndex += 1
+            self.tempo = tempo
 
             if tempoTick == startTick:
                 continue
 
             # startTick < tempoTick < endTick
-            secsSinceIndex += self.ticksToSecs(lastTick, tempoTick,
-                                               tempo)
+            secsSinceIndex += self.ticksToSecs(lastTick, tempoTick)
             debug("        secs since index %d: %f" %
                   (startIndex, secsSinceIndex))
             lastTick = tempoTick
 
         # Add on the time elapsed between the final tempo change
         # and endTick:
-        secsSinceIndex += self.ticksToSecs(lastTick, endTick, tempo)
+        secsSinceIndex += self.ticksToSecs(lastTick, endTick)
 
         debug("    secs between indices %d and %d: %f" %
               (startIndex, endIndex, secsSinceIndex))
@@ -1320,14 +1320,14 @@ class VideoFrameWriter(object):
             frame.putpixel((x    , pixel), self.cursorLineColor)
             frame.putpixel((x + 1, pixel), self.cursorLineColor)
 
-    def ticksToSecs(self, startTick, endTick, tempo):
+    def ticksToSecs(self, startTick, endTick):
         beatsSinceTick = float(endTick - startTick) / self.midiResolution
         debug("        beats from tick %d -> %d: %f (%d ticks per beat)" %
               (startTick, endTick, beatsSinceTick, self.midiResolution))
 
-        secsSinceTick = beatsSinceTick * 60.0 / tempo
+        secsSinceTick = beatsSinceTick * 60.0 / self.tempo
         debug("        secs  from tick %d -> %d: %f (%.3f bpm)" %
-              (startTick, endTick, secsSinceTick, tempo))
+              (startTick, endTick, secsSinceTick, self.tempo))
 
         return secsSinceTick
 
