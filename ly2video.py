@@ -490,7 +490,24 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
                 if isNote or token[0] == '~':
                     # add it
                     sourceCoords = (lineNum, charNum)
-                    notePositionsInPage.append((sourceCoords, coords))
+                    # We make the first value in the tuple the
+                    # coordinate of the left side of the box, in order
+                    # that the tuples notePositionsInPage will be
+                    # sorted primarily left to right in the order they
+                    # appear in the PDF, and secondarily by the order
+                    # they appear in the source file.  This fixes the
+                    # case where tokens in the source file are linked
+                    # multiple times from the PDF, which can happen if
+                    # they are contained by a
+                    #
+                    #     myMusic = { ... }
+                    #
+                    # declaration which is then invoked multiple # times:
+                    #
+                    #     \myMusic
+                    #     ...
+                    #     \myMusic
+                    notePositionsInPage.append((coords[0], sourceCoords, coords))
                     notesAndTies.add(sourceCoords)
                     tokens[sourceCoords] = \
                         absolutePitch(absolutePitches, token,
@@ -587,7 +604,7 @@ def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth
         # a MIDI NoteOn event
         silentNotes = []
 
-        for (linkLy, coords) in notePositionsInPage: # this is already sorted
+        for (left, linkLy, coords) in notePositionsInPage: # this is already sorted
             lineNum, charNum = linkLy
             # get that token
             token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
