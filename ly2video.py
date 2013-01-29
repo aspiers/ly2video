@@ -1074,7 +1074,6 @@ class VideoFrameWriter(object):
             ticks = endTick - startTick
             debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
 
-
             # If we have 1+ tempo changes in between adjacent indices,
             # we need to keep track of how many seconds elapsed since
             # the last one, since this will allow us to calculate how
