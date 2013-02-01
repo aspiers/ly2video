@@ -77,6 +77,23 @@ def preprocessLyFile(lyFile):
     output_divider_line()
     return False, newLyFile
 
+def runLilyPond(lyFileName, dpi):
+    progress("Generating PDF, PNG and MIDI files ...")
+    os.chdir(tmpPath())
+    cmd = [
+        "lilypond",
+        "-fpdf",
+        "--png",
+        "-dpoint-and-click",
+        "-dmidi-extension=midi",
+        "-dresolution=%d" % dpi,
+        lyFileName
+    ]
+    output_divider_line()
+    safeRun(cmd, exitcode=9)
+    output_divider_line()
+    progress("Generated PDF, PNG and MIDI files")
+
 def findTopStaffLine(image, lineLength):
     """
     Returns the coordinates of the left-most pixel in the top line of
@@ -1934,21 +1951,7 @@ def main():
 
     lySrcLines = getLyLines(sanitisedLyFileName)
 
-    progress("Generating PDF, PNG and MIDI files ...")
-    os.chdir(tmpPath())
-    cmd = [
-        "lilypond",
-        "-fpdf",
-        "--png",
-        "-dpoint-and-click",
-        "-dmidi-extension=midi",
-        "-dresolution=%d" % options.dpi,
-        sanitisedLyFileName
-    ]
-    output_divider_line()
-    safeRun(cmd, exitcode=9)
-    output_divider_line()
-    progress("Generated PDF, PNG and MIDI files")
+    runLilyPond(sanitisedLyFileName, options.dpi)
 
     notesImages = getNoteImages()
     picWidth = getImageWidth(notesImages)
