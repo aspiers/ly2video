@@ -1507,7 +1507,7 @@ def parseOptions():
                            'timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
     parser.add_option("-d", "--debug", dest="debug",
-                      help="don't remove temporary working files",
+                      help="enable debugging mode",
                       action="store_true", default=False)
     parser.add_option("-k", "--keep", dest="keepTempFiles",
                       help="don't remove temporary working files",
