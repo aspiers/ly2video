@@ -56,6 +56,12 @@ C_MAJOR_SCALE_STEPS = {
     6 : 11, # b
 }
 
+def getLyLines(fileName):
+    fLyFile = open(fileName, "r")
+    lySrcLines = [ line for line in fLyFile.readlines() ]
+    fLyFile.close()
+    return lySrcLines
+
 def findTopStaffLine(image, lineLength):
     """
     Returns the coordinates of the left-most pixel in the top line of
@@ -1923,12 +1929,7 @@ def main():
                    options.width, options.height, options.dpi,
                    numStaffLines, titleText, lilypondVersion)
 
-    # load .ly file into memory
-    fLyFile = open(sanitisedLyFileName, "r")
-    lySrcLines = []
-    for line in fLyFile.readlines():
-        lySrcLines.append(line)
-    fLyFile.close()
+    lySrcLines = getLyLines(sanitisedLyFileName)
 
     progress("Generating PDF, PNG and MIDI files ...")
     os.chdir(tmpPath())
