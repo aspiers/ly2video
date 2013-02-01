@@ -68,7 +68,9 @@ Huge credits for the initial implementation go to Jiří "FireTight"
 Szabó, who wrote it as part of his Bachelor's degree.  If you are
 lucky enough to understand Czech, you can read his thesis on ly2video
 in the `doc/thesis/` subdirectory, or
-[online](http://is.muni.cz/th/359741/fi_b/text_prace.pdf) :-)
+[online](http://is.muni.cz/th/359741/fi_b/text_prace.pdf) :-) Work on
+an English translation has begun but is unlikely to be finished any
+time soon unless someone else volunteers to help out.
 
 ## License
 
