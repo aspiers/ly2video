@@ -60,7 +60,7 @@ can potentially help you out too.
 
 If you know how to fix a problem or contribute an enhancement, you are
 extremely welcome to [fork this repository](https://github.com/aspiers/ly2video/fork_select),
-commit your fix, and then send me a [pull request](https://help.github.com/articles/using-pull-requests)!
+commit your fix, and then send a [pull request](https://help.github.com/articles/using-pull-requests)!
 
 ## Acknowledgements
 
