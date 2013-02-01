@@ -765,7 +765,7 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
     stream.
 
     If none of the MIDI events are found to have corresponding
-    notation (e.g.  notes hidden via \hideNotes, and non-root notes
+    notation (e.g. notes hidden via \hideNotes, and non-root notes
     within a chord), they are skipped and the containing tick is
     removed from midiTicks.
 
