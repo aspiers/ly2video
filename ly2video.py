@@ -62,6 +62,21 @@ def getLyLines(fileName):
     fLyFile.close()
     return lySrcLines
 
+def preprocessLyFile(lyFile):
+    versionConversion = False
+    if getLyVersion(lyFile) != "2.14.2":
+        newLyFile = tmpPath('converted.ly')
+        if os.system("convert-ly '%s' > '%s'" % (lyFile, newLyFile)) == 0:
+            return True, newLyFile
+        else:
+            warn("Convert of input file has failed. " +
+                 "This could cause some problems.")
+
+    newLyFile = tmpPath('unconverted.ly')
+    os.copy(lyFile, newLyFile)
+    output_divider_line()
+    return False, newLyFile
+
 def findTopStaffLine(image, lineLength):
     """
     Returns the coordinates of the left-most pixel in the top line of
@@ -1908,19 +1923,7 @@ def main():
     lyFile = options.input
 
     # if it's not 2.14.2, try to convert it
-    versionConversion = False
-    if getLyVersion(lyFile) != "2.14.2":
-        newLyFile = tmpPath('converted.ly')
-        if os.system("convert-ly '%s' > '%s'" % (lyFile, newLyFile)) == 0:
-            lyFile = newLyFile
-            versionConversion = True
-        else:
-            warn("Convert of input file has failed. " +
-                 "This could cause some problems.")
-            newLyFile = tmpPath('unconverted.ly')
-            os.copy(lyFile, newLyFile)
-            lyFile = newLyFile
-            output_divider_line()
+    versionConversion, lyFile = preprocessLyFile(lyFile)
 
     numStaffLines = getNumStaffLines(lyFile, options.dpi)
 
