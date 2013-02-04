@@ -21,6 +21,8 @@
 # For more information about this program, please visit
 # <https://github.com/aspiers/ly2video/>.
 
+VERSION = '0.3.1'
+
 import collections
 import copy
 import os
@@ -1513,12 +1515,24 @@ def parseOptions():
     parser.add_option("-k", "--keep", dest="keepTempFiles",
                       help="don't remove temporary working files",
                       action="store_true", default=False)
+    parser.add_option("-v", "--version", dest="showVersion",
+                      help="show program version",
+                      action="store_true", default=False)
 
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(0)
 
     options, args = parser.parse_args()
+
+    if options.showVersion:
+        print """ly2video %s
+
+Copyright (C) 2012 Jiri "FireTight" Szabo, Adam Spiers
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.""" % VERSION
+        sys.exit(0)
 
     if options.debug:
         global DEBUG
