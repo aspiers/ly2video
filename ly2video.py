@@ -1206,13 +1206,17 @@ class VideoFrameWriter(object):
             cropBottom = height
 
         if cropTop > topMarginSize:
-            fatal("Would have to crop %d pixels below top of visible content!"
-                 % (cropTop - topMarginSize))
+            fatal("Would have to crop %d pixels below top of visible content! "
+                  "Try increasing the video height to at least %d, "
+                  "or decreasing the resolution DPI."
+                  % (cropTop - topMarginSize, nonWhiteRows))
             cropTop = topMarginSize
 
         if cropBottom < bottomY:
-            fatal("Would have to crop %d pixels above bottom of visible content!"
-                 % (bottomY - cropBottom))
+            fatal("Would have to crop %d pixels above bottom of visible content! "
+                  "Try increasing the video height to at least %d, "
+                  "or decreasing the resolution DPI."
+                  % (bottomY - cropBottom, nonWhiteRows))
             cropBottom = bottomY
 
         progress("Will crop from y=%d to y=%d" % (cropTop, cropBottom))
