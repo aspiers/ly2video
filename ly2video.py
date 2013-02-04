@@ -89,9 +89,10 @@ def runLilyPond(lyFileName, dpi, *args):
     ] + list(args) + [ lyFileName ]
     output_divider_line()
     os.chdir(tmpPath())
-    safeRun(cmd, exitcode=9)
+    output = safeRun(cmd, exitcode=9)
     output_divider_line()
     progress("Generated PDF, PNG and MIDI files")
+    return output
 
 def findTopStaffLine(image, lineLength):
     """
