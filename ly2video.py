@@ -239,6 +239,15 @@ def generateTitle(titleText, width, height, fps, titleLength):
              (totalFrames, totalFrames))
     return 0
 
+def mmToPixel(mm, dpi):
+    pixelsPerMm = dpi / 25.4
+    return mm * pixelsPerMm
+
+def pixelsToMm(pixels, dpi):
+    inchesPerPixel = 1.0 / dpi
+    mmPerPixel = inchesPerPixel * 25.4
+    return pixels * mmPerPixel
+
 def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     """
     Writes own paper block into given file.
@@ -249,9 +258,6 @@ def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     - height        pixel height of frames (and video)
     - numOfLines:   number of staff lines
     """
-    inchesPerPixel = 1.0 / dpi
-    mmPerPixel = inchesPerPixel * 25.4
-
     fFile.write("\\paper {\n")
 
     # one-line-breaking is available as of 2.15.41:
@@ -273,10 +279,10 @@ sudden jumps in your video.
         fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * mmPerPixel))
         fFile.write("   paper-height  = %d\\mm\n" % round(height * mmPerPixel))
 
-    fFile.write("   top-margin    = %d\\mm\n" % round(height * mmPerPixel / 5))
-    fFile.write("   bottom-margin = %d\\mm\n" % round(height * mmPerPixel / 5))
-    fFile.write("   left-margin   = %d\\mm\n" % round(width * mmPerPixel / 2))
-    fFile.write("   right-margin  = %d\\mm\n" % round(width * mmPerPixel / 2))
+    fFile.write("   top-margin    = %d\\mm\n" % round(pixelsToMm(height, dpi) / 5))
+    fFile.write("   bottom-margin = %d\\mm\n" % round(pixelsToMm(height, dpi) / 5))
+    fFile.write("   left-margin   = %d\\mm\n" % round(pixelsToMm(width , dpi) / 2))
+    fFile.write("   right-margin  = %d\\mm\n" % round(pixelsToMm(width , dpi) / 2))
 
     if not oneLineBreaking:
         fFile.write("   print-page-number = ##f\n")
