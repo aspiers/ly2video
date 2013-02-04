@@ -1736,24 +1736,16 @@ def getImageWidth(notesImages):
     del tmpImage
     return picWidth
 
-def getNumStaffLines(lyFile, dpi):
+def getNumStaffLines(lyFileName, dpi):
     # generate preview of notes
-    cmd = [
-        "lilypond",
+    runLilyPond(
+        lyFileName, dpi,
         "-dpreview",
         "-dprint-pages=#f",
-        "-dresolution=%d" % dpi,
-        lyFile
-    ]
-    progress("Generating preview from %s ..." % lyFile)
-    output_divider_line()
-    os.chdir(tmpPath())
-    safeRun(cmd, exitcode=7)
-    output_divider_line()
-    progress("Generated preview from %s" % lyFile)
+    )
 
     # move generated files into temporary directory
-    dirname, filename = os.path.split(lyFile)
+    dirname, filename = os.path.split(lyFileName)
     if dirname != tmpPath():
         basename, suffix = os.path.splitext(filename)
         for ext in ('png', 'eps', 'pdf'):
