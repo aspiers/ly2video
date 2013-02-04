@@ -77,7 +77,7 @@ def preprocessLyFile(lyFile):
     output_divider_line()
     return False, newLyFile
 
-def runLilyPond(lyFileName, dpi):
+def runLilyPond(lyFileName, dpi, *args):
     progress("Generating PDF, PNG and MIDI files ...")
     cmd = [
         "lilypond",
@@ -85,9 +85,8 @@ def runLilyPond(lyFileName, dpi):
         "--png",
         "-dpoint-and-click",
         "-dmidi-extension=midi",
-        "-dresolution=%d" % dpi,
-        lyFileName
-    ]
+        "-dresolution=%d" % dpi
+    ] + list(args) + [ lyFileName ]
     output_divider_line()
     os.chdir(tmpPath())
     safeRun(cmd, exitcode=9)
