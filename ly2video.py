@@ -264,20 +264,13 @@ def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     #   https://code.google.com/p/lilypond/issues/detail?id=2570
     #   https://codereview.appspot.com/6248056/
     #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
-    oneLineBreaking = False
-    if StrictVersion(lilypondVersion) >= StrictVersion('2.15.41'):
-        oneLineBreaking = True
-    else:
-        warn("""You have LilyPond %s which does not support
+    if StrictVersion(lilypondVersion) < StrictVersion('2.15.41'):
+        fatal("""You have LilyPond %s which does not support
 infinitely long lines.  Upgrade to >= 2.15.41 to avoid
 sudden jumps in your video.
 """ % lilypondVersion)
 
-    if oneLineBreaking:
-        fFile.write("   page-breaking = #ly:one-line-breaking\n")
-    else:
-        fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * mmPerPixel))
-        fFile.write("   paper-height  = %d\\mm\n" % round(height * mmPerPixel))
+    fFile.write("   page-breaking = #ly:one-line-breaking\n")
 
     topPixels    = height / 5
     bottomPixels = height / 5
@@ -293,9 +286,6 @@ sudden jumps in your video.
     fFile.write("   bottom-margin = %d\\mm\n" % bottomMm)
     fFile.write("   left-margin   = %d\\mm\n" % leftMm)
     fFile.write("   right-margin  = %d\\mm\n" % rightMm)
-
-    if not oneLineBreaking:
-        fFile.write("   print-page-number = ##f\n")
 
     fFile.write("}\n")
 
@@ -444,8 +434,7 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     Returns:
       - notesAndTies: a sorted list of (lineNum, charNum) tuples
         containing the locations of notes and ties in the .ly file
-      - notePositionsByPage: a list with each top-level item
-        representing a page, where each page is a sorted list of
+      - notePositions: a sorted list of
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
         representing opposite corners of the rectangle.
       - tokens: a dict mapping every (lineNum, charNum) tuple to the
@@ -453,20 +442,21 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
         to compare notes in the source with notes in the MIDI
       - parser: the MusicTokenizer() object which can be reused for
         pitch calculations
-      - pageWidth: the width of the first PDF page in PDF units (all
-        pages are assumed to have the same width)
+      - pageWidth: the width of the PDF page in PDF units
     """
 
     # open PDF file with external library and gets width of page (in PDF measures)
     fPdf = file(pdfFileName, "rb")
     pdfFile = PdfFileReader(fPdf)
     numPages = pdfFile.getNumPages()
-    progress("PDF file %s has %d page(s)" % (pdfFileName, numPages))
-    pageWidth = pdfFile.getPage(0).getObject()['/MediaBox'][2]
-    progress("Width of first PDF page is %f" % pageWidth)
+    if numPages != 1:
+        fatal("PDF file %s has %d page(s)" % (pdfFileName, numPages))
+
+    page = pdfFile.getPage(0)
+    pageWidth = page.getObject()['/MediaBox'][2]
+    progress("Width of PDF page is %f" % pageWidth)
 
     notesAndTies = set()
-    notePositionsByPage = []
     tokens = {}
 
     # ly parser (from Frescobaldi)
@@ -485,108 +475,104 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
 
     escapedLySrcFileName = urllib.quote(lySrcFileName)
 
-    for pageNumber in xrange(numPages):
-        # get informations about page
-        page = pdfFile.getPage(pageNumber)
-        info = page.getObject()
+    info = page.getObject()
 
-        if not info.has_key('/Annots'):
+    if not info.has_key('/Annots'):
+        fatal("Couldn't find any annotations in PDF")
+
+    links = info['/Annots']
+
+    # stores wanted positions
+    notePositions = []
+
+    for link in links:
+        # Get (x1, y1, x2, y2) coordinates of opposite corners
+        # of the annotated rectangle
+        coords = link.getObject()['/Rect']
+        # if it's not link into .ly, then ignore it
+        uri = link.getObject()['/A']['/URI']
+        if uri.find(escapedLySrcFileName) == -1:
             continue
+        # otherwise get coordinates into .ly file
+        lineNum, charNum, columnNum = uri.split(":")[-3:]
+        lineNum   = int(lineNum)   # counting from 1
+        charNum   = int(charNum)   # the start of the text,
+                                   # counting from 0
+        columnNum = int(columnNum) # the end of the text?
+        srcLine = lySrcLines[lineNum - 1]
 
-        links = info['/Annots']
+        # get name of note
+        token = parser.tokens(srcLine[charNum:]).next()
+        debug("PDF links to token '%s' at %d:%d" % (token, lineNum, charNum))
 
-        # stores wanted positions on single page
-        notePositionsInPage = []
+        # Is the note immediately followed by \rest?  If so,
+        # it's actually a rest not a note:
+        # http://lilypond.org/doc/v2.14/Documentation/notation/writing-rests
+        # We default to assuming it's a note, in case there
+        # isn't any other note to the right of it.
+        isNote = True
 
-        for link in links:
-            # Get (x1, y1, x2, y2) coordinates of opposite corners
-            # of the annotated rectangle
-            coords = link.getObject()['/Rect']
-            # if it's not link into .ly, then ignore it
-            uri = link.getObject()['/A']['/URI']
-            if uri.find(escapedLySrcFileName) == -1:
-                continue
-            # otherwise get coordinates into .ly file
-            lineNum, charNum, columnNum = uri.split(":")[-3:]
-            lineNum   = int(lineNum)   # counting from 1
-            charNum   = int(charNum)   # the start of the text,
-                                       # counting from 0
-            columnNum = int(columnNum) # the end of the text?
-            srcLine = lySrcLines[lineNum - 1]
+        restOfLine = srcLine[charNum + len(token):]
+        for rightToken in parser.tokens(restOfLine):
+            # if there is another note (or rest etc.) to the
+            # right of it, it's a real note
+            if isinstance(rightToken, MusicTokenizer.Pitch):
+                break
+            # if \rest appears after it and before the next
+            # note, it's a rest not a note, so we ignore it
+            elif isinstance(rightToken, Tokenizer.Command) and \
+                 rightToken == '\\rest':
+                isNote = False
+                break
 
-            # get name of note
-            token = parser.tokens(srcLine[charNum:]).next()
-            debug("PDF links to token '%s' at %d:%d" % (token, lineNum, charNum))
+        # If the note is not followed by \rest, and it's a
+        # note rather than an "r"-style rest or it's a tie, we
+        # keep track of it.  In the next phase,
+        # getFilteredIndices() will filter out notes to the
+        # right of ties.
+        if isNote:
+            isNote = isinstance(token, MusicTokenizer.Pitch) and \
+                     str(token) not in "rR"
+            # Note "a-2~b" will rest in two Unparsed tokens: "-2~"
+            # and "~", but we don't want to count both.  Also, a
+            # tie token could contain other artifacts, e.g. "~["
+            # or "~]".  So we have to be careful about how we do
+            # the comparison.
+            if isNote or token[0] == '~':
+                # add it
+                sourceCoords = (lineNum, charNum)
+                # We make the first value in the tuple the
+                # coordinate of the left side of the box, in order
+                # that the tuples notePositions will be
+                # sorted primarily left to right in the order they
+                # appear in the PDF, and secondarily by the order
+                # they appear in the source file.  This fixes the
+                # case where tokens in the source file are linked
+                # multiple times from the PDF, which can happen if
+                # they are contained by a
+                #
+                #     myMusic = { ... }
+                #
+                # declaration which is then invoked multiple # times:
+                #
+                #     \myMusic
+                #     ...
+                #     \myMusic
+                notePositions.append((coords[0], sourceCoords, coords))
+                notesAndTies.add(sourceCoords)
+                tokens[sourceCoords] = \
+                    absolutePitch(absolutePitches, token,
+                                  lineNum, charNum, parser)
+                debug("    added token '%s' @ %d:%d" % (token, lineNum, charNum))
+            elif not isNote:
+                debug("    ! isNote, class %s" % token.__class__)
 
-            # Is the note immediately followed by \rest?  If so,
-            # it's actually a rest not a note:
-            # http://lilypond.org/doc/v2.14/Documentation/notation/writing-rests
-            # We default to assuming it's a note, in case there
-            # isn't any other note to the right of it.
-            isNote = True
+    if not notePositions:
+        fatal("Didn't find any notes; aborting! "
+              "Maybe you got hit by https://github.com/aspiers/ly2video/issues/31 ?")
 
-            restOfLine = srcLine[charNum + len(token):]
-            for rightToken in parser.tokens(restOfLine):
-                # if there is another note (or rest etc.) to the
-                # right of it, it's a real note
-                if isinstance(rightToken, MusicTokenizer.Pitch):
-                    break
-                # if \rest appears after it and before the next
-                # note, it's a rest not a note, so we ignore it
-                elif isinstance(rightToken, Tokenizer.Command) and \
-                     rightToken == '\\rest':
-                    isNote = False
-                    break
-
-            # If the note is not followed by \rest, and it's a
-            # note rather than an "r"-style rest or it's a tie, we
-            # keep track of it.  In the next phase,
-            # getFilteredIndices() will filter out notes to the
-            # right of ties.
-            if isNote:
-                isNote = isinstance(token, MusicTokenizer.Pitch) and \
-                         str(token) not in "rR"
-                # Note "a-2~b" will rest in two Unparsed tokens: "-2~"
-                # and "~", but we don't want to count both.  Also, a
-                # tie token could contain other artifacts, e.g. "~["
-                # or "~]".  So we have to be careful about how we do
-                # the comparison.
-                if isNote or token[0] == '~':
-                    # add it
-                    sourceCoords = (lineNum, charNum)
-                    # We make the first value in the tuple the
-                    # coordinate of the left side of the box, in order
-                    # that the tuples notePositionsInPage will be
-                    # sorted primarily left to right in the order they
-                    # appear in the PDF, and secondarily by the order
-                    # they appear in the source file.  This fixes the
-                    # case where tokens in the source file are linked
-                    # multiple times from the PDF, which can happen if
-                    # they are contained by a
-                    #
-                    #     myMusic = { ... }
-                    #
-                    # declaration which is then invoked multiple # times:
-                    #
-                    #     \myMusic
-                    #     ...
-                    #     \myMusic
-                    notePositionsInPage.append((coords[0], sourceCoords, coords))
-                    notesAndTies.add(sourceCoords)
-                    tokens[sourceCoords] = \
-                        absolutePitch(absolutePitches, token,
-                                      lineNum, charNum, parser)
-                    debug("    added token '%s' @ %d:%d" % (token, lineNum, charNum))
-                elif not isNote:
-                    debug("    ! isNote, class %s" % token.__class__)
-
-        if not notePositionsInPage:
-            fatal("Didn't find any notes on page; aborting! "
-                  "Maybe you got hit by https://github.com/aspiers/ly2video/issues/31 ?")
-
-        # sort wanted positions on that page and add it into whole wanted positions
-        notePositionsInPage.sort()
-        notePositionsByPage.append(notePositionsInPage)
+    # sort wanted positions
+    notePositions.sort()
 
     # close PDF file
     fPdf.close()
@@ -594,7 +580,7 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
     # create list of notes and ties and sort it
     notesAndTies = list(notesAndTies)
     notesAndTies.sort()
-    return notePositionsByPage, notesAndTies, tokens, parser, pageWidth
+    return notePositions, notesAndTies, tokens, parser, pageWidth
 
 def absolutePitch(absolutePitches, token, lineNum, charNum, parser):
     absolutePitchText = \
@@ -605,135 +591,111 @@ def absolutePitch(absolutePitches, token, lineNum, charNum, parser):
         return absolutePitchToken
     return token
 
-def getFilteredIndices(notePositionsByPage, notesAndTies, lySrcLines, imageWidth, pageWidth):
+def getFilteredIndices(notePositions, notesAndTies, lySrcLines, imageWidth, pageWidth):
     """
-    Goes through notePositionsByPage, filtering out anything that
+    Goes through notePositions, filtering out anything that
     won't generate a MIDI NoteOn event, converting each note's
     coordinate into an index (i.e. the x-coordinate of the center of
     the note in the PNG file which contains it), and merging indices
     which are within +/- 10 pixels of each other.
 
     Parameters
-      - notePositionsByPage: a list with each top-level item
-        representing a page, where each page is a sorted list of
+      - notePositions: a sorted list of
         ((lineNum, charNum), coords) tuples.  coords is (x1,y1,x2,y2)
         representing opposite corners of the rectangle.
       - notesAndTies: a sorted list of (lineNum, charNum) tuples
         containing the locations of notes and ties in the .ly file
       - lySrcLines: loaded *.ly file in memory (list)
       - imageWidth: width of PNG file(s)
-      - pageWidth: the width of the first PDF page in PDF units (all
-        pages are assumed to have the same width)
+      - pageWidth: the width of the PDF page in PDF units
 
     Returns:
-      - indexNoteSourcesByPage:
-            a list of dicts, one per page, mapping each index to a
+      - indexNoteSources:
+            a dict mapping each index to a
             list of (lineNum, colNum) tuples in the .ly source file
             corresponding to the notes and/or ties at that index, e.g.
-                [
-                    # page 1
-                    {
-                        ...
-                        123 : [    # index
-                            (37, 2), # note at index 123, line 37 col 2
-                            (37, 5), # note at index 123, line 37 col 5
-                        ],
-                        128 :
-                        ...
-                    }
-
-                    # page 2
-                    {
-                        ...
-                    }
-                ]
-      - noteIndicesByPage:
-            a list of sorted lists, one per page, containing
-            all the indices on that page in order, e.g.
-                [
-                    # page 1
-                    [ 123, 137, 178 ... ],
-                    # page 2
-                    [ ... ],
-                ]
+                {
+                    ...
+                    123 : [    # index
+                        (37, 2), # note at index 123, line 37 col 2
+                        (37, 5), # note at index 123, line 37 col 5
+                    ],
+                    128 :
+                    ...
+                }
+      - noteIndices:
+            a sorted list containing all the indices in order
     """
-    indexNoteSourcesByPage = []
-    noteIndicesByPage = []
+    indexNoteSources = []
+    noteIndices = []
 
     progress("Calculating indices and removing silent notes ...")
 
-    for pageNum, notePositionsInPage in enumerate(notePositionsByPage):
-        parser = Tokenizer()
-        # co-ordinates in the .ly source of notes, grouped by index
-        # (within one page)
-        indexNoteSourcesInPage = {}
+    parser = Tokenizer()
+    # co-ordinates in the .ly source of notes, grouped by index
+    indexNoteSources = {}
 
-        # Notes that are preceded by tie and will not generate
-        # a MIDI NoteOn event
-        silentNotes = []
+    # Notes that are preceded by tie and will not generate
+    # a MIDI NoteOn event
+    silentNotes = []
 
-        for (left, linkLy, coords) in notePositionsInPage: # this is already sorted
-            lineNum, charNum = linkLy
-            # get that token
-            token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
-            debug("PDF box (%d, %d, %d, %d) linked to token '%s' @ %d:%d" %
-                  tuple(list(coords) + [token, lineNum, charNum]))
+    for (left, linkLy, coords) in notePositions: # this is already sorted
+        lineNum, charNum = linkLy
+        # get that token
+        token = parser.tokens(lySrcLines[lineNum - 1][charNum:]).next()
+        debug("PDF box (%d, %d, %d, %d) linked to token '%s' @ %d:%d" %
+              tuple(list(coords) + [token, lineNum, charNum]))
 
-            if isinstance(token, MusicTokenizer.PitchWord):
-                # It's a note; if it's silent, remove it and ignore it
-                if linkLy in silentNotes:
-                    silentNotes.remove(linkLy)
-                    debug("    removed silent note %s" % token)
-                    continue
-                # otherwise get its index in pixels
-                xcenter = (coords[0] + coords[2]) / 2
-                noteIndex = int(round(xcenter * imageWidth / pageWidth))
-                # add that index into indices
-                if noteIndex not in indexNoteSourcesInPage:
-                    indexNoteSourcesInPage[noteIndex] = []
-                indexNoteSourcesInPage[noteIndex].append(linkLy)
-                debug("    added index %d" % noteIndex)
-            # The comments in getNotePositions() about the "~" string
-            # comparison apply here too:
-            elif token[0] == "~":
-                # It's a tie.
-                # If next note isn't in silent notes, add it
-                nextNoteCoords = notesAndTies[notesAndTies.index(linkLy) + 1]
-                if nextNoteCoords not in silentNotes:
-                    silentNotes.append(nextNoteCoords)
-                    debug("    marked note @ %d:%d as silent" % nextNoteCoords)
-                # otherwise add next one (after the last silent one (if it's tie of harmony))
-                else:
-                    lastSilentSrcIndex = notesAndTies.index(silentNotes[-1])
-                    srcIndexAfterLastSilent = lastSilentSrcIndex + 1
-                    coordsAfterLastSilent = notesAndTies[srcIndexAfterLastSilent]
-                    silentNotes.append(coordsAfterLastSilent)
-                    debug("    marked note @ %d:%d after last silent one as silent" %
-                          coordsAfterLastSilent)
+        if isinstance(token, MusicTokenizer.PitchWord):
+            # It's a note; if it's silent, remove it and ignore it
+            if linkLy in silentNotes:
+                silentNotes.remove(linkLy)
+                debug("    removed silent note %s" % token)
+                continue
+            # otherwise get its index in pixels
+            xcenter = (coords[0] + coords[2]) / 2
+            noteIndex = int(round(xcenter * imageWidth / pageWidth))
+            # add that index into indices
+            if noteIndex not in indexNoteSources:
+                indexNoteSources[noteIndex] = []
+            indexNoteSources[noteIndex].append(linkLy)
+            debug("    added index %d" % noteIndex)
+        # The comments in getNotePositions() about the "~" string
+        # comparison apply here too:
+        elif token[0] == "~":
+            # It's a tie.
+            # If next note isn't in silent notes, add it
+            nextNoteCoords = notesAndTies[notesAndTies.index(linkLy) + 1]
+            if nextNoteCoords not in silentNotes:
+                silentNotes.append(nextNoteCoords)
+                debug("    marked note @ %d:%d as silent" % nextNoteCoords)
+            # otherwise add next one (after the last silent one (if it's tie of harmony))
             else:
-                fatal("didn't know what to do with %s" % repr(token))
+                lastSilentSrcIndex = notesAndTies.index(silentNotes[-1])
+                srcIndexAfterLastSilent = lastSilentSrcIndex + 1
+                coordsAfterLastSilent = notesAndTies[srcIndexAfterLastSilent]
+                silentNotes.append(coordsAfterLastSilent)
+                debug("    marked note @ %d:%d after last silent one as silent" %
+                      coordsAfterLastSilent)
+        else:
+            fatal("didn't know what to do with %s" % repr(token))
 
-        noteIndicesInPage = mergeNearbyIndices(indexNoteSourcesInPage)
+    noteIndices = mergeNearbyIndices(indexNoteSources)
 
-        # stores info about this page
-        indexNoteSourcesByPage.append(indexNoteSourcesInPage)
-        noteIndicesByPage.append(noteIndicesInPage)
+    progress("PDF: Calculated and merged indices.")
 
-        progress("PDF: Page %d/%d has been completed." %
-                 (pageNum + 1, len(notePositionsByPage)))
+    return indexNoteSources, noteIndices
 
-    return indexNoteSourcesByPage, noteIndicesByPage
-
-def mergeNearbyIndices(indexNoteSourcesInPage):
+def mergeNearbyIndices(indexNoteSources):
     """
-    Merges nearby note indices in the given page.  Any within +/- 10
+    Merges nearby note indices.  Any within +/- 10
     pixels of each other get merged into a single index.
 
     Parameters:
-      - indexNoteSourcesInPage:
+      - indexNoteSources:
             a dict mapping each index to a list of (lineNum, colNum)
             tuples in the .ly source corresponding to the notes at
-            that index within the page, e.g.
+            that index, e.g.
 
                 {
                     123 : [    # index
@@ -744,31 +706,31 @@ def mergeNearbyIndices(indexNoteSourcesInPage):
                 }
 
     Returns:
-      - a sorted list of all indices in the page, post merge
+      - a sorted list of all indices, post merge
 
-    indexNoteSourcesInPage is also adjusted according to the merging,
+    indexNoteSources is also adjusted according to the merging,
     as a side-effect.
     """
-    # gets all indices on one page and sort it
-    noteIndicesInPage = indexNoteSourcesInPage.keys()
-    noteIndicesInPage.sort()
+    # gets all indices and sort it
+    noteIndices = indexNoteSources.keys()
+    noteIndices.sort()
 
     # merges indices within +/- 10 pixels of each other
     skipNext = False
-    for index in noteIndicesInPage[:-1]:
+    for index in noteIndices[:-1]:
         if skipNext:
             skipNext = False
             continue
         # gets next index
-        nextIndex = noteIndicesInPage[noteIndicesInPage.index(index) + 1]
+        nextIndex = noteIndices[noteIndices.index(index) + 1]
         if index in xrange(nextIndex - 10, nextIndex + 10):
             debug("merging index %d with %d" % (index, nextIndex))
-            indexNoteSourcesInPage[index].extend(indexNoteSourcesInPage[nextIndex])
-            del indexNoteSourcesInPage[nextIndex]
-            noteIndicesInPage.remove(nextIndex)
+            indexNoteSources[index].extend(indexNoteSources[nextIndex])
+            del indexNoteSources[nextIndex]
+            noteIndices.remove(nextIndex)
             skipNext = True
 
-    return noteIndicesInPage
+    return noteIndices
 
 def pitchValue(token, parser):
     """
@@ -787,14 +749,13 @@ def pitchValue(token, parser):
 
     return pitch
 
-def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
+def alignIndicesWithTicks(indexNoteSources, noteIndices,
                           tokens, parser,
                           midiTicks, notesInTicks, pitchBends):
     """
-    Build a list of note indices (grouped by page) which align with
-    the ticks in midiTicks, by sequentially comparing the notes at
-    each index in the images with the notes at each tick in the MIDI
-    stream.
+    Build a list of note indices which align with the ticks in
+    midiTicks, by sequentially comparing the notes at each index in
+    the images with the notes at each tick in the MIDI stream.
 
     If none of the MIDI events are found to have corresponding
     notation (e.g. notes hidden via \hideNotes, and non-root notes
@@ -824,8 +785,8 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
       http://article.gmane.org/gmane.comp.gnu.lilypond.general/61500
 
     Parameters:
-      - indexNoteSourcesByPage: as returned by getFilteredIndices()
-      - noteIndicesByPage:      as returned by getFilteredIndices()
+      - indexNoteSources:       as returned by getFilteredIndices()
+      - noteIndices:            as returned by getFilteredIndices()
       - tokens:                 as returned by getNotePositions()
       - parser:                 as returned by getNotePositions()
       - midiTicks: a sorted list of which ticks contain NoteOn events.
@@ -835,15 +796,15 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
       - pitchBends:             as returned by getNotesInTicks()
 
     Returns:
-      - alignedNoteIndicesByPage:
-          a list of sorted lists, one per page, containing all the
-          indices on that page aligned in order with the MIDI ticks
+      - alignedNoteIndices:
+          a sorted lists containing all the
+          indices aligned in order with the MIDI ticks
 
     Side-effect:
       - entries may be removed from midiTicks (see above)
     """
 
-    alignedNoteIndicesByPage = []
+    alignedNoteIndices = []
 
     # index into list of MIDI ticks
     midiIndex = 0
@@ -853,126 +814,120 @@ def alignIndicesWithTicks(indexNoteSourcesByPage, noteIndicesByPage,
     # a total loss of synchronization between ticks and note indices.
     consecutiveTicksSkipped = 0
 
-    for pageNum, noteIndicesInPage in enumerate(noteIndicesByPage):
-        # final indices of notes on one page
-        alignedNoteIndicesInPage = []
+    # final indices of notes
+    alignedNoteIndices = []
 
-        indexNoteSourcesInPage = indexNoteSourcesByPage[pageNum]
+    # index into list of note indices
+    i = 0
 
-        # index into list of note indices
-        i = 0
+    while i < len(noteIndices):
+        if midiIndex == len(midiTicks):
+            fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
+                  (midiIndex, index))
 
-        while i < len(noteIndicesInPage):
-            if midiIndex == len(midiTicks):
-                fatal("Ran out of MIDI indices after %d. Current PDF index: %d" %
-                      (midiIndex, index))
+        index = noteIndices[i]
 
-            index = noteIndicesInPage[i]
-            indexNoteSources = indexNoteSourcesInPage[index]
+        tick = midiTicks[midiIndex]
+        debug("index %d, tick %d" % (index, tick))
 
-            tick = midiTicks[midiIndex]
-            debug("index %d, tick %d" % (index, tick))
-
-            if not tick in notesInTicks:
-                # This should mean that we reached the tick
-                # corresponding to the final EndOfTrackEvent
-                # (see getMidiEvents()).
-                midiIndex += 1
-                if midiIndex < len(midiTicks):
-                    fatal("    BUG: no notes in tick but more ticks still to go?!")
-                debug("    no notes in final tick %d" % tick)
-                continue
-
-            events = notesInTicks[tick]
-
-            # Build dicts tracking which pitches (modulo the octave)
-            # are present in the current tick and index.  Pitches will
-            # be removed from these as they match.
-            midiPitches = { }
-            for event in events:
-                pitch = event.get_pitch()
-                if event in pitchBends:
-                    pitch += float(pitchBends[event].get_pitch()) / 4096
-                midiPitches[pitch] = event
-
-            indexPitches = { }
-            for indexNoteSource in indexNoteSources:
-                token = tokens[indexNoteSource]
-                lineNum, colNum = indexNoteSource
-                notePitch = pitchValue(token, parser)
-                indexPitches[float(notePitch)] = (token, lineNum, colNum)
-
-            debug("    midiPitches:  %s" % repr(midiPitches))
-            debug("    indexPitches: %s" % repr(indexPitches))
-
-            # Check every note from the source is in the MIDI tick.
-            # If only some are, abort with an error.  If none are, we
-            # skip this MIDI tick, assuming it corresponds to a
-            # transparent note caused by \hideNotes or similar, or a
-            # chord.
-            matchCount = 0
-            for indexPitch in indexPitches.keys():
-                token, lineNum, colNum = indexPitches[indexPitch]
-                if indexPitch in midiPitches:
-                    matchCount += 1
-                    del midiPitches[indexPitch]
-                    del indexPitches[indexPitch]
-                    debug("        matched '%s' @ %d:%d to MIDI pitch %d" %
-                          (token, lineNum, colNum, indexPitch))
-
-            if matchCount == 0:
-                # No pitches in this index matched this MIDI tick -
-                # maybe it was a note hidden by \hideNotes, or notes
-                # from a chord.  So let's skip the tick.
-                consecutiveTicksSkipped += 1
-                midiTicks.pop(midiIndex)
-                msg = "    WARNING: skipping MIDI tick %d; contents:" % tick
-                for event in events:
-                    msg += ("\n        pitch %d length %d" %
-                            (event.get_pitch(), event.length))
-                stderr(msg)
-                if consecutiveTicksSkipped >= 5:
-                    fatal("Wanted to skip 5 consecutive MIDI ticks "
-                          "which suggests a catastrophic loss of "
-                          "synchronization; aborting.")
-                continue
-
-            # If we get this far, regardless of what we found, we're
-            # going to keep this tick and move onto the next one now.
+        if not tick in notesInTicks:
+            # This should mean that we reached the tick
+            # corresponding to the final EndOfTrackEvent
+            # (see getMidiEvents()).
             midiIndex += 1
+            if midiIndex < len(midiTicks):
+                fatal("    BUG: no notes in tick but more ticks still to go?!")
+            debug("    no notes in final tick %d" % tick)
+            continue
 
-            if midiPitches:
-                debug("    WARNING: only matched %d/%d MIDI notes "
-                      "at index %d tick %d" %
-                      (matchCount, len(events), index, tick))
-                for event in midiPitches.values():
-                    debug("        pitch %d length %d" %
-                          (event.get_pitch(), event.length))
-                if not indexPitches:
-                    continue
+        events = notesInTicks[tick]
 
-            if indexPitches:
-                err = ("only matched %d/%d notes at index %d with tick %d" %
-                       (matchCount, len(indexNoteSources), index, tick))
-                for indexPitch in indexPitches:
-                    token, lineNum, colNum = indexPitches[indexPitch]
-                    err += ("\n        pitch %d for '%s' @ %d:%d" %
-                            (indexPitch, token, lineNum, colNum))
-                fatal(err)
+        # Build dicts tracking which pitches (modulo the octave)
+        # are present in the current tick and index.  Pitches will
+        # be removed from these as they match.
+        midiPitches = { }
+        for event in events:
+            pitch = event.get_pitch()
+            if event in pitchBends:
+                pitch += float(pitchBends[event].get_pitch()) / 4096
+            midiPitches[pitch] = event
 
-            debug("    all pitches matched in this MIDI tick!")
-            alignedNoteIndicesInPage.append(index)
-            consecutiveTicksSkipped = 0
-            i += 1
+        indexPitches = { }
+        for indexNoteSource in indexNoteSources[index]:
+            print indexNoteSource
+            token = tokens[indexNoteSource]
+            lineNum, colNum = indexNoteSource
+            notePitch = pitchValue(token, parser)
+            indexPitches[float(notePitch)] = (token, lineNum, colNum)
 
-        # add indices on one page into final noteIndicesByPage
-        alignedNoteIndicesByPage.append(alignedNoteIndicesInPage)
+        debug("    midiPitches:  %s" % repr(midiPitches))
+        debug("    indexPitches: %s" % repr(indexPitches))
+
+        # Check every note from the source is in the MIDI tick.
+        # If only some are, abort with an error.  If none are, we
+        # skip this MIDI tick, assuming it corresponds to a
+        # transparent note caused by \hideNotes or similar, or a
+        # chord.
+        matchCount = 0
+        for indexPitch in indexPitches.keys():
+            token, lineNum, colNum = indexPitches[indexPitch]
+            if indexPitch in midiPitches:
+                matchCount += 1
+                del midiPitches[indexPitch]
+                del indexPitches[indexPitch]
+                debug("        matched '%s' @ %d:%d to MIDI pitch %d" %
+                      (token, lineNum, colNum, indexPitch))
+
+        if matchCount == 0:
+            # No pitches in this index matched this MIDI tick -
+            # maybe it was a note hidden by \hideNotes, or notes
+            # from a chord.  So let's skip the tick.
+            consecutiveTicksSkipped += 1
+            midiTicks.pop(midiIndex)
+            msg = "    WARNING: skipping MIDI tick %d; contents:" % tick
+            for event in events:
+                msg += ("\n        pitch %d length %d" %
+                        (event.get_pitch(), event.length))
+            stderr(msg)
+            if consecutiveTicksSkipped >= 5:
+                fatal("Wanted to skip 5 consecutive MIDI ticks "
+                      "which suggests a catastrophic loss of "
+                      "synchronization; aborting.")
+            continue
+
+        # If we get this far, regardless of what we found, we're
+        # going to keep this tick and move onto the next one now.
+        midiIndex += 1
+
+        if midiPitches:
+            debug("    WARNING: only matched %d/%d MIDI notes "
+                  "at index %d tick %d" %
+                  (matchCount, len(events), index, tick))
+            for event in midiPitches.values():
+                debug("        pitch %d length %d" %
+                      (event.get_pitch(), event.length))
+            if not indexPitches:
+                continue
+
+        if indexPitches:
+            err = ("only matched %d/%d notes at index %d with tick %d" %
+                   (matchCount, len(indexNoteSources), index, tick))
+            for indexPitch in indexPitches:
+                token, lineNum, colNum = indexPitches[indexPitch]
+                err += ("\n        pitch %d for '%s' @ %d:%d" %
+                        (indexPitch, token, lineNum, colNum))
+            fatal(err)
+
+        debug("    all pitches matched in this MIDI tick!")
+        alignedNoteIndices.append(index)
+        consecutiveTicksSkipped = 0
+        i += 1
 
     if midiIndex < len(midiTicks) - 1:
         warn("ran out of notes in PDF at MIDI tick %d (%d/%d ticks)" % \
                  (midiTicks[midiIndex], midiIndex + 1, len(midiTicks)))
 
-    return alignedNoteIndicesByPage
+    return alignedNoteIndices
 
 def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
                    midiTicks, notesInTicks, pitchBends):
@@ -982,12 +937,12 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
     PNG image containing it.  This relies on the fact that the PDF
     file was generated with -dpoint-and-click.
 
-    It iterates through PDF pages:
+    It iterates through PDF:
 
     - first pass: finds the position in the PDF file and in the *.ly
       code of every note or tie
 
-    - second pass: goes through notePositionsByPage separating notes and
+    - second pass: goes through notePositions separating notes and
       ties and merging near indices (e.g. 834, 835, 833, ...)
 
     Then it sequentially compares the indices of the images with
@@ -1006,20 +961,20 @@ def getNoteIndices(pdfFileName, imageWidth, lySrcFileName, lySrcLines,
     - notesInTicks:     how many notes starts in each tick
     - pitchBends:       as returned by getNotesInTicks()
 
-    Returns a list of note indices in the PNG image, grouped by page.
+    Returns a list of note indices in the PNG image.
     """
 
-    notePositionsByPage, notesAndTies, tokens, parser, pageWidth = \
+    notePositions, notesAndTies, tokens, parser, pageWidth = \
         getNotePositions(pdfFileName, lySrcFileName, lySrcLines)
 
     output_divider_line()
 
-    indexNoteSourcesByPage, noteIndicesByPage = \
-        getFilteredIndices(notePositionsByPage, notesAndTies,
+    indexNoteSources, noteIndices = \
+        getFilteredIndices(notePositions, notesAndTies,
                            lySrcLines, imageWidth, pageWidth)
 
-    return alignIndicesWithTicks(indexNoteSourcesByPage,
-                                 noteIndicesByPage, tokens, parser,
+    return alignIndicesWithTicks(indexNoteSources,
+                                 noteIndices, tokens, parser,
                                  midiTicks, notesInTicks, pitchBends)
 
 class VideoFrameWriter(object):
@@ -1028,8 +983,8 @@ class VideoFrameWriter(object):
     Each frame is written to disk as a PNG file.
 
     Counts time between starts of two notes, gets their positions on
-    image and generates needed amount of frames. The index of last
-    note on every page is "doubled", so it waits at the end of page.
+    image and generates needed amount of frames. The index of the last
+    note is repeated, so that every index can be the left one in a pair.
     The required number of frames for every pair is computed as a real
     number and because a fractional number of frames can't be
     generated, they are stored in dropFrame and if that is > 1, it
@@ -1082,11 +1037,11 @@ class VideoFrameWriter(object):
         self.leftMargin = leftMargin
         self.rightMargin = rightMargin
 
-    def write(self, noteIndicesByPage, notesImages):
+    def write(self, noteIndices, notesImage):
         """
         Params:
-          - noteIndicesByPage: indices of notes in pictures
-          - notesImages:       names of that images (list of strings)
+          - noteIndices: indices of notes in pictures
+          - notesImage:  filename of the image
         """
         # folder to store frames for video
         if not os.path.exists("notes"):
@@ -1106,8 +1061,7 @@ class VideoFrameWriter(object):
         if not DEBUG:
             progress("A dot is displayed for every 10 frames generated.")
 
-        for pageNum, indices in enumerate(noteIndicesByPage):
-            self.writePage(pageNum, indices, notesImages[pageNum])
+        self.writePage(0, noteIndices, notesImage)
 
     def writePage(self, pageNum, indices, notesImage):
         """
@@ -1749,38 +1703,14 @@ def getLyVersion(fileName):
 
     return version
 
-def getNoteImages():
+def getImageWidth(notesImage):
     """
-    Returns a sorted list of the generated PNG files.
+    Get width of image in pixels.  This will allow us to convert PDF
+    coordinates into dimensions measured in pixels.
     """
-    notesImages = []
-    for fileName in os.listdir(tmpPath()):
-        m = re.search('(?:.*/)?sanitised(?:-page(\d+))?\.png$', fileName)
-        if m:
-            progress("Found generated image: %s" % fileName)
-            if m.group(1):
-                i = int(m.group(1))
-            else:
-                i = 1
-            newFileName = "sanitised-page%04d.png" % i
-            newPath = tmpPath(newFileName)
-
-            if newFileName != fileName:
-                os.rename(fileName, newPath)
-                progress("  renamed -> %s" % newFileName)
-            notesImages.append(newPath)
-    notesImages.sort()
-    return notesImages
-
-def getImageWidth(notesImages):
-    """
-    Get width of first image in pixels (we assume they all have the
-    same width).  This will allow us to convert PDF coordinates into
-    dimensions measured in pixels.
-    """
-    tmpImage = Image.open(notesImages[0])
+    tmpImage = Image.open(notesImage)
     picWidth = tmpImage.size[0]
-    progress("Width of %s is %d pixels" % (notesImages[0], picWidth))
+    progress("Width of %s is %d pixels" % (notesImage, picWidth))
     del tmpImage
     return picWidth
 
@@ -1993,8 +1923,8 @@ def main():
 
     runLilyPond(sanitisedLyFileName, options.dpi)
 
-    notesImages = getNoteImages()
-    picWidth = getImageWidth(notesImages)
+    notesImage = tmpPath("sanitised.png")
+    picWidth = getImageWidth(notesImage)
 
     midiPath = tmpPath("sanitised.midi")
     if options.beatmap:
@@ -2016,10 +1946,10 @@ def main():
     output_divider_line()
 
     # find notes indices
-    noteIndicesByPage = getNoteIndices(tmpPath("sanitised.pdf"),
-                                       picWidth,
-                                       sanitisedLyFileName, lySrcLines,
-                                       midiTicks, notesInTicks, pitchBends)
+    noteIndices = getNoteIndices(tmpPath("sanitised.pdf"),
+                                 picWidth,
+                                 sanitisedLyFileName, lySrcLines,
+                                 midiTicks, notesInTicks, pitchBends)
     output_divider_line()
 
     # frame rate of output video
@@ -2036,7 +1966,7 @@ def main():
         options.width, options.height, fps, getCursorLineColor(options),
         options.scrollNotes, int(leftMargin), int(rightMargin),
         midiResolution, midiTicks, temposList)
-    frameWriter.write(noteIndicesByPage, notesImages)
+    frameWriter.write(noteIndices, notesImage)
 
     output_divider_line()
 
