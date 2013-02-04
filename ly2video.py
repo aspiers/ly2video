@@ -555,6 +555,10 @@ def getNotePositions(pdfFileName, lySrcFileName, lySrcLines):
                 elif not isNote:
                     debug("    ! isNote, class %s" % token.__class__)
 
+        if not notePositionsInPage:
+            fatal("Didn't find any notes on page; aborting! "
+                  "Maybe you got hit by https://github.com/aspiers/ly2video/issues/31 ?")
+
         # sort wanted positions on that page and add it into whole wanted positions
         notePositionsInPage.sort()
         notePositionsByPage.append(notePositionsInPage)
