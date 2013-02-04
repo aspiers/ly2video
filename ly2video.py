@@ -65,19 +65,22 @@ def getLyLines(fileName):
     return lySrcLines
 
 def preprocessLyFile(lyFile):
-    versionConversion = False
-    if getLyVersion(lyFile) != "2.14.2":
+    version = getLyVersion(lyFile)
+    progress("Version in %s: %s" % (lyFile, version if version else "unspecified"))
+    if version and version != "2.14.2":
         newLyFile = tmpPath('converted.ly')
         if os.system("convert-ly '%s' > '%s'" % (lyFile, newLyFile)) == 0:
-            return True, newLyFile
+            return newLyFile
         else:
             warn("Convert of input file has failed. " +
                  "This could cause some problems.")
 
     newLyFile = tmpPath('unconverted.ly')
-    os.copy(lyFile, newLyFile)
+    shutil.copy(lyFile, newLyFile)
+    debug("new ly file is " + newLyFile)
     output_divider_line()
-    return False, newLyFile
+
+    return newLyFile
 
 def runLilyPond(lyFileName, dpi, *args):
     progress("Generating PDF, PNG and MIDI files ...")
@@ -1955,7 +1958,7 @@ def main():
     lyFile = options.input
 
     # if it's not 2.14.2, try to convert it
-    versionConversion, lyFile = preprocessLyFile(lyFile)
+    lyFile = preprocessLyFile(lyFile)
 
     numStaffLines = getNumStaffLines(lyFile, options.dpi)
 
