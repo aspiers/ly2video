@@ -64,10 +64,11 @@ def getLyLines(fileName):
     fLyFile.close()
     return lySrcLines
 
-def preprocessLyFile(lyFile):
+def preprocessLyFile(lyFile, lilypondVersion):
     version = getLyVersion(lyFile)
     progress("Version in %s: %s" % (lyFile, version if version else "unspecified"))
-    if version and version != "2.14.2":
+    if version and version != lilypondVersion:
+        progress("Will convert to: %s" % lilypondVersion)
         newLyFile = tmpPath('converted.ly')
         if os.system("convert-ly '%s' > '%s'" % (lyFile, newLyFile)) == 0:
             return newLyFile
@@ -1958,7 +1959,7 @@ def main():
     lyFile = options.input
 
     # if it's not 2.14.2, try to convert it
-    lyFile = preprocessLyFile(lyFile)
+    lyFile = preprocessLyFile(lyFile, lilypondVersion)
 
     numStaffLines = getNumStaffLines(lyFile, options.dpi)
 
