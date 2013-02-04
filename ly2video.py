@@ -83,6 +83,7 @@ def runLilyPond(lyFileName, dpi, *args):
         "lilypond",
         "-fpdf",
         "--png",
+        "-I", runDir,
         "-dpoint-and-click",
         "-dmidi-extension=midi",
         "-dresolution=%d" % dpi
