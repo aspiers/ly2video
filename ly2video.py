@@ -1914,7 +1914,7 @@ def sanitiseLy(lyFile, width, height, dpi, numStaffLines,
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        writePaperHeader(fSanitisedLyFile, width, height, numStaffLines)
+        writePaperHeader(fSanitisedLyFile, width, height, numStaffLines, lilypondVersion)
 
     fSanitisedLyFile.close()
     progress("Wrote sanitised version of %s into %s" % (lyFile, sanitisedLyFileName))
