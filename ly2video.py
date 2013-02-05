@@ -279,17 +279,32 @@ sudden jumps in your video.
         fFile.write("   paper-width   = %d\\mm\n" % round(10 * width * mmPerPixel))
         fFile.write("   paper-height  = %d\\mm\n" % round(height * mmPerPixel))
 
-    fFile.write("   top-margin    = %d\\mm\n" % round(pixelsToMm(height, dpi) / 5))
-    fFile.write("   bottom-margin = %d\\mm\n" % round(pixelsToMm(height, dpi) / 5))
-    fFile.write("   left-margin   = %d\\mm\n" % round(pixelsToMm(width , dpi) / 2))
-    fFile.write("   right-margin  = %d\\mm\n" % round(pixelsToMm(width , dpi) / 2))
+    topPixels    = height / 5
+    bottomPixels = height / 5
+    leftPixels   = width  / 2
+    rightPixels  = width  / 2
+
+    topMm    = round(pixelsToMm(topPixels,    dpi))
+    bottomMm = round(pixelsToMm(bottomPixels, dpi))
+    leftMm   = round(pixelsToMm(leftPixels,   dpi))
+    rightMm  = round(pixelsToMm(rightPixels,  dpi))
+
+    fFile.write("   top-margin    = %d\\mm\n" % topMm)
+    fFile.write("   bottom-margin = %d\\mm\n" % bottomMm)
+    fFile.write("   left-margin   = %d\\mm\n" % leftMm)
+    fFile.write("   right-margin  = %d\\mm\n" % rightMm)
 
     if not oneLineBreaking:
         fFile.write("   print-page-number = ##f\n")
 
     fFile.write("}\n")
 
-    return 0
+    progress("Margins in mm: left=%d top=%d right=%d bottom=%d"
+             % (leftMm, topMm, rightMm, bottomMm))
+    progress("Margins in px: left=%d top=%d right=%d bottom=%d"
+             % (leftPixels, topPixels, rightPixels, bottomPixels))
+
+    return leftPixels
 
 def getTemposList(midiFile):
     """
