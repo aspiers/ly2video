@@ -45,18 +45,18 @@ from pprint import pprint, pformat
 
 DEBUG = False # --debug sets to True
 
-C_MAJOR_SCALE_STEPS = {
+C_MAJOR_SCALE_STEPS = [
     # Maps notes of the C major scale into semi-tones above C.
     # This is needed to map the pitch of ly.tools.Pitch notes
     # into MIDI pitch values within a given octave.
-    0 :  0, # c
-    1 :  2, # d
-    2 :  4, # e
-    3 :  5, # f
-    4 :  7, # g
-    5 :  9, # a
-    6 : 11, # b
-}
+     0, # c
+     2, # d
+     4, # e
+     5, # f
+     7, # g
+     9, # a
+    11, # b
+]
 
 def getLyLines(fileName):
     fLyFile = open(fileName, "r")
