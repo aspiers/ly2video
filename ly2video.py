@@ -1562,12 +1562,8 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
         # if the line is done
         done = False
 
-        if line.find("\\partial") != -1:
-            warn('Ly2video has found "\\partial" command ' +
-                 "in your lyFile.  This could cause problems.")
-
         # ignore these commands
-        if line.find("#(set-global-staff-size") != -1           or \
+        if line.find("#(set-global-staff-size") != -1 or \
             line.find("\\bookOutputName") != -1:
             line = fLyFile.readline()
 
