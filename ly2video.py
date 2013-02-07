@@ -342,7 +342,7 @@ def getNotesInTicks(midiFile):
 
             if isinstance(event, midi.PitchWheelEvent):
                 bend = event.get_pitch()
-                debug("    tick %6d: read %s(%d)" %
+                debug("    tick %6d: %s(%d)" %
                       (tick, eventClass, bend))
                 if bend != 0:
                     pendingPitchBend = event
@@ -350,17 +350,17 @@ def getNotesInTicks(midiFile):
             elif isinstance(event, midi.NoteOnEvent):
                 if event.get_velocity() == 0:
                     # velocity is zero (that's basically "NoteOffEvent")
-                    debug("    tick %6d: read NoteOffEvent(%d)" %
+                    debug("    tick %6d:     NoteOffEvent(%d)" %
                           (tick, event.get_pitch()))
                     continue
                 else:
                     if pendingPitchBend:
                         pitchBends[event] = pendingPitchBend
                         pendingPitchBend = None
-                    debug("    tick %6d: read %s(%d)" %
+                    debug("    tick %6d: %s(%d)" %
                           (tick, eventClass, event.get_pitch()))
             else:
-                debug("    tick %6d: read %s - skipping" %
+                debug("    tick %6d:     %s - skipping" %
                       (tick, eventClass))
                 continue
 
