@@ -902,18 +902,26 @@ class VideoFrameWriter(object):
         cropTop    = nonWhiteCentre - int(round(self.height / 2))
         cropBottom = cropTop + self.height
 
+        # Figure out the maximum height allowed which keeps the
+        # cropping rectangle within the source image.
+        maxTopHalf    =    topMarginSize + nonWhiteRows / 2
+        maxBottomHalf = bottomMarginSize + nonWhiteRows / 2
+        maxHeight = min(maxTopHalf, maxBottomHalf) * 2
+
         if cropTop < 0:
             fatal("Would have to crop %d pixels above top of image! "
                   "Try increasing the resolution DPI "
                   "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height" % -cropTop)
+                  "or reducing the video height to at most %d" %
+                  (-cropTop, maxHeight))
             cropTop = 0
 
         if cropBottom > height:
             fatal("Would have to crop %d pixels below bottom of image! "
                   "Try increasing the resolution DPI "
                   "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height" % (cropBottom - height))
+                  "or reducing the video height to at most %d" %
+                  (cropBottom - height, maxHeight))
             cropBottom = height
 
         if cropTop > topMarginSize:
