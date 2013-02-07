@@ -963,7 +963,7 @@ class VideoFrameWriter(object):
 
         bottomY = height - bottomMargin
         if topMargin >= bottomY:
-            bug("Image was entirely white!  "
+            bug("Image was entirely white!\n"
                 "Top margin %d, bottom margin %d (y=%d), height %d" %
                 (topMargin, bottomMargin, bottomY, height))
 
