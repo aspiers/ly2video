@@ -1559,29 +1559,23 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
 
     line = fLyFile.readline()
     while line != "":
-        # if the line is done
-        done = False
-
         # ignore these commands
         if line.find("#(set-global-staff-size") != -1 or \
             line.find("\\bookOutputName") != -1:
             line = fLyFile.readline()
 
         # if I find version, write own paper block right behind it
-        if line.find("\\version") != -1:
-            done = True
+        elif line.find("\\version") != -1:
             fSanitisedLyFile.write(line)
             leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, dpi,
                                                  numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
-        if (line.find("\\header") != -1 or headerPart) and not done:
+        elif (line.find("\\header") != -1 or headerPart):
             if line.find("\\header") != -1:
                 fSanitisedLyFile.write("\\header {\n   tagline = ##f composer = ##f\n}\n")
                 headerPart = True
-
-            done = True
 
             if re.search("title\\s*=", line):
                 titleText.name = line.split("=")[-1].strip()[1:-1]
@@ -1597,11 +1591,9 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                 headerPart = False
 
         # ignore paper block
-        if (line.find("\\paper") != -1 or paperPart) and not done:
+        elif (line.find("\\paper") != -1 or paperPart):
             if line.find("\\paper") != -1:
                 paperPart = True
-
-            done = True
 
             for znak in line:
                 if znak == "{":
@@ -1612,12 +1604,11 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                 paperPart = False
 
         # add unfoldRepeats right after start of score block
-        if re.search("\\\\score\\s*\\{", line) and not done:
-            done = True
+        elif re.search("\\\\score\\s*\\{", line):
             fSanitisedLyFile.write(line + " \\unfoldRepeats\n")
 
         # parse other lines, ignore page breaking commands and articulate
-        if not headerPart and not paperPart and not done:
+        elif not headerPart and not paperPart:
             finalLine = ""
 
             if line.find("\\break") != -1:
