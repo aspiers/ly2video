@@ -259,14 +259,15 @@ def findStaffLinesInImage(image, lineLength):
     # return staff line indices
     return firstLineX, lines
 
-def generateTitle(titleText, width, height, fps, titleLength):
+def generateTitle(titleText, width, height, ttfFile, fps, titleLength):
     """
     Generates frames with name of song and its author.
 
     Params:
     - titleText:    collection of name of song and its author
     - width:        pixel width of frames (and video)
-    - height        pixel height of frames (and video)
+    - height:       pixel height of frames (and video)
+    - ttfFile:      path to TTF file to use for title text
     - fps:          frame rate (frames per second) of final video
     - titleLength:  length of title screen (seconds)
     """
@@ -283,9 +284,9 @@ def generateTitle(titleText, width, height, fps, titleLength):
     progress("TITLE: ly2video will generate approx. %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
-    nameFont = ImageFont.truetype("arial.ttf", height / 15)
+    nameFont = ImageFont.truetype(ttfFile, height / 15)
     # font for author
-    authorFont = ImageFont.truetype("arial.ttf", height / 25)
+    authorFont = ImageFont.truetype(ttfFile, height / 25)
 
     # args - position of left upper corner of rectangle (around text), text, font and color (black)
     drawer.text(((width - nameFont.getsize(titleText.name)[0]) / 2,
@@ -1215,13 +1216,16 @@ def parseOptions():
                            'scroll the notation from right to left and keep the '
                            'cursor in the centre',
                       action="store_true", default=False)
-    parser.add_option("--title-at-start", dest="titleAtStart",
+    parser.add_option("-t", "--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video '
                            '(with name of song and its author)',
                       action="store_true", default=False)
-    parser.add_option("--title-delay", dest="titleDelay",
+    parser.add_option("--title-duration", dest="titleDuration",
                       help='time to display the title screen [3]',
                       type="int", metavar="SECONDS", default=3)
+    parser.add_option("--ttf", "--title-ttf", dest="titleTtfFile",
+                      help='path to TTF font file to use in title',
+                      type="string", metavar="FONT-FILE")
     parser.add_option("--windows-ffmpeg", dest="winFfmpeg",
                       help='(for Windows users) folder with ffpeg.exe '
                            '(e.g. "C:\\ffmpeg\\bin\\")',
@@ -1254,6 +1258,9 @@ License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.""" % VERSION
         sys.exit(0)
+
+    if options.titleAtStart and options.titleTtfFile is None:
+        fatal("Must specify --title-ttf=FONT-FILE with --title-at-start.")
 
     if options.debug:
         global DEBUG
@@ -1367,13 +1374,14 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         safeRun(cmd, exitcode=13)
     else:
         # generate silent title video
-        silentAudio = generateSilence(titleLength)
-        titlePath   = tmpPath("title.mpg")
+        silentAudio    = generateSilence(options.titleDuration)
+        titleFramePath = tmpPath('title', 'frame%d.png')
+        titlePath      = tmpPath('title.mpg')
         cmd = [
             ffmpeg,
             "-f", "image2",
             "-r", fps,
-            "-i", framePath,
+            "-i", titleFramePath,
             "-i", silentAudio,
             "-same_quant",
             "-q:v", str(options.quality),
@@ -1660,15 +1668,6 @@ def main():
 
     lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
 
-    # title and all about it
-    if options.titleAtStart:
-        titleLength = options.titleDelay
-    else:
-        titleLength = 0
-    titleText = collections.namedtuple("titleText", "name author")
-    titleText.name = "<name of song>"
-    titleText.author = "<author>"
-
     # FIXME.  Ugh, eventually this will be an instance method, and
     # we'll have somewhere nice to save state.
     global runDir
@@ -1688,6 +1687,10 @@ def main():
     lyFile = preprocessLyFile(lyFile, lilypondVersion, dumper)
 
     numStaffLines = getNumStaffLines(lyFile, options.dpi)
+
+    titleText = collections.namedtuple("titleText", "name author")
+    titleText.name = "<name of song>"
+    titleText.author = "<author>"
 
     sanitisedLyFileName, leftPaperMargin = \
         sanitiseLy(lyFile, dumper,
@@ -1736,7 +1739,8 @@ def main():
 
     # generate title screen
     if options.titleAtStart:
-        generateTitle(titleText, width, height, fps, titleLength)
+        generateTitle(titleText, options.width, options.height,
+                      options.titleTtfFile, fps, options.titleDuration)
         output_divider_line()
 
     # generate notes
