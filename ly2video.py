@@ -159,10 +159,8 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
                  for moment in sorted(leftmostGrobs.keys()) ]
 
     if not groblist:
-        fatal("Didn't find any notes; something must have gone wrong "
-              "with the use of dump-spacetime-info.  Maybe you got hit by "
-              "<https://github.com/aspiers/ly2video/issues/31> ?  "
-              "Aborting!")
+        bug("Didn't find any notes; something must have gone wrong "
+            "with the use of dump-spacetime-info.", 31)
 
     return groblist
 
@@ -405,13 +403,13 @@ def getNotesInTicks(midiFile):
 
             if pendingPitchBend:
                 if pendingPitchBend.tick != tick:
-                    fatal("found orphaned pitch bend in tick %d" %
-                          pendingPitchBend.tick)
+                    bug("Found orphaned pitch bend in tick %d" %
+                        pendingPitchBend.tick)
                 if not isinstance(event, midi.NoteOnEvent):
-                    fatal("pitch bend was not followed by NoteOn in tick %d" %
-                          tick)
+                    bug("Pitch bend was not followed by NoteOn in tick %d" %
+                        tick)
                 if event.get_velocity() == 0:
-                    fatal("pitch bend was followed by NoteOff")
+                    bug("Pitch bend was followed by NoteOff")
 
             if isinstance(event, midi.PitchWheelEvent):
                 bend = event.get_pitch()
@@ -519,17 +517,15 @@ def getAbsolutePitch(lySrcLines, lineNum, columnNum, absolutePitches, parser):
     try:
         grobPitchToken = parser.tokens(grobPitchText).next()
     except StopIteration:
-        fatal("Didn't find a note at:\n"
-              "    %s:%d:%d\n"
-              "Maybe you got hit by <https://github.com/aspiers/ly2video/issues/31> ?\n"
-              "Aborting!" %
-              (lySrcFileName, lineNum, columnNum))
+        bug("Didn't find a note at:\n"
+            "    %s:%d:%d\n" % (lySrcFileName, lineNum, columnNum),
+            31)
 
     if not isinstance(grobPitchToken, ly.tokenize.MusicTokenizer.Pitch):
-        fatal("Expected pitch token during conversion from relative to "
-              "absolute pitch, but found %s (%s) @ %d:%d" %
-              (grobPitchToken, grobPitchToken.__class__,
-               lineNum + 1, columnNum))
+        bug("Expected pitch token during conversion from relative to "
+            "absolute pitch, but found %s (%s) @ %d:%d" %
+            (grobPitchToken, grobPitchToken.__class__,
+             lineNum + 1, columnNum), 33)
     grobPitchValue = pitchValue(grobPitchToken, parser)
 
     return grobPitchValue, grobPitchToken
@@ -636,12 +632,12 @@ def getNoteIndices(leftmostGrobsByMoment, lySrcFileName, lySrcLines,
               (grobPitchToken, lineNum, columnNum, moment, index, grobTick, midiTick))
 
         if not midiTick in notesInTicks:
-            # This should mean that we reached the tick
-            # corresponding to the final EndOfTrackEvent
-            # (see getMidiEvents()).
+            # This should mean that we reached the tick corresponding
+            # to the final EndOfTrackEvent (see getMidiEvents()).
             midiIndex += 1
             if midiIndex < len(midiTicks):
-                fatal("    BUG: no notes in tick but more ticks still to go?!")
+                bug("No notes in tick %d (%d/%d)" %
+                    (midiTick, midiIndex, len(midiTicks)))
             debug("    no notes in final tick %d" % midiTick)
             continue
 
@@ -700,7 +696,7 @@ def getNoteIndices(leftmostGrobsByMoment, lySrcFileName, lySrcLines,
               midiIndex, ticksSkipped))
 
     if len(alignedNoteIndices) < 2:
-        fatal("Not enough synchronization points found!  Aborting.")
+        bug("Not enough synchronization points found!  Aborting.")
 
     return alignedNoteIndices
 
@@ -967,9 +963,9 @@ class VideoFrameWriter(object):
 
         bottomY = height - bottomMargin
         if topMargin >= bottomY:
-            fatal("Image was entirely white?  "
-                  "Top margin %d, bottom margin %d (y=%d), height %d" %
-                  (topMargin, bottomMargin, bottomY, height))
+            bug("Image was entirely white!  "
+                "Top margin %d, bottom margin %d (y=%d), height %d" %
+                (topMargin, bottomMargin, bottomY, height))
 
         return topMargin, bottomMargin
 
@@ -1106,7 +1102,7 @@ def genWavFile(timidity, midiPath):
     progress(safeRun(cmd, exitcode=11))
     wavExpected = midiPath.replace('.midi', '.wav')
     if not os.path.exists(wavExpected):
-        fatal("TiMidity++ failed to generate %s ?!" % wavExpected)
+        bug("TiMidity++ failed to generate %s" % wavExpected)
     return wavExpected
 
 def generateSilence(length):
@@ -1170,6 +1166,37 @@ def warn(text):
 def fatal(text, status=1):
     stderr("ERROR: " + text)
     sys.exit(status)
+
+def bug(text, *issues):
+    if len(issues) == 0:
+        msg = """
+Sorry, ly2video has encountered a fatal bug as described above,
+which it could not attribute to any known cause :-( 
+
+Please consider searching:
+        """
+    else:
+        msg = """
+Sorry, ly2video has encountered a fatal bug as described above :-(
+It might be due to the following known issue(s):
+
+"""
+        for issue in issues:
+            msg += "    https://github.com/aspiers/ly2video/issues/%d\n" % issue
+
+        msg += """
+If you suspect this is not the case, please visit:
+"""
+
+    msg += """
+    https://github.com/aspiers/ly2video/issues
+
+and if the problem is not listed there, please file a new
+entry so we can get it fixed.  Thanks!
+
+Aborted execution.\
+"""
+    fatal(text + "\n" + msg)
 
 def tmpPath(*dirs):
     segments = [ 'ly2video.tmp' ]
@@ -1280,7 +1307,7 @@ def applyBeatmap(src, dst, beatmap):
     progress("Applying beatmap via '%s'" % " ".join(cmd))
     debug(safeRun(cmd))
 
-def safeRun(cmd, errormsg=None, exitcode=None, shell=False):
+def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
     quotedCmd = []
     for arg in cmd:
         if arg.find(' ') != -1 or arg.find('"') != -1:
@@ -1299,7 +1326,10 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False):
         if errormsg is None:
             errormsg = "Failed to run command: %s: %s" % \
                 (quotedCmdStr, excmsg)
-        fatal(errormsg, exitcode)
+        if issues:
+            bug(errormsg, *issues)
+        else:
+            fatal(errormsg, exitcode)
 
     return stdout
 
@@ -1308,7 +1338,7 @@ def findExecutableDependencies(options):
     progress("LilyPond was found.")
     m = re.search('\AGNU LilyPond (\d[\d.]+\d)', stdout)
     if not m:
-        fatal("Couldn't determine LilyPond version via lilypond -v")
+        bug("Couldn't determine LilyPond version via lilypond -v")
     version = m.group(1)
 
     redirectToNull = " >%s" % portableDevNull()
@@ -1371,7 +1401,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-q:v", str(options.quality),
             outputFile
         ]
-        safeRun(cmd, exitcode=13)
+        safeRun(cmd, exitcode=13, issues=[32])
     else:
         # generate silent title video
         silentAudio    = generateSilence(options.titleDuration)
