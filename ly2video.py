@@ -320,14 +320,12 @@ def pixelsToMm(pixels, dpi):
     mmPerPixel = inchesPerPixel * 25.4
     return pixels * mmPerPixel
 
-def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
+def writePaperHeader(fFile, dpi, numOfLines, lilypondVersion):
     """
     Writes own paper block into given file.
 
     Params:
     - fFile:        given opened file
-    - width:        pixel width of frames (and video)
-    - height        pixel height of frames (and video)
     - numOfLines:   number of staff lines
     """
     fFile.write("\\paper {\n")
@@ -344,10 +342,10 @@ sudden jumps in your video.
 
     fFile.write("   page-breaking = #ly:one-line-breaking\n")
 
-    topPixels    = height / 5
-    bottomPixels = height / 5
-    leftPixels   = width  / 2
-    rightPixels  = width  / 2
+    topPixels    = 200
+    bottomPixels = 200
+    leftPixels   = 200
+    rightPixels  = 200
 
     topMm    = round(pixelsToMm(topPixels,    dpi))
     bottomMm = round(pixelsToMm(bottomPixels, dpi))
@@ -1577,8 +1575,8 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
         if line.find("\\version") != -1:
             done = True
             fSanitisedLyFile.write(line)
-            leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, width, height, dpi,
-                                          numStaffLines, lilypondVersion)
+            leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, dpi,
+                                                 numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
@@ -1646,8 +1644,8 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, width, height,
-                                      numStaffLines, lilypondVersion)
+        leftPaperMarginPx = writePaperHeader(fSanitisedLyFile,
+                                             numStaffLines, lilypondVersion)
 
     fSanitisedLyFile.close()
     progress("Wrote sanitised version of %s into %s" % (lyFile, sanitisedLyFileName))
