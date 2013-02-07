@@ -522,10 +522,10 @@ def getAbsolutePitch(lySrcFileName, lySrcLines, lineNum, columnNum, absolutePitc
             31)
 
     if not isinstance(grobPitchToken, ly.tokenize.MusicTokenizer.Pitch):
-        bug("Expected pitch token during conversion from relative to "
-            "absolute pitch, but found %s (%s) @ %d:%d" %
-            (grobPitchToken, grobPitchToken.__class__,
-             lineNum + 1, columnNum), 33)
+        bug("Expected pitch token during conversion from relative to absolute\n"
+            "pitch, but found %s instance @ %d:%d:\n\n    %s" %
+            (grobPitchToken.__class__, lineNum + 1, columnNum,
+             grobPitchToken), 33)
     grobPitchValue = pitchValue(grobPitchToken, parser)
 
     return grobPitchValue, grobPitchToken
