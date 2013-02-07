@@ -505,7 +505,7 @@ def getAbsolutePitches(lySrcLines):
     changelist = ly.tools.relativeToAbsolute(lySrc)
     return parser, changelist.token_changes_by_coords
 
-def getAbsolutePitch(lySrcLines, lineNum, columnNum, absolutePitches, parser):
+def getAbsolutePitch(lySrcFileName, lySrcLines, lineNum, columnNum, absolutePitches, parser):
     src = (lineNum, columnNum)
     if src in absolutePitches:
         grobPitchText = absolutePitches[src]
@@ -625,7 +625,7 @@ def getNoteIndices(leftmostGrobsByMoment, lySrcFileName, lySrcLines,
         grobTick = int(round(moment * midiResolution * 4))
 
         grobPitchValue, grobPitchToken = \
-            getAbsolutePitch(lySrcLines, lineNum - 1, columnNum,
+            getAbsolutePitch(lySrcFileName, lySrcLines, lineNum - 1, columnNum,
                              absolutePitches, parser)
 
         debug("%-3s @ %3d:%3d | grob(time=%.4f, x=%5d, tick=%5d) | MIDI(tick=%5d)" %
