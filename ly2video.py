@@ -1582,10 +1582,10 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
             if re.search("composer\\s*=", line):
                 titleText.author = line.split("=")[-1].strip()[1:-1]
 
-            for znak in line:
-                if znak == "{":
+            for char in line:
+                if char == "{":
                     bracketsHeader += 1
-                elif znak == "}":
+                elif char == "}":
                     bracketsHeader -= 1
             if bracketsHeader == 0:
                 headerPart = False
@@ -1595,10 +1595,10 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
             if line.find("\\paper") != -1:
                 paperPart = True
 
-            for znak in line:
-                if znak == "{":
+            for char in line:
+                if char == "{":
                     bracketsPaper += 1
-                elif znak == "}":
+                elif char == "}":
                     bracketsPaper -= 1
             if bracketsPaper == 0:
                 paperPart = False
