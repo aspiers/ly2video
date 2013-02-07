@@ -1717,11 +1717,8 @@ def main():
     output_divider_line()
 
     # find needed data in MIDI
-    try:
-        midiResolution, temposList, midiTicks, notesInTicks, pitchBends = \
-            getMidiEvents(midiPath)
-    except Exception as err:
-        fatal("MIDI: %s " % err, 10)
+    midiResolution, temposList, midiTicks, notesInTicks, pitchBends = \
+        getMidiEvents(midiPath)
 
     output_divider_line()
 
