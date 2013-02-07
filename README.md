@@ -72,6 +72,15 @@ in the `doc/thesis/` subdirectory, or
 an English translation has begun but is unlikely to be finished any
 time soon unless someone else volunteers to help out.
 
+Very big thanks also to Jan Nieuwenhuizen not only for co-inventing
+LilyPond in the first place, but also for helping me implement the
+complete revamp of the synchronization algorithm, which should be
+much more robust than the previous one.
+
+And finally of course, much gratitude to the many great people who
+have contributed to LilyPond over the years.  This would not have
+been possible without you.
+
 ## License
 
 ly2video is released under the [GNU GPL v3](http://www.gnu.org/licenses/gpl.html).

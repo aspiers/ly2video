@@ -817,7 +817,7 @@ class ChangeList(object):
     def __init__(self, text):
         self._changes = []
         # maps (line, column) tuples to new text
-        self._token_changes_by_coords = {}
+        self.token_changes_by_coords = {}
         self._text = text
         
     def replace(self, pos, end, text):
@@ -827,7 +827,7 @@ class ChangeList(object):
     def replaceToken(self, token, text):
         if token != text:
             self._changes.append((token.pos, token.end, text))
-            self._token_changes_by_coords[(token.line, token.column)] = text
+            self.token_changes_by_coords[(token.line, token.column)] = text
             
     def remove(self, pos, end):
         self._changes.append((pos, end, None))
@@ -856,7 +856,7 @@ class ChangeList(object):
         Return the replacement text for a token at the given line and
         column, or None if the token has no change.
         """
-        return self._token_changes_by_coords.get((line, column))
+        return self.token_changes_by_coords.get((line, column))
 
     def apply(self):
         """
