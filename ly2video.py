@@ -1164,6 +1164,7 @@ def warn(text):
     stderr("WARNING: " + text)
 
 def fatal(text, status=1):
+    output_divider_line()
     stderr("ERROR: " + text)
     sys.exit(status)
 
