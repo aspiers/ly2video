@@ -839,22 +839,21 @@ class VideoFrameWriter(object):
         if not DEBUG:
             progress("A dot is displayed for every 10 frames generated.")
 
-        self.writePage(0, noteIndices, notesImage)
+        self.writePage(noteIndices, notesImage)
 
-    def writePage(self, pageNum, indices, notesImage):
+    def writePage(self, indices, notesImage):
         """
         Params:
-          - pageNum:           number of page to write
           - indices:           indices of notes in page
           - notesImageFile:    name of that images (list of strings)
         """
-        progress("Writing frames for page %d ..." % pageNum)
-
         notesPic = Image.open(notesImage)
         cropTop, cropBottom = self.getCropTopAndBottom(notesPic)
 
         # duplicate last index
         indices.append(indices[-1])
+
+        progress("Writing frames ...")
 
         # generate all frames in between each pair of adjacent indices
         for i in xrange(len(indices) - 1):
@@ -919,8 +918,7 @@ class VideoFrameWriter(object):
 
         print
 
-        progress("SYNC: Generated %d frames for page %d/%d" %
-                 (self.frameNum, pageNum + 1, len(indices)))
+        progress("SYNC: Generated %d frames" % self.frameNum)
 
     def getCropTopAndBottom(self, image):
         """
