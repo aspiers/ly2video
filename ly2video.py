@@ -31,6 +31,7 @@ import shutil
 import subprocess
 import sys
 import urllib
+from collections import namedtuple
 from distutils.version import StrictVersion
 from optparse import OptionParser
 from struct import pack
@@ -63,11 +64,31 @@ C_MAJOR_SCALE_STEPS = [
 NOTE_NAMES = [ "C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb",
                "G", "G#/Ab", "A", "A#/Bb", "B" ]
 
-def getLyLines(fileName):
+LySrc = namedtuple('LySrc', 'filename lines')
+
+class LySrcLocation(object):
+    """
+    Represents a location within a .ly file.  Note that line numbers
+    count from 0, but are displayed counting from 1, since that
+    matches what editors such as emacs and vim show.
+    """
+    __slots__ = [ 'filename', 'lineNum', 'columnNum' ]
+    def __init__(self, filename, lineNum, columnNum):
+        self.filename  = filename
+        self.lineNum   = lineNum
+        self.columnNum = columnNum
+
+    def __str__(self):
+        return "%s:%d:%d" % (self.filename, self.lineNum + 1, self.columnNum)
+
+    def coords(self):
+        return (self.lineNum, self.columnNum)
+
+def getLySrc(fileName):
     fLyFile = open(fileName, "r")
-    lySrcLines = [ line for line in fLyFile.readlines() ]
+    lines = [ line for line in fLyFile.readlines() ]
     fLyFile.close()
-    return lySrcLines
+    return LySrc(fileName, lines)
 
 def preprocessLyFile(lyFile, lilypondVersion, dumper):
     version = getLyVersion(lyFile)
@@ -123,6 +144,7 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     lines = output.split('\n')
 
     leftmostGrobs = { }
+    currentLySrcFile = None
 
     for line in lines:
         if not line.startswith('ly2video: '):
@@ -137,23 +159,30 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
                      '(-?\\d+\\.\\d+)'
                      # delimiter
                      '\\s+from\\s+'
-                     # line:char
-                     '(\d+):(\d+)'
+                     # file:line:char
+                     '([^:]+): *(\d+):(\d+)'
                      '$', line)
         if not m:
-            fatal("Failed to parse ly2video line:\n%s" % line)
-        left, right, moment, line, column = m.groups()
+            bug("Failed to parse ly2video line:\n%s" % line)
+        left, right, moment, filename, line, column = m.groups()
+
+        if currentLySrcFile is None or currentLySrcFile != filename:
+            currentLySrcFile = filename
+            debug("Current .ly source file: %s" % currentLySrcFile)
+
         left   = float(left)
         right  = float(right)
         centre = (left + right) / 2
         moment = float(moment)
-        line   = int(line)
+        line   = int(line) - 1 # LilyPond counts from 1
         column = int(column)
         x = int(round(staffSpacesToPixels(centre, dpi))) + leftPaperMarginPx
+
         if moment not in leftmostGrobs or x < leftmostGrobs[moment][0]:
-            leftmostGrobs[moment] = [x, line, column]
-            debug("leftmost grob for moment %f is now x=%d @ %d:%d"
-                  % (moment, x, line, column))
+            location = LySrcLocation(filename, line, column)
+            leftmostGrobs[moment] = [x, location]
+            debug("leftmost grob for moment %9f is now x =%5d @ %3d:%d"
+                  % (moment, x, line + 1, column))
 
     groblist = [ tuple([moment] + leftmostGrobs[moment])
                  for moment in sorted(leftmostGrobs.keys()) ]
@@ -495,39 +524,44 @@ def getMidiEvents(midiFileName):
     pageWidth = page.getObject()['/MediaBox'][2]
     progress("Width of PDF page is %f" % pageWidth)
 
-def getAbsolutePitches(lySrcLines):
+def getAbsolutePitches(lySrc):
     # ly parser (from Frescobaldi)
-    lySrc = ''.join(lySrcLines)
+    document = ''.join(lySrc.lines)
     parser = MusicTokenizer()
-    language, keyPitch = ly.tools.languageAndKey(lySrc)
+    language, keyPitch = ly.tools.languageAndKey(document)
     progress('Detected language as %s' % language)
     parser.language = language
-    changelist = ly.tools.relativeToAbsolute(lySrc)
+
+    # N.B. line numbers in this are numbered starting from 0
+    changelist = ly.tools.relativeToAbsolute(document)
+
     return parser, changelist.token_changes_by_coords
 
-def getAbsolutePitch(lySrcFileName, lySrcLines, lineNum, columnNum, absolutePitches, parser):
-    src = (lineNum, columnNum)
-    if src in absolutePitches:
-        grobPitchText = absolutePitches[src]
+def getAbsolutePitch(lySrcLocation, lySrc, absolutePitches, parser):
+    if lySrcLocation.filename != lySrc.filename:
+        bug("lySrc filename mismatch", 31)
+
+    coords = lySrcLocation.coords()
+    if coords in absolutePitches:
+        grobPitchText = absolutePitches[coords]
     else:
         # text representations of absolute and relative pitch are the same
         # (absolutePitches contains a changelist, i.e. only differences)
-        grobPitchText = lySrcLines[lineNum][columnNum:]
+        grobPitchText = lySrc.lines[lySrcLocation.lineNum][lySrcLocation.columnNum:]
 
     try:
         grobPitchToken = parser.tokens(grobPitchText).next()
     except StopIteration:
         bug("Didn't find a note at:\n"
-            "    %s:%d:%d\n" % (lySrcFileName, lineNum, columnNum),
+            "    %s\n" % lySrcLocation,
             31)
 
     if not isinstance(grobPitchToken, ly.tokenize.MusicTokenizer.Pitch):
         bug("Expected pitch token during conversion from relative to absolute\n"
-            "pitch, but found %s instance @ %d:%d:\n\n    %s" %
-            (grobPitchToken.__class__, lineNum + 1, columnNum,
-             grobPitchToken), 33)
-    grobPitchValue = pitchValue(grobPitchToken, parser)
+            "pitch, but found %s instance @ %s:\n\n    %s" %
+            (grobPitchToken.__class__, lySrcLocation, grobPitchToken), 33)
 
+    grobPitchValue = pitchValue(grobPitchToken, parser)
     return grobPitchValue, grobPitchToken
 
 def pitchValue(token, parser):
@@ -560,8 +594,7 @@ def getMidiPitches(events, pitchBends):
         midiPitches[pitch] = event
     return midiPitches
 
-def getNoteIndices(leftmostGrobsByMoment, lySrcFileName, lySrcLines,
-                   parser, absolutePitches,
+def getNoteIndices(leftmostGrobsByMoment, lySrc, parser, absolutePitches,
                    midiResolution, midiTicks, notesInTicks, pitchBends):
     """
     Build a list of note indices which align with the ticks in
@@ -581,12 +614,17 @@ def getNoteIndices(leftmostGrobsByMoment, lySrcFileName, lySrcLines,
 
     Parameters:
       - leftmostGrobsByMoment:
-          a sorted list mapping each moment to a (x, line, column) tuple
+          A sorted list mapping each moment to a (x, line, column) tuple
           for the left-most grob at that moment
+      - lySrc:
+          the LySrc object representing the file which contains the notes
+      - parser
+      - absolutePitches
       - midiResolution
-      - midiTicks: a sorted list of which ticks contain NoteOn events.
-                   The last tick corresponds to the earliest
-                   EndOfTrackEvent found across all MIDI channels.
+      - midiTicks:
+          A sorted list of which ticks contain NoteOn events.  The
+          last tick corresponds to the earliest EndOfTrackEvent found
+          across all MIDI channels.
       - notesInTicks:           as returned by getNotesInTicks()
       - pitchBends:             as returned by getNotesInTicks()
 
@@ -613,23 +651,28 @@ def getNoteIndices(leftmostGrobsByMoment, lySrcFileName, lySrcLines,
     # index into list of note indices
     i = 0
 
+    currentLySrcFile = None
+
     while i < len(leftmostGrobsByMoment):
         if midiIndex == len(midiTicks):
             warn("Ran out of MIDI indices after %d. Current PDF index: %d" %
                   (midiIndex, index))
             break
 
-        moment, index, lineNum, columnNum = leftmostGrobsByMoment[i]
+        moment, index, lySrcLocation = leftmostGrobsByMoment[i]
+        if currentLySrcFile is None or currentLySrcFile != lySrcLocation.filename:
+            currentLySrcFile = lySrcLocation.filename
+            debug("Current .ly source file: %s" % currentLySrcFile)
 
         midiTick = midiTicks[midiIndex]
         grobTick = int(round(moment * midiResolution * 4))
 
         grobPitchValue, grobPitchToken = \
-            getAbsolutePitch(lySrcFileName, lySrcLines, lineNum - 1, columnNum,
-                             absolutePitches, parser)
+            getAbsolutePitch(lySrcLocation, lySrc, absolutePitches, parser)
 
         debug("%-3s @ %3d:%3d | grob(time=%.4f, x=%5d, tick=%5d) | MIDI(tick=%5d)" %
-              (grobPitchToken, lineNum, columnNum, moment, index, grobTick, midiTick))
+              (grobPitchToken, lySrcLocation.lineNum + 1, lySrcLocation.columnNum,
+               moment, index, grobTick, midiTick))
 
         if not midiTick in notesInTicks:
             # This should mean that we reached the tick corresponding
@@ -1557,10 +1600,10 @@ def writeSpaceTimeDumper():
          (pitch        (ly:event-property cause 'pitch))
          (midi-pitch   (if (ly:pitch? pitch) (+ 0.0 (ly:pitch-tones pitch)) "no pitch")))
    (if (not (equal? (ly:grob-property grob 'transparent) #t))
-    (format #t "\\nly2video: (~23,16f, ~23,16f) @ ~23,16f from ~3d:~d"
+    (format #t "\\nly2video: (~23,16f, ~23,16f) @ ~23,16f from ~a:~3d:~d"
                 left right
                 (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
-                line char))))
+                file line char))))
 
 \layout {
   \context {
@@ -1728,7 +1771,7 @@ def main():
                    options.width, options.height, options.dpi,
                    numStaffLines, titleText, lilypondVersion)
 
-    lySrcLines = getLyLines(sanitisedLyFileName)
+    lySrc = getLySrc(sanitisedLyFileName)
 
     output = runLilyPond(sanitisedLyFileName, options.dpi)
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
@@ -1753,10 +1796,9 @@ def main():
 
     output_divider_line()
 
-    parser, absolutePitches = getAbsolutePitches(lySrcLines)
+    parser, absolutePitches = getAbsolutePitches(lySrc)
 
-    noteIndices = getNoteIndices(leftmostGrobsByMoment,
-                                 sanitisedLyFileName, lySrcLines,
+    noteIndices = getNoteIndices(leftmostGrobsByMoment, lySrc,
                                  parser, absolutePitches,
                                  midiResolution, midiTicks, notesInTicks,
                                  pitchBends)
