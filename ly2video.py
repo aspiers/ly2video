@@ -836,8 +836,6 @@ class VideoFrameWriter(object):
         estimatedFrames = approxDuration * self.fps
         progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
                  (estimatedFrames, self.fps))
-        if not DEBUG:
-            progress("A dot is displayed for every 10 frames generated.")
 
         self.writePage(noteIndices, notesImage)
 
@@ -854,6 +852,8 @@ class VideoFrameWriter(object):
         indices.append(indices[-1])
 
         progress("Writing frames ...")
+        if not DEBUG:
+            progress("A dot is displayed for every 10 frames generated.")
 
         # generate all frames in between each pair of adjacent indices
         for i in xrange(len(indices) - 1):
@@ -927,10 +927,10 @@ class VideoFrameWriter(object):
         (non-cropped) image.
         """
         width, height = image.size
-        progress("      Image height: %5d pixels" % height)
 
         topMarginSize, bottomMarginSize = self.getTopAndBottomMarginSizes(image)
         bottomY = height - bottomMarginSize
+        progress("      Image height: %5d pixels" % height)
         progress("   Top margin size: %5d pixels" % topMarginSize)
         progress("Bottom margin size: %5d pixels (y=%d)" %
                  (bottomMarginSize, bottomY))
@@ -995,24 +995,37 @@ class VideoFrameWriter(object):
         Counts the number of white-only rows of pixels at the top and
         bottom of the given image.
         """
+
         width, height = image.size
 
         # This is way faster than width*height invocations of getPixel()
         pixels = image.load()
 
+        progress("Auto-detecting top margin; this may take a while ...")
         topMargin = 0
         for y in xrange(height):
             if self.isLineBlank(pixels, width, y):
                 topMargin += 1
+                if topMargin % 10 == 0:
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
             else:
                 break
+        if topMargin >= 10:
+            print
 
+        progress("Auto-detecting bottom margin; this may take a while ...")
         bottomMargin = 0
         for y in xrange(height - 1, -1, -1):
             if self.isLineBlank(pixels, width, y):
                 bottomMargin += 1
+                if bottomMargin % 10 == 0:
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
             else:
                 break
+        if bottomMargin >= 10:
+            print
 
         bottomY = height - bottomMargin
         if topMargin >= bottomY:
