@@ -828,6 +828,9 @@ class VideoFrameWriter(object):
         firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
         debug("first tempo is %.3f bpm" % self.tempo)
         debug("final MIDI tick is %d" % self.midiTicks[-1])
+        self.writePage(noteIndices, notesImage)
+
+    def estimateFrames(self):
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
         debug("approx %.2f MIDI beats" % approxBeats)
         beatsPerSec = 60.0 / self.tempo
@@ -836,8 +839,6 @@ class VideoFrameWriter(object):
         estimatedFrames = approxDuration * self.fps
         progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
                  (estimatedFrames, self.fps))
-
-        self.writePage(noteIndices, notesImage)
 
     def writePage(self, indices, notesImage):
         """
@@ -851,6 +852,7 @@ class VideoFrameWriter(object):
         # duplicate last index
         indices.append(indices[-1])
 
+        self.estimateFrames()
         progress("Writing frames ...")
         if not DEBUG:
             progress("A dot is displayed for every 10 frames generated.")
