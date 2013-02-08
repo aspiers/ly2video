@@ -21,7 +21,7 @@
 # For more information about this program, please visit
 # <https://github.com/aspiers/ly2video/>.
 
-VERSION = '0.3.1'
+VERSION = '0.4.2'
 
 import collections
 import copy
