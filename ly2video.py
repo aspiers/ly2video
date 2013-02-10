@@ -120,7 +120,7 @@ class LySrc(object):
         if not isinstance(grobPitchToken, ly.tokenize.MusicTokenizer.Pitch):
             bug("Expected pitch token during conversion from relative to absolute\n"
                 "pitch, but found %s instance @ %s:\n\n    %s" %
-                (grobPitchToken.__class__, lySrcLocation, grobPitchToken), 33)
+                (grobPitchToken.__class__, lySrcLocation, grobPitchToken), 33, 37)
 
         grobPitchValue = pitchValue(grobPitchToken, self.parser)
         return grobPitchValue, grobPitchToken
