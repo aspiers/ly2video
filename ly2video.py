@@ -21,6 +21,8 @@
 # For more information about this program, please visit
 # <https://github.com/aspiers/ly2video/>.
 
+# Used to determine --version output for released versions, not
+# when running from a git check-out:
 VERSION = '0.4.2'
 
 import collections
@@ -1334,13 +1336,7 @@ def parseOptions():
     options, args = parser.parse_args()
 
     if options.showVersion:
-        print """ly2video %s
-
-Copyright (C) 2012 Jiri "FireTight" Szabo, Adam Spiers
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.""" % VERSION
-        sys.exit(0)
+        showVersion()
 
     if options.titleAtStart and options.titleTtfFile is None:
         fatal("Must specify --title-ttf=FONT-FILE with --title-at-start.")
@@ -1350,6 +1346,29 @@ There is NO WARRANTY, to the extent permitted by law.""" % VERSION
         DEBUG = True
 
     return options, args
+
+def getVersion():
+    try:
+        stdout = subprocess.check_output([ "git", "describe", "--tags" ],
+                                         cwd=os.path.dirname(__file__))
+        m = re.match('^(v\d\S+)', stdout)
+        if m:
+            return m.group(1)
+    except:
+        #exc_type, exc_value, exc_traceback = sys.exc_info()
+        #print "%s: %s" % (exc_type.__name__, exc_value)
+        pass
+
+    return VERSION
+
+def showVersion():
+    print """ly2video %s
+
+Copyright (C) 2012 Jiri "FireTight" Szabo, Adam Spiers
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.""" % getVersion()
+    sys.exit(0)
 
 def portableDevNull():
     if sys.platform.startswith("linux"):
