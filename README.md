@@ -61,8 +61,7 @@ information, so that this README can be updated.  Thanks!
 
 ### Installing required Python module dependencies
 
-[ly2video requires some specific Python modules](https://github.com/aspiers/ly2video/blob/master/pip-requires.txt)
-- **do NOT install these manually!** (unless you are a Python expert.)
+[ly2video requires some specific Python modules](https://github.com/aspiers/ly2video/blob/master/pip-requires.txt) - **do NOT install these manually!** (unless you are a Python expert.)
 They can be installed system-wide via:
 
     sudo pip install -r pip-requires.txt
