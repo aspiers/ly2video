@@ -44,8 +44,8 @@ like:
 
 There is currently a known issue on these distributions, since [Debian
 and Ubuntu switched from `ffmpeg` to the `libav
-fork`](https://github.com/aspiers/ly2video/issues/32).  See that issue
-for a suggested workaround.
+fork`](https://github.com/aspiers/ly2video/issues/32).  See [issue #32](https://github.com/aspiers/ly2video/issues/32) for a suggested
+workaround.
 
 You can ensure the remaining dependencies are installed via something
 like:
