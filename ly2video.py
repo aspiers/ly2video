@@ -639,8 +639,6 @@ def getNoteIndices(leftmostGrobsByMoment,
       - midiTicks is potentially trimmed down
     """
 
-    alignedNoteIndices = []
-
     # index into list of MIDI ticks
     midiIndex = 0
 
