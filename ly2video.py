@@ -414,17 +414,6 @@ def writePaperHeader(fFile, dpi, numOfLines, lilypondVersion):
     - numOfLines:   number of staff lines
     """
     fFile.write("\\paper {\n")
-
-    # one-line-breaking is available as of 2.15.41:
-    #   https://code.google.com/p/lilypond/issues/detail?id=2570
-    #   https://codereview.appspot.com/6248056/
-    #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
-    if StrictVersion(lilypondVersion) < StrictVersion('2.15.41'):
-        fatal("""You have LilyPond %s which does not support
-infinitely long lines.  Upgrade to >= 2.15.41 to avoid
-sudden jumps in your video.
-""" % lilypondVersion)
-
     fFile.write("   page-breaking = #ly:one-line-breaking\n")
 
     topPixels    = 200
@@ -1410,6 +1399,14 @@ def findExecutableDependencies(options):
         bug("Couldn't determine LilyPond version via lilypond -v")
     version = m.group(1)
 
+    # one-line-breaking is available as of 2.15.41:
+    #   https://code.google.com/p/lilypond/issues/detail?id=2570
+    #   https://codereview.appspot.com/6248056/
+    #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
+    if StrictVersion(version) < StrictVersion('2.15.41'):
+        fatal("You have LilyPond %s which does not support\n"
+              "infinitely long lines.  Please upgrade to >= 2.15.41." % version)
+
     redirectToNull = " >%s" % portableDevNull()
 
     ffmpeg = options.winFfmpeg + "ffmpeg"
@@ -1782,7 +1779,8 @@ def main():
 
     dumper = writeSpaceTimeDumper()
 
-    # if it's not 2.14.2, try to convert it
+    # If the input .ly doesn't match the currently installed LilyPond
+    # version, try to convert it
     lyFile = preprocessLyFile(lyFile, lilypondVersion, dumper)
 
     numStaffLines = getNumStaffLines(lyFile, options.dpi)
