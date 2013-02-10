@@ -48,9 +48,13 @@ Once you have `virtualenvwrapper` installed, it's as simple as:
     mkvirtualenv ly2video
     pip install -r pip-requires.txt
 
+It is a known issue that [ly2video is currently missing a proper
+installation process](https://github.com/aspiers/ly2video/issues/38),
+so you should run it from within the source tree.
+
 ## Usage
 
-Run `ly2video.py --help` to display usage information.
+Run `./ly2video.py --help` to display usage information.
 
 ## Support, bugs, development etc.
 
