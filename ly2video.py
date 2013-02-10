@@ -119,6 +119,10 @@ class LySrc(object):
             bug("Didn't find a note at:\n"
                 "    %s\n" % lySrcLocation)
 
+        if grobPitchToken == 'q':
+            # 'q' means a repeated chord in LilyPond
+            return None, grobPitchToken
+
         if not isinstance(grobPitchToken, ly.tokenize.MusicTokenizer.Pitch):
             bug("Expected pitch token during conversion from relative to absolute\n"
                 "pitch, but found %s instance @ %s:\n\n    %s" %
@@ -646,6 +650,7 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     originalTickCount = len(midiTicks)
     ticksSkipped  = 0
+    lastChord = [ ]
 
     # final indices of notes
     alignedNoteIndices = []
@@ -670,6 +675,11 @@ def getNoteIndices(leftmostGrobsByMoment,
         grobTick = int(round(moment * midiResolution * 4))
 
         grobPitchValue, grobPitchToken = lySrcLocation.getAbsolutePitch()
+        if grobPitchToken == 'q':
+            if len(lastChord) < 2:
+                bug("Encountered a 'q' repeated chord token at %s "
+                    "but didn't have a last chord saved." % lySrcLocation)
+            grobPitchValue = lastChord[0]
 
         debug("%-3s @ %3d:%3d | grob(time=%.4f, x=%5d, tick=%5d) | MIDI(tick=%5d)" %
               (grobPitchToken, lySrcLocation.lineNum + 1, lySrcLocation.columnNum,
@@ -712,6 +722,10 @@ def getNoteIndices(leftmostGrobsByMoment,
         # We're looking at the same point in time in the notated
         # music and the MIDI file.
 
+        # FIXME: it would be better to compare the pitch of *every*
+        # grob, not just the leftmost one.  This might result in more
+        # synchronization failures, but over time that could expose
+        # more edge cases which are not correctly handled right now.
         if grobPitchValue not in midiPitches:
             debug("    grob's pitch %d not found in midiPitches; "
                   "probably a tie - skipping grob and tick." % grobPitchValue)
@@ -725,6 +739,13 @@ def getNoteIndices(leftmostGrobsByMoment,
 
         midiIndex += 1
         alignedNoteIndices.append(index)
+
+        if len(midiPitches) > 1:
+            # technically it would be more correct to save the grob
+            # pitches not MIDI pitches,
+            lastChord = midiPitches.keys()
+        else:
+            lastChord = [ ]
 
     if midiIndex < len(midiTicks) - 1:
         # Could happen if last note is a dangling tie?
