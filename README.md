@@ -47,10 +47,14 @@ and Ubuntu switched from `ffmpeg` to the `libav
 fork`](https://github.com/aspiers/ly2video/issues/32).  See [issue #32](https://github.com/aspiers/ly2video/issues/32) for a suggested
 workaround.
 
+Additionally, Debian and Ubuntu both currently ship very old versions
+of LilyPond, so you might need to install a newer one via the
+"Generic Packages" section near the top of: http://lilypond.org/unix.html
+
 You can ensure the remaining dependencies are installed via something
 like:
 
-    sudo apt-get install lilypond timidity python-pip python-imaging swig libasound-dev
+    sudo apt-get install timidity python-pip python-imaging swig libasound-dev
 
 ### Installing dependencies on other platforms
 
