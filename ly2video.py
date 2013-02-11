@@ -1494,6 +1494,7 @@ def getOutputFile(options):
 def callFfmpeg(ffmpeg, options, wavPath, outputFile):
     fps = str(options.fps)
     framePath = tmpPath('notes', 'frame%d.png')
+    fileExtension = os.path.splitext(outputFile)[1][1:].strip()
 
     if not options.titleAtStart:
         cmd = [
@@ -1510,7 +1511,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         # generate silent title video
         silentAudio    = generateSilence(options.titleDuration)
         titleFramePath = tmpPath('title', 'frame%d.png')
-        titlePath      = tmpPath('title.mpg')
+        titlePath      = tmpPath(''.join(['title.', fileExtension]))
         cmd = [
             ffmpeg,
             "-f", "image2",
@@ -1524,7 +1525,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         safeRun(cmd, exitcode=14)
 
         # generate video with notes
-        notesPath = tmpPath("notes.mpg")
+        notesPath = tmpPath(''.join(['notes.', fileExtension]))
         cmd = [
             ffmpeg,
             "-f", "image2",
@@ -1538,7 +1539,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         safeRun(cmd, exitcode=15)
 
         # join the files
-        joinedPath = tmpPath('joined.mpg')
+        joinedPath = tmpPath(''.join(['joined.', fileExtension]))
         if sys.platform.startswith("linux"):
             safeRun("cat '%s' '%s' > %s" % (titlePath, notesPath, joinedPath), shell=True)
         elif sys.platform.startswith("win"):
