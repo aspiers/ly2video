@@ -1150,9 +1150,9 @@ def imageToBytes(image):
     return f.getvalue()
 
 
-def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
+def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath, fileExt):
     progress("Generating video with animated notation\n")
-    notesPath = tmpPath("notes.mpg")
+    notesPath = tmpPath("notes." + fileExt)
     cmd = [
         ffmpeg,
         "-nostdin",
@@ -1161,7 +1161,7 @@ def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
         "-i", "-",
         "-i", wavPath,
         "-q:v", quality,
-        "-f", "avi",
+        "-f", fileExt,
         notesPath
     ]
     safeRunInput(cmd, inputs=(imageToBytes(frame) for frame in frames), exitcode=15)
@@ -1169,8 +1169,8 @@ def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
     return notesPath
 
 
-def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
-    out         = tmpPath('%s.mpg' % name)
+def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame, fileExt):
+    out = tmpPath(".".join([name, fileExt]))
     frames = int(desiredDuration * fps)
     trueDuration = float(frames) / fps
     progress("Generating silent video %s, duration %fs\n" %
@@ -1184,7 +1184,7 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
         "-i", "-",
         "-i", silentAudio,
         "-q:v", quality,
-        "-f", "avi",
+        "-f", fileExt,
         out
     ]
     safeRunInput(cmd, inputs=itertools.repeat(imageToBytes(srcFrame), frames), exitcode=14)
@@ -1195,21 +1195,22 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
 def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
     fps = float(options.fps)
     quality = str(options.quality)
+    fileExt = os.path.splitext(outputFile)[1][1:].strip()
 
-    videos = [generateNotesVideo(ffmpeg, fps, quality, frameWriter.frames, wavPath)]
+    videos = [generateNotesVideo(ffmpeg, fps, quality, frameWriter.frames, wavPath, fileExt)]
 
     initialPadding, finalPadding = options.padding.split(",")
 
     if float(initialPadding) > 0:
         video = generateSilentVideo(ffmpeg, fps, quality,
                                     float(initialPadding), 'initial-padding',
-                                    frameWriter.firstFrame)
+                                    frameWriter.firstFrame, fileExt)
         videos.insert(0, video)
 
     if float(finalPadding) > 0:
         video = generateSilentVideo(ffmpeg, fps, quality,
                                     float(finalPadding), 'final-padding',
-                                    frameWriter.lastFrame)
+                                    frameWriter.lastFrame, fileExt)
         videos.append(video)
 
     if options.titleAtStart:
@@ -1220,7 +1221,7 @@ def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
 
         video = generateSilentVideo(ffmpeg, fps, quality,
                                     float(options.titleDuration),
-                                    'title', titleFrame)
+                                    'title', titleFrame, fileExt)
         videos.insert(0, video)
 
     if len(videos) == 1:
@@ -1240,7 +1241,7 @@ def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
             "-i", "concat:%s" % "|".join(videos),
             "-codec", "copy",
             "-y",
-            "-f", "avi",
+            "-f", fileExt,
             outputFile,
         ]
         safeRun(cmd, exitcode=16)
