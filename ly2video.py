@@ -1534,7 +1534,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         # join the files
         joinedPath = tmpPath('joined.mpg')
         if sys.platform.startswith("linux"):
-            safeRun("cat '%s' '%s' > %s" % (titlePath, notesPath, joinedPath), shell=True)
+            safeRun("cat '%s' '%s' > '%s'" % (titlePath, notesPath, joinedPath), shell=True)
         elif sys.platform.startswith("win"):
             os.system('copy "%s" /B + "%s" /B "%s" /B' % (titlePath, notesPath, joinedPath))
 
