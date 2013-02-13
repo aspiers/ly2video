@@ -1302,7 +1302,7 @@ def parseOptions():
                       type="float", metavar="FPS", default=30.0)
     parser.add_option("-q", "--quality", dest="quality",
                       help="video encoding quality as used by ffmpeg's -q option "
-                           '(1 is best, 31 is worst) [30]',
+                           '(1 is best, 31 is worst) [10]',
                       type="int", metavar="N", default=10)
     parser.add_option("-r", "--resolution", dest="dpi",
                       help='resolution in DPI [110]',
