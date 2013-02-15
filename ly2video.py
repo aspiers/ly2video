@@ -370,7 +370,7 @@ def generateTitle(titleText, width, height, ttfFile, fps, titleLength):
     if not os.path.exists("title"):
         os.mkdir("title")
 
-    totalFrames = int(round(fps * titleLength))
+    totalFrames = 1
     progress("TITLE: ly2video will generate approx. %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
@@ -394,6 +394,57 @@ def generateTitle(titleText, width, height, ttfFile, fps, titleLength):
     progress("TITLE: Generating title screen has ended. (%d/%d)" %
              (totalFrames, totalFrames))
     return 0
+
+def generateBeats(width, height, ttfFile, beatstempo, beats, fps):
+    """
+    Generates frames with count-in beats.
+
+    Params:
+    - width:        pixel width of frames (and video)
+    - height:       pixel height of frames (and video)
+    - ttfFile:      path to TTF file to use for title text
+    - fps:          frame rate (frames per second) of final video
+    - beatstempo:   tempo
+    - beats         number of count-in beats
+    """
+	
+	#I had the zero displayed because it otherwise seemed very abrupt. A click-track could help this. A nice feature would be option to make last note red (or other color). 
+   
+    # save folder for frames
+    if not os.path.exists("beats"):
+        os.mkdir("beats")
+
+    totalFrames = int(round((60.000/beatstempo) * fps))
+    
+    for currentBeat in range(beats+1):
+        
+        printBeat = currentBeat	
+        
+        # create image of title screen
+        titleScreen = Image.new("RGB", (width, height), (255,255,255))
+        # it will draw text on titleScreen
+        drawer = ImageDraw.Draw(titleScreen)
+        
+        progress("Beats: ly2video will generate approx. %d frames." % totalFrames)
+        # font for beat args - font type, size
+        nameFont = ImageFont.truetype(ttfFile, height / 10)
+        
+        # args - position of left upper corner of rectangle (around text), text, font and color (black)
+        drawer.text(((width - nameFont.getsize("%d" % printBeat)[0]) / 2,
+                 (height - nameFont.getsize("%d" % printBeat)[1]) / 2 - height / 25),
+                "%d" % printBeat, font=nameFont, fill=(0,0,0))
+        
+        # generate needed number of frames (= (60/tempo) * fps)
+        for frameNum in xrange(totalFrames):
+            titleScreen.save(tmpPath("beats", "frame%d.png" % ((currentBeat*totalFrames)+frameNum)))
+
+        progress("Beats: Generating title screen has ended. (%d/%d)" %
+                 (totalFrames, totalFrames))
+        
+        
+    return 0
+    
+    
 
 def staffSpacesToPixels(ss, dpi):
     staffSpacePoints = GLOBAL_STAFF_SIZE / 4
@@ -1183,7 +1234,7 @@ def genWavFile(timidity, midiPath):
         bug("TiMidity++ failed to generate %s" % wavExpected)
     return wavExpected
 
-def generateSilence(length):
+def generateTitleSilence(length):
     """
     Generates silent audio for the title screen.
 
@@ -1203,7 +1254,7 @@ def generateSilence(length):
     Subchunk2Size = length * sample * channels * bps/8
     ChunkSize = 4 + (8 + Subchunk1Size) + (8 + Subchunk2Size)
 
-    fSilence = open("silence.wav", "w")
+    fSilence = open("titlesilence.wav", "w")
 
     fSilence.write("".join([
         'RIFF',                                # ChunkID (magic)      # 0x00
@@ -1223,7 +1274,52 @@ def generateSilence(length):
         '\0'*Subchunk2Size
     ]))
     fSilence.close()
-    return "silence.wav"
+    return "titlesilence.wav"
+
+def generateBeatSilence(beatstempo, beats):
+    """
+    Generates silent audio for the beat screens.
+
+    author: Mister Muffin,
+    http://blog.mister-muffin.de/2011/06/04/generate-silent-wav/
+
+    Params:
+    -  beatstempo: tempo
+    -  beats       beats of count-in
+    """
+    
+    #there should be an option to have a "click" on every beat (it should be default, imo).
+
+    #
+    channels = 2    # number of channels
+    bps = 16        # bits per sample
+    sample = 44100  # sample rate
+    ExtraParamSize = 0
+    Subchunk1Size = 16 + 2 + ExtraParamSize
+    Subchunk2Size =  int((60.000/beatstempo)*beats+1.000) * sample * channels * bps/8
+    ChunkSize = 4 + (8 + Subchunk1Size) + (8 + Subchunk2Size)
+
+    fSilence = open("beatsilence.wav", "w")
+
+    fSilence.write("".join([
+        'RIFF',                                # ChunkID (magic)      # 0x00
+        pack('<I', ChunkSize),                 # ChunkSize            # 0x04
+        'WAVE',                                # Format               # 0x08
+        'fmt ',                                # Subchunk1ID          # 0x0c
+        pack('<I', Subchunk1Size),             # Subchunk1Size        # 0x10
+        pack('<H', 1),                         # AudioFormat (1=PCM)  # 0x14
+        pack('<H', channels),                  # NumChannels          # 0x16
+        pack('<I', sample),                    # SampleRate           # 0x18
+        pack('<I', bps/8 * channels * sample), # ByteRate             # 0x1c
+        pack('<H', bps/8 * channels),          # BlockAlign           # 0x20
+        pack('<H', bps),                       # BitsPerSample        # 0x22
+        pack('<H', ExtraParamSize),            # ExtraParamSize       # 0x22
+        'data',                                # Subchunk2ID          # 0x24
+        pack('<I', Subchunk2Size),             # Subchunk2Size        # 0x28
+        '\0'*Subchunk2Size
+    ]))
+    fSilence.close()
+    return "beatsilence.wav"
 
 def output_divider_line():
     progress(60 * "-")
@@ -1302,8 +1398,8 @@ def parseOptions():
                       type="float", metavar="FPS", default=30.0)
     parser.add_option("-q", "--quality", dest="quality",
                       help="video encoding quality as used by ffmpeg's -q option "
-                           '(1 is best, 31 is worst) [10]',
-                      type="int", metavar="N", default=10)
+                           '(1 is best, 31 is worst) [18]',
+                      type="int", metavar="N", default=5)
     parser.add_option("-r", "--resolution", dest="dpi",
                       help='resolution in DPI [110]',
                       metavar="DPI", type="int", default=110)
@@ -1349,7 +1445,21 @@ def parseOptions():
     parser.add_option("-v", "--version", dest="showVersion",
                       help="show program version",
                       action="store_true", default=False)
-
+    parser.add_option("--count-in", dest="beatsAtStart",
+                      help='adds beat screens at the start of video '
+                           '(for counting in)',
+                      action="store_true", default=False)
+    #would be best if these next options were pulled from lily file. This would require something to read time signature and recognize compound time so as to divide prefix by 3 for proper amount of count-in beats(6/8 = 2 count in beats). 
+    parser.add_option("--beats", dest="beats",
+                      help='number of count-in beats',
+                      type="int", metavar="BEATS", default=False)
+    parser.add_option("--tempo", dest="beatstempo",
+                      help='tempo of music -needs compound meter explained',
+                      type="float", metavar="TEMPO", default=False)
+    #not sure if dest='tempo' would conflict, used beatstempo instead. 
+    #another nice option would be for multiple measures of count-in. 
+	
+	
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(0)
@@ -1497,13 +1607,14 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-i", framePath,
             "-i", wavPath,
             "-q:v", str(options.quality),
+            "-b:a", "320k", 
             outputFile
         ]
         safeRun(cmd, exitcode=13, issues=[32])
     else:
-        # generate silent title video
-        silentAudio    = generateSilence(options.titleDuration)
-        titleFramePath = tmpPath('title', 'frame%d.png')
+		# generate silent title video
+        silentAudio    = generateTitleSilence(options.titleDuration)
+        titleFramePath = tmpPath('title', 'frame0.png')
         titlePath      = tmpPath('title.mpg')
         cmd = [
             ffmpeg,
@@ -1511,9 +1622,23 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-r", fps,
             "-i", titleFramePath,
             "-i", silentAudio,
-            "-same_quant",
             "-q:v", str(options.quality),
             titlePath
+        ]
+        safeRun(cmd, exitcode=14)
+		
+        # generate silent beat video
+        silentAudio    = generateBeatSilence(options.beatstempo,options.beats) 
+        titleFramePath = tmpPath('beats', 'frame%d.png')
+        beatsPath      = tmpPath('beats.mpg')
+        cmd = [
+            ffmpeg,
+            "-f", "image2",
+            "-r", fps,
+            "-i", titleFramePath,
+            "-i", silentAudio,
+            "-q:v", str(options.quality),
+            beatsPath
         ]
         safeRun(cmd, exitcode=14)
 
@@ -1525,8 +1650,8 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-r", fps,
             "-i", framePath,
             "-i", wavPath,
-            "-same_quant",
             "-q:v", str(options.quality),
+            "-b:a", "320k", 
             notesPath
         ]
         safeRun(cmd, exitcode=15)
@@ -1534,15 +1659,17 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         # join the files
         joinedPath = tmpPath('joined.mpg')
         if sys.platform.startswith("linux"):
-            safeRun("cat '%s' '%s' > '%s'" % (titlePath, notesPath, joinedPath), shell=True)
+            safeRun("cat '%s' '%s' '%s' > '%s'" % (titlePath, beatsPath, notesPath, joinedPath), shell=True)
+        #didn't test this in windows
         elif sys.platform.startswith("win"):
-            os.system('copy "%s" /B + "%s" /B "%s" /B' % (titlePath, notesPath, joinedPath))
+            os.system('copy "%s" /B + "%s" /B + "%s" /B "%s" /B' % (titlePath, beatsPath, notesPath, joinedPath))
 
         # create output file
         cmd = [
             ffmpeg,
             "-i", joinedPath,
             "-q:v", str(options.quality),
+            "-b:a", "320k", 
             outputFile
         ]
         safeRun(cmd, exitcode=16)
@@ -1861,6 +1988,12 @@ def main():
     if options.titleAtStart:
         generateTitle(titleText, options.width, options.height,
                       options.titleTtfFile, fps, options.titleDuration)
+        output_divider_line()
+        
+    # generate beats screen
+    if options.beatsAtStart:
+        generateBeats(options.width, options.height,
+                      options.titleTtfFile, options.beatstempo, options.beats, fps)
         output_divider_line()
 
     # generate notes
