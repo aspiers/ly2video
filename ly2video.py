@@ -833,21 +833,6 @@ class VideoFrameWriter(object):
         self.leftMargin = leftMargin
         self.rightMargin = rightMargin
 
-    def write(self, noteIndices, notesImage):
-        """
-        Params:
-          - noteIndices: indices of notes in pictures
-          - notesImage:  filename of the image
-        """
-        # folder to store frames for video
-        if not os.path.exists("notes"):
-            os.mkdir("notes")
-
-        firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
-        debug("first tempo is %.3f bpm" % self.tempo)
-        debug("final MIDI tick is %d" % self.midiTicks[-1])
-        self.writePage(noteIndices, notesImage)
-
     def estimateFrames(self):
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
         debug("approx %.2f MIDI beats" % approxBeats)
@@ -858,12 +843,20 @@ class VideoFrameWriter(object):
         progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
                  (estimatedFrames, self.fps))
 
-    def writePage(self, indices, notesImage):
+    def write(self, indices, notesImage):
         """
         Params:
-          - indices:           indices of notes in page
-          - notesImageFile:    name of that images (list of strings)
+          - indices:     indices of notes in pictures
+          - notesImage:  filename of the image
         """
+        # folder to store frames for video
+        if not os.path.exists("notes"):
+            os.mkdir("notes")
+
+        firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
+        debug("first tempo is %.3f bpm" % self.tempo)
+        debug("final MIDI tick is %d" % self.midiTicks[-1])
+
         notesPic = Image.open(notesImage)
         cropTop, cropBottom = self.getCropTopAndBottom(notesPic)
 
