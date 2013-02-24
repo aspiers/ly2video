@@ -41,7 +41,6 @@ from struct import pack
 from PIL import Image, ImageDraw, ImageFont
 from ly.tokenize import MusicTokenizer, Tokenizer
 import ly.tools
-from pyPdf import PdfFileWriter, PdfFileReader
 import midi
 
 from pprint import pprint, pformat
@@ -188,13 +187,11 @@ def preprocessLyFile(lyFile, lilypondVersion, dumper):
     return newLyFile
 
 def runLilyPond(lyFileName, dpi, *args):
-    progress("Generating PDF, PNG and MIDI files ...")
+    progress("Generating PNG and MIDI files ...")
     cmd = [
         "lilypond",
-        "-fpdf",
         "--png",
         "-I", runDir,
-        "-dpoint-and-click",
         "-dmidi-extension=midi",
         "-dresolution=%d" % dpi
     ] + list(args) + [ lyFileName ]
@@ -202,7 +199,7 @@ def runLilyPond(lyFileName, dpi, *args):
     os.chdir(tmpPath())
     output = safeRun(cmd, exitcode=9)
     output_divider_line()
-    progress("Generated PDF, PNG and MIDI files")
+    progress("Generated PNG and MIDI files")
     return output
 
 def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
@@ -580,10 +577,6 @@ def getMidiEvents(midiFileName):
 
     return (midiResolution, temposList, midiTicks, notesInTicks, pitchBends)
 
-    page = pdfFile.getPage(0)
-    pageWidth = page.getObject()['/MediaBox'][2]
-    progress("Width of PDF page is %f" % pageWidth)
-
 def pitchValue(token, parser):
     """
     Returns the numerical pitch of the token representing a note,
@@ -670,7 +663,7 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     while i < len(leftmostGrobsByMoment):
         if midiIndex == len(midiTicks):
-            warn("Ran out of MIDI indices after %d. Current PDF index: %d" %
+            warn("Ran out of MIDI indices after %d. Current index: %d" %
                   (midiIndex, index))
             break
 
@@ -757,7 +750,7 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     if midiIndex < len(midiTicks) - 1:
         # Could happen if last note is a dangling tie?
-        warn("ran out of notes in PDF at MIDI tick %d (%d/%d ticks)" % \
+        warn("ran out of notes at MIDI tick %d (%d/%d ticks)" % \
                  (midiTicks[midiIndex], midiIndex + 1, len(midiTicks)))
 
     progress("sync points found: %5d\n"
@@ -1574,17 +1567,6 @@ def getLyVersion(fileName):
 
     return version
 
-def getImageWidth(notesImage):
-    """
-    Get width of image in pixels.  This will allow us to convert PDF
-    coordinates into dimensions measured in pixels.
-    """
-    tmpImage = Image.open(notesImage)
-    picWidth = tmpImage.size[0]
-    progress("Width of %s is %d pixels" % (notesImage, picWidth))
-    del tmpImage
-    return picWidth
-
 def getNumStaffLines(lyFileName, dpi):
     # generate preview of notes
     runLilyPond(
@@ -1597,7 +1579,7 @@ def getNumStaffLines(lyFileName, dpi):
     dirname, filename = os.path.split(lyFileName)
     if dirname != tmpPath():
         basename, suffix = os.path.splitext(filename)
-        for ext in ('png', 'eps', 'pdf'):
+        for ext in ('png', 'eps'):
             generated = basename + '.' + ext
             src = os.path.join(dirname, generated)
             dst = tmpPath(generated)
@@ -1782,11 +1764,11 @@ def main():
 
     It performs the following steps:
 
-    - use Lilypond to generate PNG images, PDF, and MIDI files of the
+    - use Lilypond to generate PNG images, and MIDI files of the
       music
 
-    - find the spacial and temporal position of each note in the PDF
-      and MIDI files respectively
+    - find the spatial and temporal position of each note in the PNG
+      and MIDI files
 
     - combine the positions together to generate the required number
       of video frames
@@ -1832,7 +1814,6 @@ def main():
                                                      leftPaperMargin)
 
     notesImage = tmpPath("sanitised.png")
-    picWidth = getImageWidth(notesImage)
 
     midiPath = tmpPath("sanitised.midi")
     if options.beatmap:
