@@ -107,6 +107,10 @@ class LySrc(object):
         # N.B. line numbers in this are numbered starting from 0
         changelist = ly.tools.relativeToAbsolute(document)
         self.absolutePitches = changelist.token_changes_by_coords
+        debug("absolutePitches: %s" % repr(self.absolutePitches))
+        if not self.absolutePitches:
+            warn("Conversion of .ly relative pitches to absolute failed. "
+                 "Synchronization will probably fail.")
 
     def getAbsolutePitch(self, lySrcLocation):
         coords = lySrcLocation.coords()
