@@ -751,7 +751,7 @@ def getNoteIndices(leftmostGrobsByMoment,
         if len(midiPitches) > 1:
             # technically it would be more correct to save the grob
             # pitches not MIDI pitches,
-            lastChord = midiPitches.keys()
+            lastChord = midiPitches
         else:
             lastChord = [ ]
 
