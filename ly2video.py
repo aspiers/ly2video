@@ -100,6 +100,10 @@ class LySrc(object):
         self.parser.language = language
 
     def getAbsolutePitches(self, document):
+        if document.find('\\relative') == -1:
+            self.absolutePitches = { }
+            return
+
         # N.B. line numbers in this are numbered starting from 0
         changelist = ly.tools.relativeToAbsolute(document)
         self.absolutePitches = changelist.token_changes_by_coords
