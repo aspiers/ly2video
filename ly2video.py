@@ -705,7 +705,7 @@ def getNoteIndices(leftmostGrobsByMoment,
             # skip the tick.
             ticksSkipped += 1
             midiTicks.pop(midiIndex)
-            msg = "    WARNING: skipping MIDI tick %d; contents:" % midiTick
+            msg = "    WARNING: skipping MIDI tick %d since no grob matched; contents:" % midiTick
             for event in events:
                 msg += ("\n        pitch %d length %d" %
                         (event.get_pitch(), event.length))
@@ -715,9 +715,12 @@ def getNoteIndices(leftmostGrobsByMoment,
         i += 1
 
         if grobTick < midiTick:
-            # No MIDI events found for this grob.  This is
-            # probably due to a tied note.  FIXME: make sure.
-            debug("    No MIDI events for this grob; probably a tie - skipping grob.")
+            # No MIDI events found for this grob.  This is probably
+            # due to a tied note, or a ChordName for which the
+            # corresponding chord was excluded from the MIDI output.
+            # FIXME: make sure.
+            debug("    No MIDI events for this grob; "
+                  "probably a tie/ChordName - skipping grob.")
             continue
 
         # We're looking at the same point in time in the notated
@@ -727,9 +730,13 @@ def getNoteIndices(leftmostGrobsByMoment,
         # grob, not just the leftmost one.  This might result in more
         # synchronization failures, but over time that could expose
         # more edge cases which are not correctly handled right now.
+        #
+        # The pitch matching can also fail here if the grob is a
+        # ChordName, since its pitch might be in a different octave to
+        # the NoteOn event for the root of the chord.
         if grobPitchValue not in midiPitches:
             debug("    grob's pitch %d not found in midiPitches; "
-                  "probably a tie - skipping grob and tick." % grobPitchValue)
+                  "probably a tie/ChordName - skipping grob and tick." % grobPitchValue)
             midiPitches = [ str(event.get_pitch()) for event in events ]
             debug("    midiPitches: %s" %
                   " ".join([ "%s (%s)" % (pitch, NOTE_NAMES[int(pitch) % 12])
