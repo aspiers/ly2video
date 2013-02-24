@@ -736,14 +736,21 @@ def getNoteIndices(leftmostGrobsByMoment,
         # the NoteOn event for the root of the chord.
         if grobPitchValue not in midiPitches:
             debug("    grob's pitch %d not found in midiPitches; "
-                  "probably a tie/ChordName - skipping grob and tick." % grobPitchValue)
+                  "probably a tie/ChordName" % grobPitchValue)
             midiPitches = [ str(event.get_pitch()) for event in events ]
             debug("    midiPitches: %s" %
                   " ".join([ "%s (%s)" % (pitch, NOTE_NAMES[int(pitch) % 12])
                              for pitch in sorted(midiPitches) ]))
-            ticksSkipped += 1
-            midiTicks.pop(midiIndex)
-            continue
+            if midiIndex == 0:
+                # This is the first MIDI event - we can't skip it,
+                # because then the audio and video would start in
+                # different places.
+                progress("    Starting by hovering over the first grob")
+            else:
+                progress("    Skipping grob and tick")
+                ticksSkipped += 1
+                midiTicks.pop(midiIndex)
+                continue
 
         midiIndex += 1
         alignedNoteIndices.append(index)
