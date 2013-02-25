@@ -875,6 +875,16 @@ class VideoFrameWriter(object):
         if not DEBUG:
             progress("A dot is displayed for every 10 frames generated.")
 
+        initialTick = self.midiTicks[self.midiIndex]
+        if initialTick > 0:
+            debug("\ncalculating wall-clock start for first audible MIDI event")
+            # This duration isn't used, but it's necessary to
+            # calculate it like this in order to ensure tempoIndex is
+            # correct before we start writing frames.
+            silentPreludeDuration = \
+                self.secsElapsedForTempoChanges(0, initialTick,
+                                                0, indices[0])
+
         # generate all frames in between each pair of adjacent indices
         for i in xrange(len(indices) - 1):
             # get two indices of notes (pixels)
