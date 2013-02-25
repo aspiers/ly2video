@@ -899,8 +899,8 @@ class VideoFrameWriter(object):
             # many frames we need in between the current pair of
             # indices.
             secsSinceIndex = \
-                self.measureTempoChanges(startTick, endTick,
-                                         startIndex, endIndex)
+                self.secsElapsedForTempoChanges(startTick, endTick,
+                                                startIndex, endIndex)
 
             # This is the exact time we are *aiming* for the frameset
             # to finish at (i.e. the start time of the first frame
@@ -1065,8 +1065,8 @@ class VideoFrameWriter(object):
                 return False
         return True
 
-    def measureTempoChanges(self, startTick, endTick,
-                            startIndex, endIndex):
+    def secsElapsedForTempoChanges(self, startTick, endTick,
+                                   startIndex, endIndex):
         """
         Returns the time elapsed in between startTick and endTick,
         where the only MIDI events in between (if any) are tempo
