@@ -1072,7 +1072,7 @@ class VideoFrameWriter(object):
         where the only MIDI events in between (if any) are tempo
         change events.
         """
-        secsSinceIndex = 0.0
+        secsSinceStartIndex = 0.0
         lastTick = startTick
         while self.tempoIndex < len(self.temposList):
             tempoTick, tempo = self.temposList[self.tempoIndex]
@@ -1088,18 +1088,19 @@ class VideoFrameWriter(object):
                 continue
 
             # startTick < tempoTick < endTick
-            secsSinceIndex += self.ticksToSecs(lastTick, tempoTick)
+            secsSinceStartIndex += self.ticksToSecs(lastTick, tempoTick)
+            debug("        last %d tempo %d" % (lastTick, tempoTick))
             debug("        secs since index %d: %f" %
-                  (startIndex, secsSinceIndex))
+                  (startIndex, secsSinceStartIndex))
             lastTick = tempoTick
 
         # Add on the time elapsed between the final tempo change
         # and endTick:
-        secsSinceIndex += self.ticksToSecs(lastTick, endTick)
+        secsSinceStartIndex += self.ticksToSecs(lastTick, endTick)
 
         debug("    secs between indices %d and %d: %f" %
-              (startIndex, endIndex, secsSinceIndex))
-        return secsSinceIndex
+              (startIndex, endIndex, secsSinceStartIndex))
+        return secsSinceStartIndex
 
     def writeVideoFrames(self, neededFrames, startIndex, indexTravel,
                          notesPic, cropTop, cropBottom):
