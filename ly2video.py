@@ -1418,6 +1418,8 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
 
     try:
         stdout = subprocess.check_output(cmd, shell=shell)
+    except KeyboardInterrupt:
+        fatal("Interrupted via keyboard; aborting.")
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         excmsg = "%s: %s" % (exc_type.__name__, exc_value)
