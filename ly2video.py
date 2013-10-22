@@ -1622,10 +1622,18 @@ def getNumStaffLines(lyFileName, dpi):
                 previewPic = fileName
 
     if previewPic is None:
+        error = "Failed to generate a .png preview file from %s" % lyFileName
+        msg = error
+
+        if re.search('\S', output):
+            msg = "%s\nlilypond output: [%s]\n\n%s; please check lilypond output immediately above." % \
+                (error, output, msg)
+
         fatal("%s\n\n"
-              "Failed to generate a .png preview file from %s; "
-              "please check lilypond output immediately above." %
-              (output, lyFileName))
+              "Maybe your input .ly file was missing a \\layout { } "
+              "command?  See:\n\n"
+              "  http://www.lilypond.org/doc/v2.16/Documentation/learning/introduction-to-the-lilypond-file-structure\n\n"
+              "for more information." % msg)
 
     staffYs = findStaffLines(previewPic, 50)
     numStaffLines = len(staffYs)
