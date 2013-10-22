@@ -1596,7 +1596,7 @@ def getLyVersion(fileName):
 
 def getNumStaffLines(lyFileName, dpi):
     # generate preview of notes
-    runLilyPond(
+    output = runLilyPond(
         lyFileName, dpi,
         "-dpreview",
         "-dprint-pages=#f",
@@ -1614,11 +1614,17 @@ def getNumStaffLines(lyFileName, dpi):
             progress("Moved %s to %s" % (src, dst))
 
     # find preview image and get num of staff lines
-    previewPic = ""
+    previewPic = None
     for fileName in os.listdir("."):
         if "preview" in fileName:
             if fileName.split(".")[-1] == "png":
                 previewPic = fileName
+
+    if previewPic is None:
+        fatal("%s\n\n"
+              "Failed to generate a .png preview file from %s; "
+              "please check lilypond output immediately above." %
+              (output, lyFileName))
 
     staffYs = findStaffLines(previewPic, 50)
     numStaffLines = len(staffYs)
