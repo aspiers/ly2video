@@ -1425,7 +1425,8 @@ def applyBeatmap(src, dst, beatmap):
 def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
     quotedCmd = []
 
-    debug("Running: %s" % repr(cmd))
+    debug("Running: %s %s" %
+          (cmd[0], " ".join([ "'%s'" % arg for arg in cmd[1:]])))
 
     try:
         stdout = subprocess.check_output(cmd, shell=shell)
