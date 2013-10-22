@@ -192,7 +192,7 @@ def runLilyPond(lyFileName, dpi, *args):
         "lilypond",
         "--png",
         "-I", runDir,
-        "-dmidi-extension=midi",
+        "-dmidi-extension=midi", # default on Windows is .mid
         "-dresolution=%d" % dpi
     ] + list(args) + [ lyFileName ]
     output_divider_line()
