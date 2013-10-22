@@ -55,13 +55,13 @@ You can ensure the remaining dependencies are installed via something
 like:
 
     sudo apt-get install timidity python-pip python-imaging swig libasound-dev
-    
+
 ### Installing dependencies on Arch-based Linux distributions
 
 Download the source tarball from [the Arch User Repository](https://aur.archlinux.org/packages/ly2video/), extract it, and run
 
     makepkg -si
-    
+
 in the directory you extracted to in order to pull all the dependencies (python and otherwise)
 from the main repos and then install ly2video. The other dependencies
 from the AUR will have to be installed manually; however, they will all be listed
@@ -70,7 +70,7 @@ if you run `makepkg` in the same directory.
 If you have an AUR helper such as [yaourt](https://wiki.archlinux.org/index.php/Yaourt) installed, this entire process can be shortened to one step:
 
     yaourt -S ly2video
-    
+
 where yaourt would be replaced by the name of your AUR helper if you have a different helper installed.
 
 Regardless, after installing the package, you can use the script by running `ly2video.py` with the required arguments.
