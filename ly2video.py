@@ -1615,8 +1615,7 @@ def getNumStaffLines(lyFileName, dpi):
 
     # find preview image and get num of staff lines
     previewPic = ""
-    previewFilesTmp = os.listdir(".")
-    for fileName in previewFilesTmp:
+    for fileName in os.listdir("."):
         if "preview" in fileName:
             if fileName.split(".")[-1] == "png":
                 previewPic = fileName
