@@ -1849,7 +1849,7 @@ def main():
     if not os.path.exists(midiPath):
         fatal("Failed to generate MIDI file from %s\n"
               "Please ensure that your input file contains a \\midi "
-              "directive and successfully outputs a MIDI file when "
+              "command and successfully outputs a MIDI file when "
               "run through LilyPond." % sanitisedLyFileName)
 
     if options.beatmap:
