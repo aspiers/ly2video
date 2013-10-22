@@ -1843,6 +1843,12 @@ def main():
     notesImage = tmpPath("sanitised.png")
 
     midiPath = tmpPath("sanitised.midi")
+    if not os.path.exists(midiPath):
+        fatal("Failed to generate MIDI file from %s\n"
+              "Please ensure that your input file contains a \\midi "
+              "directive and successfully outputs a MIDI file when "
+              "run through LilyPond." % sanitisedLyFileName)
+
     if options.beatmap:
         output_divider_line()
         newMidiPath = tmpPath("sanitised-adjusted.midi")

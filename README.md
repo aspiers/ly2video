@@ -117,6 +117,9 @@ from the main directory to install it to some directory INSTALLATION_DIR. Runnin
 
 Run `./ly2video.py --help` to display usage information.
 
+You must ensure that your `.ly` input file contains a `\midi`
+directive which generates a valid MIDI file when run through LilyPond.
+
 ## Support, bugs, development etc.
 
 Please check the [issue tracker](https://github.com/aspiers/ly2video/issues)
