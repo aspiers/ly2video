@@ -355,29 +355,21 @@ def findStaffLinesInImage(image, lineLength):
     # return staff line indices
     return firstLineX, lines
 
-def generateTitle(titleText, width, height, ttfFile, fps, titleLength):
+def generateTitleFrame(titleText, width, height, ttfFile):
     """
-    Generates frames with name of song and its author.
+    Generates frame with name of song and its author.
 
     Params:
     - titleText:    collection of name of song and its author
     - width:        pixel width of frames (and video)
     - height:       pixel height of frames (and video)
     - ttfFile:      path to TTF file to use for title text
-    - fps:          frame rate (frames per second) of final video
-    - titleLength:  length of title screen (seconds)
     """
 
     # create image of title screen
     titleScreen = Image.new("RGB", (width, height), (255,255,255))
     # it will draw text on titleScreen
     drawer = ImageDraw.Draw(titleScreen)
-    # save folder for frames
-    if not os.path.exists("title"):
-        os.mkdir("title")
-
-    totalFrames = int(round(fps * titleLength))
-    progress("TITLE: ly2video will generate approx. %d frames." % totalFrames)
 
     # font for song's name, args - font type, size
     nameFont = ImageFont.truetype(ttfFile, height / 15)
@@ -393,13 +385,8 @@ def generateTitle(titleText, width, height, ttfFile, fps, titleLength):
                  (height / 2) + height / 25),
                 titleText.author, font=authorFont, fill=(0,0,0))
 
-    # generate needed number of frames (= fps * titleLength)
-    for frameNum in xrange(totalFrames):
-        titleScreen.save(tmpPath("title", "frame%d.png" % frameNum))
-
-    progress("TITLE: Generating title screen has ended. (%d/%d)" %
-             (totalFrames, totalFrames))
-    return 0
+    titleScreen.save(tmpPath("title.png"))
+    generateStaticVideoFrames('title', int(round(fps * titleLength)))
 
 def staffSpacesToPixels(ss, dpi):
     staffSpacePoints = GLOBAL_STAFF_SIZE / 4
@@ -1512,6 +1499,17 @@ def getOutputFile(options):
         basename, ext = os.path.splitext(options.input)
         outputFile = basename + '.avi'
     return absPathFromRunDir(outputFile)
+
+def generateStaticVideoFrames(name, frames):
+    outdir = tmpPath(name)
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    srcFrame = tmpPath("%s.png" % name)
+
+    for i in xrange(frames):
+        os.symlink(srcFrame, os.path.join(outdir, "frame%d.png" % i))
+
+    progress("Generated %d frames in %s/ from %s" % (frames, outdir, srcFrame))
 
 def callFfmpeg(ffmpeg, options, wavPath, outputFile):
     fps = str(options.fps)
