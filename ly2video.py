@@ -33,6 +33,7 @@ import shutil
 import subprocess
 import sys
 import urllib
+import pipes
 from collections import namedtuple
 from distutils.version import StrictVersion
 from optparse import OptionParser
@@ -1423,10 +1424,15 @@ def applyBeatmap(src, dst, beatmap):
     debug(safeRun(cmd))
 
 def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
-    quotedCmd = []
+    if shell:
+        quotedCmd = cmd
+    else:
+        quotedCmd = [cmd[0]]
+        for arg in cmd[1:]:
+            quotedCmd.append(pipes.quote(arg))
+        quotedCmd = " ".join(quotedCmd)
 
-    debug("Running: %s %s" %
-          (cmd[0], " ".join([ "'%s'" % arg for arg in cmd[1:]])))
+    debug("Running: %s\n" % quotedCmd)
 
     try:
         stdout = subprocess.check_output(cmd, shell=shell)
@@ -1437,7 +1443,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
         excmsg = "%s: %s" % (exc_type.__name__, exc_value)
         if errormsg is None:
             errormsg = "Failed to run command: %s:\n%s" % \
-                (repr(cmd), excmsg)
+                (quotedCmd, excmsg)
         if issues:
             bug(errormsg, *issues)
         else:
