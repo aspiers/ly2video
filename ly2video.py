@@ -1190,7 +1190,7 @@ def genWavFile(timidity, midiPath):
         bug("TiMidity++ failed to generate %s" % wavExpected)
     return wavExpected
 
-def generateSilence(length):
+def generateSilence(name, length):
     """
     Generates silent audio for the title screen.
 
@@ -1207,10 +1207,15 @@ def generateSilence(length):
     sample = 44100  # sample rate
     ExtraParamSize = 0
     Subchunk1Size = 16 + 2 + ExtraParamSize
-    Subchunk2Size = length * sample * channels * bps/8
+    Subchunk2Size = int(length * sample * channels * bps/8)
     ChunkSize = 4 + (8 + Subchunk1Size) + (8 + Subchunk2Size)
 
-    fSilence = open("silence.wav", "w")
+    outdir = tmpPath("silence")
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    out = os.path.join(outdir, name + '.wav')
+
+    fSilence = open(out, "w")
 
     fSilence.write("".join([
         'RIFF',                                # ChunkID (magic)      # 0x00
@@ -1230,7 +1235,7 @@ def generateSilence(length):
         '\0'*Subchunk2Size
     ]))
     fSilence.close()
-    return "silence.wav"
+    return out
 
 def output_divider_line():
     progress(60 * "-")
@@ -1528,7 +1533,7 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
         safeRun(cmd, exitcode=13, issues=[32])
     else:
         # generate silent title video
-        silentAudio    = generateSilence(options.titleDuration)
+        silentAudio    = generateSilence('title', options.titleDuration)
         titleFramePath = tmpPath('title', 'frame%d.png')
         titlePath      = tmpPath('title.mpg')
         cmd = [
