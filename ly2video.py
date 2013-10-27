@@ -1726,7 +1726,7 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
         # ignore these commands
         if line.find("#(set-global-staff-size") != -1 or \
             line.find("\\bookOutputName") != -1:
-            line = fLyFile.readline()
+            pass
 
         # if I find version, write own paper block right behind it
         elif line.find("\\version") != -1:
