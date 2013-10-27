@@ -1539,7 +1539,6 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-r", fps,
             "-i", titleFramePath,
             "-i", silentAudio,
-            "-same_quant",
             "-q:v", str(options.quality),
             titlePath
         ]
@@ -1553,7 +1552,6 @@ def callFfmpeg(ffmpeg, options, wavPath, outputFile):
             "-r", fps,
             "-i", framePath,
             "-i", wavPath,
-            "-same_quant",
             "-q:v", str(options.quality),
             notesPath
         ]
