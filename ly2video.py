@@ -385,8 +385,9 @@ def generateTitleFrame(titleText, width, height, ttfFile):
                  (height / 2) + height / 25),
                 titleText.author, font=authorFont, fill=(0,0,0))
 
-    titleScreen.save(tmpPath("title.png"))
-    generateStaticVideoFrames('title', int(round(fps * titleLength)))
+    out = tmpPath("title.png")
+    titleScreen.save(out)
+    return out
 
 def staffSpacesToPixels(ss, dpi):
     staffSpacePoints = GLOBAL_STAFF_SIZE / 4
@@ -1329,6 +1330,9 @@ def parseOptions():
                       help='width of left/right margins for scrolling '
                            'in pixels [50,100]',
                       metavar="WIDTH,WIDTH", type="string", default='50,100')
+    parser.add_option("-p", "--padding", dest="padding",
+                      help='time to pause on initial and final frames [1,1]',
+                      metavar="SECS,SECS", type="string", default='1,1')
     parser.add_option("-s", "--scroll-notes", dest="scrollNotes",
                       help='rather than scrolling the cursor from left to right, '
                            'scroll the notation from right to left and keep the '
@@ -1505,76 +1509,104 @@ def getOutputFile(options):
         outputFile = basename + '.avi'
     return absPathFromRunDir(outputFile)
 
-def generateStaticVideoFrames(name, frames):
+def generateNotesVideo(ffmpeg, fps, quality, wavPath):
+    progress("Generating video with animated notation\n")
+    notesPath = tmpPath("notes.mpg")
+    framePath = tmpPath('notes', 'frame%d.png')
+    cmd = [
+        ffmpeg,
+        "-f", "image2",
+        "-r", str(fps),
+        "-i", framePath,
+        "-i", wavPath,
+        "-q:v", quality,
+        notesPath
+    ]
+    safeRun(cmd, exitcode=15)
+    output_divider_line()
+    return notesPath
+
+def generateStaticVideoFrames(name, frames, srcFrame):
     outdir = tmpPath(name)
     if not os.path.exists(outdir):
         os.mkdir(outdir)
-    srcFrame = tmpPath("%s.png" % name)
+    frameFileTemplate = "frame%d.png"
 
     for i in xrange(frames):
-        os.symlink(srcFrame, os.path.join(outdir, "frame%d.png" % i))
+        os.symlink(srcFrame, os.path.join(outdir, frameFileTemplate % i))
 
-    progress("Generated %d frames in %s/ from %s" % (frames, outdir, srcFrame))
+    progress("Generated %d frames in %s/ from %s\n" % (frames, outdir, srcFrame))
+    return tmpPath(name, frameFileTemplate)
 
-def callFfmpeg(ffmpeg, options, wavPath, outputFile):
-    fps = str(options.fps)
-    framePath = tmpPath('notes', 'frame%d.png')
+def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
+    out         = tmpPath('%s.mpg' % name)
+    frames = int(desiredDuration * fps)
+    trueDuration = float(frames) / fps
+    progress("Generating silent video %s, duration %fs\n" % (out, trueDuration))
+    framePath   = generateStaticVideoFrames(name, frames, srcFrame)
+    silentAudio = generateSilence(name, trueDuration)
+    cmd = [
+        ffmpeg,
+        "-f", "image2",
+        "-r", str(fps),
+        "-i", framePath,
+        "-i", silentAudio,
+        "-q:v", quality,
+        out
+    ]
+    safeRun(cmd, exitcode=14)
+    output_divider_line()
+    return out
 
-    if not options.titleAtStart:
-        cmd = [
-            ffmpeg,
-            "-f", "image2",
-            "-r", fps,
-            "-i", framePath,
-            "-i", wavPath,
-            "-q:v", str(options.quality),
-            outputFile
-        ]
-        safeRun(cmd, exitcode=13, issues=[32])
+def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
+    fps = float(options.fps)
+    quality = str(options.quality)
+
+    videos = [ generateNotesVideo(ffmpeg, fps, quality, wavPath) ]
+
+    initialPadding, finalPadding = options.padding.split(",")
+
+    if float(initialPadding) > 0:
+        video = generateSilentVideo(ffmpeg, fps, quality,
+                                    float(initialPadding), 'initial-padding',
+                                    tmpPath("notes/frame0.png"))
+        videos.insert(0, video)
+
+    if float(finalPadding) > 0:
+        video = generateSilentVideo(ffmpeg, fps, quality,
+                                    float(finalPadding), 'final-padding',
+                                    tmpPath(finalFrame))
+        videos.append(video)
+
+    if options.titleAtStart:
+        titleFrame = generateTitleFrame(titleText, options.width,
+                                        options.height,
+                                        options.titleTtfFile)
+        output_divider_line()
+
+        video = generateSilentVideo(ffmpeg, fps, quality,
+                                    float(options.titleDuration),
+                                    'title', titleFrame)
+        videos.insert(0, video)
+
+    if len(videos) == 1:
+        os.rename(videos[0], outputFile)
     else:
-        # generate silent title video
-        silentAudio    = generateSilence('title', options.titleDuration)
-        titleFramePath = tmpPath('title', 'frame%d.png')
-        titlePath      = tmpPath('title.mpg')
-        cmd = [
-            ffmpeg,
-            "-f", "image2",
-            "-r", fps,
-            "-i", titleFramePath,
-            "-i", silentAudio,
-            "-q:v", str(options.quality),
-            titlePath
-        ]
-        safeRun(cmd, exitcode=14)
+        progress("Joining videos:\n%s" %
+                 "".join([ "  %s\n" % video for video in videos ]))
 
-        # generate video with notes
-        notesPath = tmpPath("notes.mpg")
-        cmd = [
-            ffmpeg,
-            "-f", "image2",
-            "-r", fps,
-            "-i", framePath,
-            "-i", wavPath,
-            "-q:v", str(options.quality),
-            notesPath
-        ]
-        safeRun(cmd, exitcode=15)
-
-        # join the files
-        joinedPath = tmpPath('joined.mpg')
         if sys.platform.startswith("linux"):
-            safeRun("cat '%s' '%s' > '%s'" % (titlePath, notesPath, joinedPath), shell=True)
+            inputArgs = " ".join([ pipes.quote(video) for video in videos ])
+            safeRun("cat %s > '%s'" % (inputArgs, outputFile), shell=True)
         elif sys.platform.startswith("win"):
-            os.system('copy "%s" /B + "%s" /B "%s" /B' % (titlePath, notesPath, joinedPath))
+            inputArgs = " + ".join([ '"%s" /B' % video for video in videos ])
+            os.system('copy %s "%s" /B' % (inputArgs, outputFile))
 
-        # create output file
-        cmd = [
-            ffmpeg,
-            "-i", joinedPath,
-            "-q:v", str(options.quality),
-            outputFile
-        ]
-        safeRun(cmd, exitcode=16)
+    # Could also do this with ffmpeg:
+    #
+    #   ffmpeg -i concat:"title.mpg|notes.mpg" -codec copy out.mpg
+    #
+    # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
 
 def getLyVersion(fileName):
     # if I don't have input file, end
@@ -1896,12 +1928,6 @@ def main():
     # frame rate of output video
     fps = options.fps
 
-    # generate title screen
-    if options.titleAtStart:
-        generateTitle(titleText, options.width, options.height,
-                      options.titleTtfFile, fps, options.titleDuration)
-        output_divider_line()
-
     # generate notes
     leftMargin, rightMargin = options.cursorMargins.split(",")
     frameWriter = VideoFrameWriter(
@@ -1909,7 +1935,6 @@ def main():
         options.scrollNotes, int(leftMargin), int(rightMargin),
         midiResolution, midiTicks, temposList)
     frameWriter.write(noteIndices, notesImage)
-
     output_divider_line()
 
     wavPath = genWavFile(timidity, midiPath)
@@ -1917,7 +1942,8 @@ def main():
     output_divider_line()
 
     outputFile = getOutputFile(options)
-    callFfmpeg(ffmpeg, options, wavPath, outputFile)
+    finalFrame = "notes/frame%d.png" % (frameWriter.frameNum - 1)
+    generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile)
 
     output_divider_line()
 
