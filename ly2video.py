@@ -1756,16 +1756,21 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
 
         # ignore paper block
         elif (line.find("\\paper") != -1 or paperPart):
+            debug("paperPart: %s" % line.rstrip())
             if line.find("\\paper") != -1:
                 paperPart = True
+                debug(">> in paperPart")
 
             for char in line:
                 if char == "{":
                     bracketsPaper += 1
+                    debug("  bracketsPaper += 1")
                 elif char == "}":
                     bracketsPaper -= 1
+                    debug("  bracketsPaper -= 1")
             if bracketsPaper == 0:
                 paperPart = False
+                debug("<< leaving paperPart")
 
         # add unfoldRepeats right after start of score block
         elif re.search("\\\\score\\s*\\{", line):
