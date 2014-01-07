@@ -4,6 +4,7 @@
 # ly2video - generate performances video from LilyPond source files
 # Copyright (C) 2012 Jiri "FireTight" Szabo
 # Copyright (C) 2012 Adam Spiers
+# Copyright (C) 2014 Emmanuel Leguy
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -863,7 +864,7 @@ def getVersion():
 def showVersion():
     print """ly2video %s
 
-Copyright (C) 2012 Jiri "FireTight" Szabo, Adam Spiers
+Copyright (C) 2012-2014 Jiri "FireTight" Szabo, Adam Spiers, Emmanuel Leguy
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.""" % getVersion()
