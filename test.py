@@ -62,7 +62,8 @@ class ScoreImageTest (unittest.TestCase):
 
     # __setCropTopAndBottom
     def test__setCropTopAndBottom_withBlackImage(self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 16)
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [])
+        blackImage.areaHeight = 16
         blackImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(blackImage._ScoreImage__cropTop, 0, "Bad cropTop!")
         self.assertEqual(blackImage._ScoreImage__cropBottom, 16, "Bad cropBottom!")
@@ -82,7 +83,8 @@ class ScoreImageTest (unittest.TestCase):
     def test__setCropTopAndBottom_withBlackPoint(self):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,8),(0,0,0))
-        blackPointImage = ScoreImage(image, [], 16, 9)
+        blackPointImage = ScoreImage(image, [])
+        blackPointImage.areaHeight = 9
         blackPointImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(blackPointImage._ScoreImage__cropTop, 4, "Bad cropTop!")
         self.assertEqual(blackPointImage._ScoreImage__cropBottom, 13, "Bad cropBottom!")
@@ -110,9 +112,9 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [], 200, 40)
-        scoreImage.leftMargin = 50
-        scoreImage.rightMargin = 50
+        scoreImage = ScoreImage(image, [])
+        scoreImage.areaWidth = 200
+        scoreImage.areaHeight = 40
         index = 70
         areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index)
         w,h = areaFrame.size
@@ -124,9 +126,9 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [], 200, 40)
-        scoreImage.leftMargin = 50
-        scoreImage.rightMargin = 50
+        scoreImage = ScoreImage(image, [])
+        scoreImage.areaWidth = 200
+        scoreImage.areaHeight = 40
         index = 200
         areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index)
         w,h = areaFrame.size
@@ -186,9 +188,9 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [70, 100], 200, 40)
-        scoreImage.leftMargin = 50
-        scoreImage.rightMargin = 50
+        scoreImage = ScoreImage(image, [70, 100])
+        scoreImage.areaWidth = 200
+        scoreImage.areaHeight = 40
         areaFrame = scoreImage.makeFrame(numFrame = 10, among = 30)
         w,h = areaFrame.size
         self.assertEqual(w, 200, "")
@@ -201,9 +203,6 @@ class VideoFrameWriterTest(unittest.TestCase):
                                        height           = 16,
                                        fps              = 30.0,
                                        cursorLineColor  = (255,0,0),
-                                       scrollNotes      = False,
-                                       leftMargin       = 50,
-                                       rightMargin      = 100,
                                        midiResolution   = 384,
                                        midiTicks        = [0, 384, 768, 1152, 1536],
                                        temposList       = [(0, 60.0)]

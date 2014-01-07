@@ -127,7 +127,6 @@ class VideoFrameWriter(object):
     """
 
     def __init__(self, width, height, fps, cursorLineColor,
-                 scrollNotes, leftMargin, rightMargin,
                  midiResolution, midiTicks, temposList):
         """
         Params:
@@ -155,8 +154,6 @@ class VideoFrameWriter(object):
         # when aligning indices to frames don't accumulate over time.
         self.secs = 0.0
 
-        self.scrollNotes = scrollNotes
-
         # In cursor scrolling mode, this is the x-coordinate in the
         # original image of the left edge of the frame (i.e. the
         # left edge of the cropping rectangle).
@@ -169,8 +166,6 @@ class VideoFrameWriter(object):
         self.midiResolution = midiResolution
         self.midiTicks = midiTicks
         self.temposList = temposList
-        self.leftMargin = leftMargin
-        self.rightMargin = rightMargin
         
         self.runDir = None
         
@@ -186,18 +181,23 @@ class VideoFrameWriter(object):
         progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
                  (estimatedFrames, self.fps))
 
-    def write(self, indices, notesImage):
+    @property
+    def scoreImage (self):
+        return self.__scoreImage
+        
+    @scoreImage.setter
+    def scoreImage (self, scoreImage):
+        self.__scoreImage = scoreImage
+        self.__scoreImage.areaWidth = self.width
+        self.__scoreImage.areaHeight = self.height
+        self.__scoreImage.cursorLineColor = self.cursorLineColor
+
+    def write(self):
         """
         Params:
           - indices:     indices of notes in pictures
           - notesImage:  filename of the image
         """
-        
-        self.__scoreImage = ScoreImage(Image.open(notesImage), indices, self.width, self.height)
-        self.__scoreImage.leftMargin = self.leftMargin
-        self.__scoreImage.rightMargin = self.rightMargin
-        self.__scoreImage.scrollNotes = self.scrollNotes
-        self.__scoreImage.cursorLineColor = self.cursorLineColor
         
         # folder to store frames for video
         if not os.path.exists("notes"):
@@ -366,7 +366,7 @@ class Media (object):
 
 class ScoreImage (Media):
     
-    def __init__ (self, picture, notesXpostions, areaWidth, areaHeight):
+    def __init__ (self, picture, notesXpostions, leftMargin = 50, rightMargin = 50, scrollNotes = False):
         Media.__init__(self,picture.size[0], picture.size[1])
         self.__picture = picture
         self.__notesXpositions = notesXpostions
@@ -375,16 +375,15 @@ class ScoreImage (Media):
         self.__currentNotesIndex = 0
         self.__topCroppable = None
         self.__bottomCroppable = None
-        self.leftMargin = 50
-        self.rightMargin = 50
-        self.areaWidth = areaWidth
-        self.areaHeight = areaHeight
+        self.leftMargin = leftMargin
+        self.rightMargin = rightMargin
+        self.areaWidth = 1920
+        self.areaHeight = 1080
         self.__leftEdge = None
         self.__cropTop = None
         self.__cropBottom = None
-        self.scrollNotes = False
+        self.scrollNotes = scrollNotes
         self.cursorLineColor = (255,0,0)
-        self.neededFrame = None
 
     @property
     def currentXposition (self):

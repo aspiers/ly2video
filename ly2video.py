@@ -1393,12 +1393,12 @@ def main():
     fps = options.fps
 
     # generate notes
-    leftMargin, rightMargin = options.cursorMargins.split(",")
     frameWriter = VideoFrameWriter(
         options.width, options.height, fps, getCursorLineColor(options),
-        options.scrollNotes, int(leftMargin), int(rightMargin),
         midiResolution, midiTicks, temposList)
-    frameWriter.write(noteIndices, notesImage)
+    leftMargin, rightMargin = options.cursorMargins.split(",")
+    frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, int(leftMargin), int(rightMargin), options.scrollNotes)
+    frameWriter.write()
     output_divider_line()
 
     wavPath = genWavFile(timidity, midiPath)
