@@ -207,9 +207,6 @@ class VideoFrameWriter(object):
         debug("first tempo is %.3f bpm" % self.tempo)
         debug("final MIDI tick is %d" % self.midiTicks[-1])
 
-        # duplicate last index
-        indices.append(indices[-1])
-
         self.estimateFrames()
         progress("Writing frames ...")
         if not DEBUG:
@@ -225,7 +222,7 @@ class VideoFrameWriter(object):
                 self.secsElapsedForTempoChanges(0, initialTick)
 
         # generate all frames in between each pair of adjacent indices
-        for i in xrange(len(indices) - 1):
+        while self.midiIndex < len(self.midiTicks) - 1:
 #            debug("\nwall-clock secs: %f" % self.secs)
 #            debug("index: %d -> %d (indexTravel %d)" %
 #                  (startIndex, endIndex, indexTravel))
@@ -373,6 +370,8 @@ class ScoreImage (Media):
         Media.__init__(self,picture.size[0], picture.size[1])
         self.__picture = picture
         self.__notesXpositions = notesXpostions
+        if len(self.__notesXpositions) > 0 :
+            self.__notesXpositions.append(self.__notesXpositions[-1])
         self.__currentNotesIndex = 0
         self.__topCroppable = None
         self.__bottomCroppable = None
