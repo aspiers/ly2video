@@ -25,7 +25,174 @@
 import unittest
 from video import *
 from PIL import Image
+
+class ScoreImageTest (unittest.TestCase):
+    
+    def setUp(self):
+        image = Image.new("RGB",(1000,200),(255,255,255))
+        self.blankImage = ScoreImage(image, [], 1000,200)
+        image = Image.new("RGB",(1000,200),(255,255,255))
+        image.putpixel((500,50),(0,0,0))
+        image.putpixel((500,149),(0,0,0))
+        self.pointsImage = ScoreImage(image, [], 1000,200)
+
+    # PRIVATE METHODS
+    # __isLineBlank
+    def test__IsLineBlank (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        for x in range(16) : image.putpixel((x,8),(0,0,0))
+        pixels = image.load()
+        w, h = image.size
+        self.assertTrue(self.blankImage._ScoreImage__isLineBlank(pixels, w, 0), "Line should be blank")
+        self.assertFalse(self.blankImage._ScoreImage__isLineBlank(pixels, w, 8), "Line should not be blank")
+
+    def test__IsLineBlank_withLineAlmostBlack (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        for x in range(15) : image.putpixel((x,10),(0,0,0))
+        w, h = image.size
+        pixels = image.load()
+        self.assertFalse(self.blankImage._ScoreImage__isLineBlank(pixels, w, 10), "Line should not be blank")
+
+    def test__IsLineBlank_withLineAlmostBlank (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        image.putpixel((4,4),(0,0,0))
+        w, h = image.size
+        pixels = image.load()
+        self.assertFalse(self.blankImage._ScoreImage__isLineBlank(pixels, w, 4), "Line should not be blank")
+
+    # __setCropTopAndBottom
+    def test__setCropTopAndBottom_withBlackImage(self):
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 16)
+        blackImage._ScoreImage__setCropTopAndBottom()
+        self.assertEqual(blackImage._ScoreImage__cropTop, 0, "Bad cropTop!")
+        self.assertEqual(blackImage._ScoreImage__cropBottom, 16, "Bad cropBottom!")
+
+    def test__setCropTopAndBottom_withBlackImageTooSmall(self):
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 17)
+        with self.assertRaises(SystemExit) as cm:
+            blackImage._ScoreImage__setCropTopAndBottom()
+        self.assertEqual(cm.exception.code, 1)
+
+    def test__setCropTopAndBottom_withBlackImageTooBig(self):
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 15)
+        with self.assertRaises(SystemExit) as cm:
+            blackImage._ScoreImage__setCropTopAndBottom()
+        self.assertEqual(cm.exception.code, 1)
+
+    def test__setCropTopAndBottom_withBlackPoint(self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        image.putpixel((8,8),(0,0,0))
+        blackPointImage = ScoreImage(image, [], 16, 9)
+        blackPointImage._ScoreImage__setCropTopAndBottom()
+        self.assertEqual(blackPointImage._ScoreImage__cropTop, 4, "Bad cropTop!")
+        self.assertEqual(blackPointImage._ScoreImage__cropBottom, 13, "Bad cropBottom!")
+
+    def test__setCropTopAndBottom_withNonCenteredContent(self):
+        image = Image.new("RGB",(30,30),(255,255,255))
+        image.putpixel((8,4),(0,0,0))
+        image.putpixel((8,12),(0,0,0))
+        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 20)
+        with self.assertRaises(SystemExit) as cm:
+            scoreImage._ScoreImage__setCropTopAndBottom()
+        self.assertEqual(cm.exception.code, 1)
+
+    def test__setCropTopAndBottom_withVideoHeightTooSmall(self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        image.putpixel((8,4),(0,0,0))
+        image.putpixel((8,12),(0,0,0))
+        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 8)
+        with self.assertRaises(SystemExit) as cm:
+            scoreImage._ScoreImage__setCropTopAndBottom()
+        self.assertEqual(cm.exception.code, 1)
+
+    # __cropFrame
+    def test__cropFrame(self):
+        image = Image.new("RGB",(1000,200),(255,255,255))
+        ox=20
+        for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
+        scoreImage = ScoreImage(image, [], 200, 40)
+        scoreImage.leftMargin = 50
+        scoreImage.rightMargin = 50
+        index = 70
+        areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index)
+        w,h = areaFrame.size
+        self.assertEqual(w, 200, "")
+        self.assertEqual(h, 40, "")
+        self.assertEqual(cursorX, 97 , "")
         
+    def test__cropFrame_withIndexHigherThanWidth (self):
+        image = Image.new("RGB",(1000,200),(255,255,255))
+        ox=20
+        for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
+        scoreImage = ScoreImage(image, [], 200, 40)
+        scoreImage.leftMargin = 50
+        scoreImage.rightMargin = 50
+        index = 200
+        areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index)
+        w,h = areaFrame.size
+        self.assertEqual(w, 200, "")
+        self.assertEqual(h, 40, "")
+        self.assertEqual(cursorX, 50 , "")
+
+    # PUBLIC METHODS
+    # topCroppable
+    def testTopCroppable_withBlackImage (self):
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 16)
+        self.assertEqual(blackImage.topCroppable, 0, "Bad topMarginSize")
+
+    def testTopCroppable_withBlankImage (self):
+        def testTopCroppable(image):
+            return image.topCroppable
+        blankImage = ScoreImage(Image.new("RGB",(16,16),(255,255,255)), [], 16, 16)
+        self.assertRaises(BlankScoreImageError,testTopCroppable,blankImage)
+
+    def testTopCroppable_withHorizontalBlackLine (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        for x in range(16) : image.putpixel((x,8),(0,0,0))
+        blackImage = ScoreImage(image, [], 16, 16)
+        self.assertEqual(blackImage.topCroppable, 8, "Bad topMarginSize")
+
+    def testTopCroppable_withBlackPoint (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        image.putpixel((8,8),(0,0,0))
+        blackImage = ScoreImage(image, [], 16, 16)
+        self.assertEqual(blackImage.topCroppable, 8, "Bad topMarginSize")
+
+    # bottomCroppable
+    def testBottomCroppable_withBlackImage (self):
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 16)
+        self.assertEqual(blackImage.bottomCroppable, 0, "Bad bottomMarginSize")
+
+    def testBottomCroppable_withBlankImage (self):
+        def testBottomCroppable(image):
+            return image.bottomCroppable
+        blankImage = ScoreImage(Image.new("RGB",(16,16),(255,255,255)), [], 16, 16)
+        self.assertRaises(BlankScoreImageError,testBottomCroppable,blankImage)
+
+    def testBottomCroppable_withHorizontalBlackLine (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        for x in range(16) : image.putpixel((x,8),(0,0,0))
+        blackImage = ScoreImage(image, [], 16, 16)
+        self.assertEqual(blackImage.bottomCroppable, 7, "Bad topMarginSize")
+
+    def testBottomCroppable_withBlackPoint (self):
+        image = Image.new("RGB",(16,16),(255,255,255))
+        image.putpixel((8,8),(0,0,0))
+        blackImage = ScoreImage(image, [], 16, 16)
+        self.assertEqual(blackImage.bottomCroppable, 7, "Bad topMarginSize")
+        
+    # makeFrame
+    def testMakeFrame (self):
+        image = Image.new("RGB",(1000,200),(255,255,255))
+        ox=20
+        for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
+        scoreImage = ScoreImage(image, [70, 100], 200, 40)
+        scoreImage.leftMargin = 50
+        scoreImage.rightMargin = 50
+        areaFrame = scoreImage.makeFrame(numFrame = 10, among = 30)
+        w,h = areaFrame.size
+        self.assertEqual(w, 200, "")
+        self.assertEqual(h, 40, "")
 class VideoFrameWriterTest(unittest.TestCase):
 
     def setUp(self):
@@ -45,97 +212,6 @@ class VideoFrameWriterTest(unittest.TestCase):
         for x in range(16) : self.image.putpixel((x,8),(0,0,0))
 
         
-    def testIsLineBlank (self):
-        pixels = self.image.load()
-        #pixels = [[(255,255,255),(255,255,255),(255,255,255)],[(255,255,255),(255,255,255),(255,255,255)],[(255,255,255),(255,255,255),(255,255,255)]]
-        w, h = self.image.size
-        self.assertTrue(self.frameWriter.isLineBlank(pixels, w, 0), "Line should be blank")
-        self.assertFalse(self.frameWriter.isLineBlank(pixels, w, 8), "Line should not be blank")
-        
-    def testIsLineBlank_withLineAlmostBlack (self):
-        w, h = self.image.size
-        pixels = self.image.load()
-        for x in range(15) : self.image.putpixel((x,10),(0,0,0))
-        self.assertFalse(self.frameWriter.isLineBlank(pixels, w, 10), "Line should not be blank")
-
-    def testIsLineBlank_withLineAlmostBlank (self):
-        w, h = self.image.size
-        pixels = self.image.load()
-        self.image.putpixel((4,4),(0,0,0))
-        self.assertFalse(self.frameWriter.isLineBlank(pixels, w, 4), "Line should not be blank")
-        
-    def testGetTopAndBottomMarginSizes_withBlackImage (self):
-        image = Image.new("RGB",(16,16),(0,0,0))
-        topMarginSize, bottomMarginSize = self.frameWriter.getTopAndBottomMarginSizes(image)
-        self.assertEqual(topMarginSize, 0, "Bad topMarginSize")
-        self.assertEqual(bottomMarginSize, 0, "Bad bottomMarginSize")
-
-    def testGetTopAndBottomMarginSizes_withBlankImage (self):
-        image = Image.new("RGB",(16,16),(255,255,255))
-        with self.assertRaises(SystemExit) as cm:
-            topMarginSize, bottomMarginSize = self.frameWriter.getTopAndBottomMarginSizes(image)
-        self.assertEqual(cm.exception.code, 1)
-
-    def testGetTopAndBottomMarginSizes_withHorizontalBlackLine (self):
-        image = Image.new("RGB",(16,16),(255,255,255))
-        for x in range(16) : image.putpixel((x,8),(0,0,0))
-        topMarginSize, bottomMarginSize = self.frameWriter.getTopAndBottomMarginSizes(image)
-        self.assertEqual(topMarginSize, 8, "Bad topMarginSize")
-        self.assertEqual(bottomMarginSize, 7, "Bad bottomMarginSize")
-
-    def testGetTopAndBottomMarginSizes_withBlackPoint (self):
-        image = Image.new("RGB",(16,16),(255,255,255))
-        image.putpixel((8,8),(0,0,0))
-        topMarginSize, bottomMarginSize = self.frameWriter.getTopAndBottomMarginSizes(image)
-        self.assertEqual(topMarginSize, 8, "Bad topMarginSize")
-        self.assertEqual(bottomMarginSize, 7, "Bad bottomMarginSize")
-
-    def testGetCropTopAndBottom_withBlackImage(self):
-        self.frameWriter.height = 16
-        image = Image.new("RGB",(16,16),(0,0,0))
-        cropTop, cropBottom = self.frameWriter.getCropTopAndBottom(image)
-        self.assertEqual(cropTop, 0, "Bad cropTop!")
-        self.assertEqual(cropBottom, 16, "Bad cropBottom!")
-
-    def testGetCropTopAndBottom_withBlackImageTooSmall(self):
-        self.frameWriter.height = 17
-        image = Image.new("RGB",(16,16),(0,0,0))
-        with self.assertRaises(SystemExit) as cm:
-            cropTop, cropBottom = self.frameWriter.getCropTopAndBottom(image)
-        self.assertEqual(cm.exception.code, 1)
-
-    def testGetCropTopAndBottom_withBlackImageTooBig(self):
-        self.frameWriter.height = 15
-        image = Image.new("RGB",(16,16),(0,0,0))
-        with self.assertRaises(SystemExit) as cm:
-            cropTop, cropBottom = self.frameWriter.getCropTopAndBottom(image)
-        self.assertEqual(cm.exception.code, 1)
-
-    def testGetCropTopAndBottom_withBlackPoint (self):
-        image = Image.new("RGB",(16,16),(255,255,255))
-        image.putpixel((8,8),(0,0,0))
-        self.frameWriter.height = 9
-        cropTop, cropBottom = self.frameWriter.getCropTopAndBottom(image)
-        self.assertEqual(cropTop, 4, "Bad cropTop!")
-        self.assertEqual(cropBottom, 13, "Bad cropBottom!")
-
-    def testGetCropTopAndBottom_withVideoHeightTooSmall (self):
-        self.frameWriter.height = 20
-        image = Image.new("RGB",(30,30),(255,255,255))
-        image.putpixel((8,4),(0,0,0))
-        image.putpixel((8,12),(0,0,0))
-        with self.assertRaises(SystemExit) as cm:
-            cropTop, cropBottom = self.frameWriter.getCropTopAndBottom(image)
-        self.assertEqual(cm.exception.code, 1)
-
-    def testGetCropTopAndBottom_withNonCenteredContent (self):
-        image = Image.new("RGB",(16,16),(255,255,255))
-        image.putpixel((8,4),(0,0,0))
-        image.putpixel((8,12),(0,0,0))
-        self.frameWriter.height = 8
-        with self.assertRaises(SystemExit) as cm:
-            cropTop, cropBottom = self.frameWriter.getCropTopAndBottom(image)
-        self.assertEqual(cm.exception.code, 1)
         
     def testTicksToSecs (self):
         for tempo in range (1,300):
@@ -155,15 +231,15 @@ class VideoFrameWriterTest(unittest.TestCase):
         
     def testSecsElapsedForTempoChanges (self):
         self.frameWriter.temposList = [(0, 60.0),(1152, 90.0),(3456, 60.0)]
-        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 0, endTick = 1152, startIndex = 0, endIndex = 2)
+        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 0, endTick = 1152)
         self.assertEqual(result,3.0,"")
-        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 0, endTick = 3456, startIndex = 0, endIndex = 2)
+        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 0, endTick = 3456)
         self.assertEqual(result,6.0,"")
-        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 1152, endTick = 3456, startIndex = 0, endIndex = 2)
+        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 1152, endTick = 3456)
         self.assertEqual(result,4.0,"")
-        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 3456, endTick = 4608, startIndex = 0, endIndex = 2)
+        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 3456, endTick = 4608)
         self.assertEqual(result,3.0,"")
-        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 0, endTick = 4608, startIndex = 0, endIndex = 2)
+        result = self.frameWriter.secsElapsedForTempoChanges(startTick = 0, endTick = 4608)
         self.assertEqual(result,12.0,"")
 
     def testFindStaffLinesInImage (self):
@@ -173,39 +249,6 @@ class VideoFrameWriterTest(unittest.TestCase):
         self.assertEqual(staffX, 23, "")
         self.assertEqual(staffYs[0], 20, "")
         
-    def testCropFrame (self):
-        image = Image.new("RGB",(1000,200),(255,255,255))
-        ox=20
-        for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        #cropTop, cropBottom = self.getCropTopAndBottom(image)
-        self.frameWriter.width=200
-        self.frameWriter.leftMargin = 50
-        self.frameWriter.rightMargin = 50
-        index = 70
-        frame, cursorX = self.frameWriter.cropFrame(notesPic = image, index = index, top = 10, bottom = 190)
-        w,h = frame.size
-        print "cursorX = %d, width = %d, height = %d" % (cursorX,w,h)
-        self.assertEqual(w, 200, "")
-        self.assertEqual(h, 180, "")
-        self.assertEqual(cursorX, self.frameWriter.leftMargin - (ox+3) + index%(self.frameWriter.width-self.frameWriter.rightMargin) , "")
-        self.assertEqual(cursorX, 97 , "")
-    
-    def testCropFrame_withIndexHigherThanWidth (self):
-        image = Image.new("RGB",(1000,200),(255,255,255))
-        ox=20
-        for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        #cropTop, cropBottom = self.getCropTopAndBottom(image)
-        self.frameWriter.width=200
-        self.frameWriter.leftMargin = 50
-        self.frameWriter.rightMargin = 50
-        index = 200
-        frame, cursorX = self.frameWriter.cropFrame(notesPic = image, index = index, top = 10, bottom = 190)
-        w,h = frame.size
-        print "cursorX = %d, width = %d, height = %d" % (cursorX,w,h)
-        self.assertEqual(w, 200, "")
-        self.assertEqual(h, 180, "")
-        self.assertEqual(cursorX, index%(self.frameWriter.width-self.frameWriter.rightMargin) , "")
-        self.assertEqual(cursorX, 50 , "")
     
 if __name__ == "__main__":
     unittest.main()
