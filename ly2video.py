@@ -43,10 +43,10 @@ from PIL import Image, ImageDraw, ImageFont
 from ly.tokenize import MusicTokenizer, Tokenizer
 import ly.tools
 import midi
+from utils import *
 
 from pprint import pprint, pformat
 
-DEBUG = False # --debug sets to True
 
 GLOBAL_STAFF_SIZE = 20
 
@@ -1238,63 +1238,6 @@ def generateSilence(name, length):
     fSilence.close()
     return out
 
-def output_divider_line():
-    progress(60 * "-")
-
-def debug(text):
-    if DEBUG:
-        print text
-
-def progress(text):
-    print text
-
-def stderr(text):
-    sys.stderr.write(text + "\n")
-
-def warn(text):
-    stderr("WARNING: " + text)
-
-def fatal(text, status=1):
-    output_divider_line()
-    stderr("ERROR: " + text)
-    sys.exit(status)
-
-def bug(text, *issues):
-    if len(issues) == 0:
-        msg = """
-Sorry, ly2video has encountered a fatal bug as described above,
-which it could not attribute to any known cause :-( 
-
-Please consider searching:
-        """
-    else:
-        msg = """
-Sorry, ly2video has encountered a fatal bug as described above :-(
-It might be due to the following known issue(s):
-
-"""
-        for issue in issues:
-            msg += "    https://github.com/aspiers/ly2video/issues/%d\n" % issue
-
-        msg += """
-If you suspect this is not the case, please visit:
-"""
-
-    msg += """
-    https://github.com/aspiers/ly2video/issues
-
-and if the problem is not listed there, please file a new
-entry so we can get it fixed.  Thanks!
-
-Aborted execution.\
-"""
-    fatal(text + "\n" + msg)
-
-def tmpPath(*dirs):
-    segments = [ 'ly2video.tmp' ]
-    segments.extend(dirs)
-    return os.path.join(runDir, *segments)
-
 def parseOptions():
     parser = OptionParser("usage: %prog [options]")
 
@@ -1379,8 +1322,7 @@ def parseOptions():
         fatal("Must specify --title-ttf=FONT-FILE with --title-at-start.")
 
     if options.debug:
-        global DEBUG
-        DEBUG = True
+        setDebug()
 
     return options, args
 
@@ -1866,7 +1808,8 @@ def main():
     # we'll have somewhere nice to save state.
     global runDir
     runDir = os.getcwd()
-
+    setRunDir (runDir)
+    
     # Delete old temporary files.
     if os.path.isdir(tmpPath()):
         shutil.rmtree(tmpPath())
