@@ -26,6 +26,14 @@ from utils import *
 import os
 from PIL import Image
 
+# Image manipulation functions
+
+def writeCursorLine(image, X, color):
+    """Draws a line on the image"""
+    for pixel in xrange(image.size[1]):
+        image.putpixel((X    , pixel), color)
+        image.putpixel((X + 1, pixel), color)
+
 def findTopStaffLine(image, lineLength):
     """
     Returns the coordinates of the left-most pixel in the top line of
@@ -165,6 +173,8 @@ class VideoFrameWriter(object):
         self.rightMargin = rightMargin
         
         self.runDir = None
+        
+        self.__scoreImage = None
 
     def estimateFrames(self):
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
@@ -182,6 +192,13 @@ class VideoFrameWriter(object):
           - indices:     indices of notes in pictures
           - notesImage:  filename of the image
         """
+        
+        self.__scoreImage = ScoreImage(Image.open(notesImage), indices, self.width, self.height)
+        self.__scoreImage.leftMargin = self.leftMargin
+        self.__scoreImage.rightMargin = self.rightMargin
+        self.__scoreImage.scrollNotes = self.scrollNotes
+        self.__scoreImage.cursorLineColor = self.cursorLineColor
+        
         # folder to store frames for video
         if not os.path.exists("notes"):
             os.mkdir("notes")
@@ -189,9 +206,6 @@ class VideoFrameWriter(object):
         firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
         debug("first tempo is %.3f bpm" % self.tempo)
         debug("final MIDI tick is %d" % self.midiTicks[-1])
-
-        notesPic = Image.open(notesImage)
-        cropTop, cropBottom = self.getCropTopAndBottom(notesPic)
 
         # duplicate last index
         indices.append(indices[-1])
@@ -208,19 +222,13 @@ class VideoFrameWriter(object):
             # calculate it like this in order to ensure tempoIndex is
             # correct before we start writing frames.
             silentPreludeDuration = \
-                self.secsElapsedForTempoChanges(0, initialTick,
-                                                0, indices[0])
+                self.secsElapsedForTempoChanges(0, initialTick)
 
         # generate all frames in between each pair of adjacent indices
         for i in xrange(len(indices) - 1):
-            # get two indices of notes (pixels)
-            startIndex  = indices[i]
-            endIndex    = indices[i + 1]
-            indexTravel = endIndex - startIndex
-
-            debug("\nwall-clock secs: %f" % self.secs)
-            debug("index: %d -> %d (indexTravel %d)" %
-                  (startIndex, endIndex, indexTravel))
+#            debug("\nwall-clock secs: %f" % self.secs)
+#            debug("index: %d -> %d (indexTravel %d)" %
+#                  (startIndex, endIndex, indexTravel))
 
             # get two indices of MIDI events (ticks)
             startTick = self.midiTicks[self.midiIndex]
@@ -235,8 +243,7 @@ class VideoFrameWriter(object):
             # many frames we need in between the current pair of
             # indices.
             secsSinceIndex = \
-                self.secsElapsedForTempoChanges(startTick, endTick,
-                                                startIndex, endIndex)
+                self.secsElapsedForTempoChanges(startTick, endTick)
 
             # This is the exact time we are *aiming* for the frameset
             # to finish at (i.e. the start time of the first frame
@@ -247,8 +254,8 @@ class VideoFrameWriter(object):
             # error and we'll miss our target by a small amount.
             targetSecs = self.secs + secsSinceIndex
 
-            debug("    secs at new index %d: %f" %
-                  (endIndex, targetSecs))
+#            debug("    secs at new index %d: %f" %
+#                  (endIndex, targetSecs))
 
             # The ideal duration of the current frameset is the target
             # end time minus the *actual* start time, not the ideal
@@ -264,145 +271,17 @@ class VideoFrameWriter(object):
             neededFrames = int(round(neededFrameSetSecs * self.fps))
 
             if neededFrames > 0:
-                self.writeVideoFrames(
-                    neededFrames, startIndex, indexTravel,
-                    notesPic, cropTop, cropBottom)
+                self.writeVideoFrames(neededFrames)
 
             # Update time in the *ideal* (i.e. not real) world - this
             # is totally independent of fps.
             self.secs = targetSecs
-
+            self.__scoreImage.moveToNextNote()
         print
 
         progress("SYNC: Generated %d frames" % self.frameNum)
 
-    def getCropTopAndBottom(self, image):
-        """
-        Returns a tuple containing the y-coordinates of the top and
-        bottom edges of the cropping rectangle, relative to the given
-        (non-cropped) image.
-        """
-        width, height = image.size
-
-        topMarginSize, bottomMarginSize = self.getTopAndBottomMarginSizes(image)
-        bottomY = height - bottomMarginSize
-        progress("      Image height: %5d pixels" % height)
-        progress("   Top margin size: %5d pixels" % topMarginSize)
-        progress("Bottom margin size: %5d pixels (y=%d)" %
-                 (bottomMarginSize, bottomY))
-
-        nonWhiteRows = height - topMarginSize - bottomMarginSize
-        progress("Visible content is formed of %d non-white rows of pixels" %
-                 nonWhiteRows)
-
-        # y-coordinate of centre of the visible content, relative to
-        # the original non-cropped image
-        nonWhiteCentre = topMarginSize + int(round(nonWhiteRows/2))
-        progress("Centre of visible content is %d pixels from top" %
-                 nonWhiteCentre)
-
-        # Now choose top/bottom cropping coordinates which center
-        # the content in the video frame.
-        cropTop    = nonWhiteCentre - int(round(self.height / 2))
-        cropBottom = cropTop + self.height
-
-        # Figure out the maximum height allowed which keeps the
-        # cropping rectangle within the source image.
-        maxTopHalf    =    topMarginSize + nonWhiteRows / 2
-        maxBottomHalf = bottomMarginSize + nonWhiteRows / 2
-        maxHeight = min(maxTopHalf, maxBottomHalf) * 2
-
-        if cropTop < 0:
-            fatal("Would have to crop %d pixels above top of image! "
-                  "Try increasing the resolution DPI "
-                  "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height to at most %d" %
-                  (-cropTop, maxHeight))
-            cropTop = 0
-
-        if cropBottom > height:
-            fatal("Would have to crop %d pixels below bottom of image! "
-                  "Try increasing the resolution DPI "
-                  "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height to at most %d" %
-                  (cropBottom - height, maxHeight))
-            cropBottom = height
-
-        if cropTop > topMarginSize:
-            fatal("Would have to crop %d pixels below top of visible content! "
-                  "Try increasing the video height to at least %d, "
-                  "or decreasing the resolution DPI."
-                  % (cropTop - topMarginSize, nonWhiteRows))
-            cropTop = topMarginSize
-
-        if cropBottom < bottomY:
-            fatal("Would have to crop %d pixels above bottom of visible content! "
-                  "Try increasing the video height to at least %d, "
-                  "or decreasing the resolution DPI."
-                  % (bottomY - cropBottom, nonWhiteRows))
-            cropBottom = bottomY
-
-        progress("Will crop from y=%d to y=%d" % (cropTop, cropBottom))
-
-        return cropTop, cropBottom
-
-    def getTopAndBottomMarginSizes(self, image):
-        """
-        Counts the number of white-only rows of pixels at the top and
-        bottom of the given image.
-        """
-
-        width, height = image.size
-
-        # This is way faster than width*height invocations of getPixel()
-        pixels = image.load()
-
-        progress("Auto-detecting top margin; this may take a while ...")
-        topMargin = 0
-        for y in xrange(height):
-            if self.isLineBlank(pixels, width, y):
-                topMargin += 1
-                if topMargin % 10 == 0:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-            else:
-                break
-        if topMargin >= 10:
-            print
-
-        progress("Auto-detecting bottom margin; this may take a while ...")
-        bottomMargin = 0
-        for y in xrange(height - 1, -1, -1):
-            if self.isLineBlank(pixels, width, y):
-                bottomMargin += 1
-                if bottomMargin % 10 == 0:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-            else:
-                break
-        if bottomMargin >= 10:
-            print
-
-        bottomY = height - bottomMargin
-        if topMargin >= bottomY:
-            bug("Image was entirely white!\n"
-                "Top margin %d, bottom margin %d (y=%d), height %d" %
-                (topMargin, bottomMargin, bottomY, height))
-
-        return topMargin, bottomMargin
-
-    def isLineBlank(self, pixels, width, y):
-        """
-        Returns True iff the line with the given y coordinate
-        is entirely white.
-        """
-        for x in xrange(width):
-            if pixels[x, y] != (255, 255, 255):
-                return False
-        return True
-
-    def secsElapsedForTempoChanges(self, startTick, endTick,
-                                   startIndex, endIndex):
+    def secsElapsedForTempoChanges(self, startTick, endTick):
         """
         Returns the time elapsed in between startTick and endTick,
         where the only MIDI events in between (if any) are tempo
@@ -426,79 +305,39 @@ class VideoFrameWriter(object):
             # startTick < tempoTick < endTick
             secsSinceStartIndex += self.ticksToSecs(lastTick, tempoTick)
             debug("        last %d tempo %d" % (lastTick, tempoTick))
-            debug("        secs since index %d: %f" %
-                  (startIndex, secsSinceStartIndex))
+            debug("        secs : %f" %
+                  (secsSinceStartIndex))
             lastTick = tempoTick
 
         # Add on the time elapsed between the final tempo change
         # and endTick:
         secsSinceStartIndex += self.ticksToSecs(lastTick, endTick)
 
-        debug("    secs between indices %d and %d: %f" %
-              (startIndex, endIndex, secsSinceStartIndex))
+#        debug("    secs between indices %d and %d: %f" %
+#              (startIndex, endIndex, secsSinceStartIndex))
         return secsSinceStartIndex
 
-    def writeVideoFrames(self, neededFrames, startIndex, indexTravel,
-                         notesPic, cropTop, cropBottom):
+    def writeVideoFrames(self, neededFrames):
         """
         Writes the required number of frames to travel indexTravel
         pixels from startIndex, incrementing frameNum for each frame
         written.
         """
-        travelPerFrame = float(indexTravel) / neededFrames
-        debug("    travel per frame: %f pixels" % travelPerFrame)
-        debug("    generating %d frames: %d -> %d" %
-              (neededFrames, self.frameNum, self.frameNum + neededFrames - 1))
-
         for i in xrange(neededFrames):
-            index = startIndex + int(round(i * travelPerFrame))
-            debug("        writing frame %d index %d" %
-                  (self.frameNum, index))
+            debug("        writing frame %d" % (self.frameNum))
 
-            frame, cursorX = self.cropFrame(notesPic, index,
-                                            cropTop, cropBottom)
-            self.writeCursorLine(frame, cursorX)
-
+            scoreFrame = self.__scoreImage.makeFrame(numFrame = i, among = neededFrames)
+            w, h =  scoreFrame.size
+            frame = Image.new("RGB", (w,h), "white")
+            frame.paste(scoreFrame,(0,0,w,h))
+                
             # Save the frame.  ffmpeg doesn't work if the numbers in these
             # filenames are zero-padded.
             frame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
             self.frameNum += 1
             if not DEBUG and self.frameNum % 10 == 0:
                 sys.stdout.write(".")
-                sys.stdout.flush()
-
-    def cropFrame(self, notesPic, index, top, bottom):
-        if self.scrollNotes:
-            # Get frame from image of staff
-            centre = self.width / 2
-            left  = int(index - centre)
-            right = int(index + centre)
-            frame = notesPic.copy().crop((left, top, right, bottom))
-            cursorX = centre
-        else:
-            if self.leftEdge is None:
-                # first frame
-                staffX, staffYs = findStaffLinesInImage(notesPic, 50)
-                self.leftEdge = staffX - self.leftMargin
-
-            cursorX = index - self.leftEdge
-            debug("        left edge at %d, cursor at %d" %
-                  (self.leftEdge, cursorX))
-            if cursorX > self.width - self.rightMargin:
-                self.leftEdge = index - self.leftMargin
-                cursorX = index - self.leftEdge
-                debug("        <<< left edge at %d, cursor at %d" %
-                      (self.leftEdge, cursorX))
-
-            rightEdge = self.leftEdge + self.width
-            frame = notesPic.copy().crop((self.leftEdge, top,
-                                          rightEdge, bottom))
-        return frame, cursorX
-
-    def writeCursorLine(self, frame, x):
-        for pixel in xrange(self.height):
-            frame.putpixel((x    , pixel), self.cursorLineColor)
-            frame.putpixel((x + 1, pixel), self.cursorLineColor)
+                sys.stdout.flush()   
 
     def ticksToSecs(self, startTick, endTick):
         beatsSinceTick = float(endTick - startTick) / self.midiResolution
@@ -510,3 +349,217 @@ class VideoFrameWriter(object):
               (startTick, endTick, secsSinceTick, self.tempo))
 
         return secsSinceTick
+  
+class BlankScoreImageError (Exception):
+    pass
+
+class Media (object):
+    
+    def __init__ (self, width = 1280, height = 720):
+        self.__width = width
+        self.__height = height
+        
+    @property
+    def width (self):
+        return self.__width
+    
+    @property
+    def height (self):
+        return self.__height
+
+class ScoreImage (Media):
+    
+    def __init__ (self, picture, notesXpostions, areaWidth, areaHeight):
+        Media.__init__(self,picture.size[0], picture.size[1])
+        self.__picture = picture
+        self.__notesXpositions = notesXpostions
+        self.__currentNotesIndex = 0
+        self.__topCroppable = None
+        self.__bottomCroppable = None
+        self.leftMargin = 50
+        self.rightMargin = 50
+        self.areaWidth = areaWidth
+        self.areaHeight = areaHeight
+        self.__leftEdge = None
+        self.__cropTop = None
+        self.__cropBottom = None
+        self.scrollNotes = False
+        self.cursorLineColor = (255,0,0)
+        self.neededFrame = None
+
+    @property
+    def currentXposition (self):
+        return self.__notesXpositions[self.__currentNotesIndex]
+    
+    @property
+    def travelToNextNote (self):
+        return self.__notesXpositions[self.__currentNotesIndex+1] - self.__notesXpositions[self.__currentNotesIndex]
+    
+    def moveToNextNote (self):
+        self.__currentNotesIndex += 1
+        
+    @property
+    def notesXpostions (self):
+        return self.__notesXpositions
+        
+    @property
+    def picture (self):
+        return self.__picture
+   
+    def __setCropTopAndBottom(self):
+        """
+        set the y-coordinates of the top and
+        bottom edges of the cropping rectangle, relative to the given
+        (non-cropped) image.
+        """
+        if self.__cropTop is not None and self.__cropBottom is not None: return
+
+        bottomY = self.height - self.bottomCroppable
+        progress("      Image height: %5d pixels" % self.height)
+        progress("   Top margin size: %5d pixels" % self.topCroppable)
+        progress("Bottom margin size: %5d pixels (y=%d)" %
+                 (self.bottomCroppable, bottomY))
+
+        nonWhiteRows = self.height - self.topCroppable - self.bottomCroppable
+        progress("Visible content is formed of %d non-white rows of pixels" %
+                 nonWhiteRows)
+
+        # y-coordinate of centre of the visible content, relative to
+        # the original non-cropped image
+        nonWhiteCentre = self.topCroppable + int(round(nonWhiteRows/2))
+        progress("Centre of visible content is %d pixels from top" %
+                 nonWhiteCentre)
+
+        # Now choose top/bottom cropping coordinates which center
+        # the content in the video frame.
+        self.__cropTop    = nonWhiteCentre - int(round(self.areaHeight / 2))
+        self.__cropBottom = self.__cropTop + self.areaHeight
+
+        # Figure out the maximum height allowed which keeps the
+        # cropping rectangle within the source image.
+        maxTopHalf    =    self.topCroppable + nonWhiteRows / 2
+        maxBottomHalf = self.bottomCroppable + nonWhiteRows / 2
+        maxHeight = min(maxTopHalf, maxBottomHalf) * 2
+
+        if self.__cropTop < 0:
+            fatal("Would have to crop %d pixels above top of image! "
+                  "Try increasing the resolution DPI "
+                  "(which would increase the size of the PNG to be cropped), "
+                  "or reducing the video height to at most %d" %
+                  (-self.__cropTop, maxHeight))
+            self.__cropTop = 0
+
+        if self.__cropBottom > self.height:
+            fatal("Would have to crop %d pixels below bottom of image! "
+                  "Try increasing the resolution DPI "
+                  "(which would increase the size of the PNG to be cropped), "
+                  "or reducing the video height to at most %d" %
+                  (self.__cropBottom - self.height, maxHeight))
+            self.__cropBottom = self.height
+
+        if self.__cropTop > self.topCroppable:
+            fatal("Would have to crop %d pixels below top of visible content! "
+                  "Try increasing the video height to at least %d, "
+                  "or decreasing the resolution DPI."
+                  % (self.__cropTop - self.topCroppable, nonWhiteRows))
+            self.__cropTop = self.topCroppable
+
+        if self.__cropBottom < bottomY:
+            fatal("Would have to crop %d pixels above bottom of visible content! "
+                  "Try increasing the video height to at least %d, "
+                  "or decreasing the resolution DPI."
+                  % (bottomY - self.__cropBottom, nonWhiteRows))
+            self.__cropBottom = bottomY
+
+        progress("Will crop from y=%d to y=%d" % (self.__cropTop, self.__cropBottom))
+
+    def __cropFrame(self,index):
+        self.__setCropTopAndBottom()
+        if self.scrollNotes:
+            # Get frame from image of staff
+            centre = self.width / 2
+            left  = int(index - centre)
+            right = int(index + centre)
+            frame = self.picture.copy().crop((left, self.__cropTop, right, self.__cropBottom))
+            cursorX = centre
+        else:
+            if self.__leftEdge is None:
+                # first frame
+                staffX, staffYs = findStaffLinesInImage(self.picture, 50)
+                self.__leftEdge = staffX - self.leftMargin
+
+            cursorX = index - self.__leftEdge
+            debug("        left edge at %d, cursor at %d" %
+                  (self.__leftEdge, cursorX))
+            if cursorX > self.areaWidth - self.rightMargin:
+                self.__leftEdge = index - self.leftMargin
+                cursorX = index - self.__leftEdge
+                debug("        <<< left edge at %d, cursor at %d" %
+                      (self.__leftEdge, cursorX))
+
+            rightEdge = self.__leftEdge + self.areaWidth
+            frame = self.picture.copy().crop((self.__leftEdge, self.__cropTop,
+                                          rightEdge, self.__cropBottom))
+        return (frame,cursorX)
+
+    def makeFrame (self, numFrame, among):
+        startIndex  = self.currentXposition
+        indexTravel = self.travelToNextNote
+        travelPerFrame = float(indexTravel) / among
+        index = startIndex + int(round(numFrame * travelPerFrame))
+
+        scoreFrame, cursorX = self.__cropFrame(index)
+
+        # Cursor
+        writeCursorLine(scoreFrame, cursorX, self.cursorLineColor)
+
+        return scoreFrame
+
+    def __isLineBlank(self, pixels, width, y):
+        """
+        Returns True if the line with the given y coordinate
+        is entirely white.
+        """
+        for x in xrange(width):
+            if pixels[x, y] != (255, 255, 255):
+                return False
+        return True
+            
+    def __setTopCroppable (self):
+        # This is way faster than width*height invocations of getPixel()
+        pixels = self.__picture.load()
+        progress("Auto-detecting top margin; this may take a while ...")
+        self.__topCroppable = 0
+        for y in xrange(self.height):
+            if y == self.height - 1:
+                raise BlankScoreImageError
+            if self.__isLineBlank(pixels, self.width, y):
+                self.__topCroppable += 1
+            else:
+                break
+
+    def __setBottomCroppable (self):
+        # This is way faster than width*height invocations of getPixel()
+        pixels = self.__picture.load()
+        progress("Auto-detecting top margin; this may take a while ...")
+        self.__bottomCroppable = 0
+        for y in xrange(self.height - 1, -1, -1):
+            if y == 0:
+                raise BlankScoreImageError
+            if self.__isLineBlank(pixels, self.width, y):
+                self.__bottomCroppable += 1
+            else:
+                break
+        
+    @property
+    def topCroppable (self): # raises BlankScoreImageError
+        if self.__topCroppable is None:
+            self.__setTopCroppable()
+        return self.__topCroppable
+
+    @property
+    def bottomCroppable (self):
+        if self.__bottomCroppable is None:
+            self.__setBottomCroppable()
+        return self.__bottomCroppable
+    
