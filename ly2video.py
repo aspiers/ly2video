@@ -574,6 +574,7 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     currentLySrcFile = None
 
+    index = None
     while i < len(leftmostGrobsByMoment):
         if midiIndex == len(midiTicks):
             warn("Ran out of MIDI indices after %d. Current index: %d" %
