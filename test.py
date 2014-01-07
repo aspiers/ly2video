@@ -23,8 +23,7 @@
 # <https://github.com/aspiers/ly2video/>.
 
 import unittest
-from ly2video import VideoFrameWriter
-import ly2video
+from video import *
 from PIL import Image
         
 class VideoFrameWriterTest(unittest.TestCase):
@@ -170,7 +169,7 @@ class VideoFrameWriterTest(unittest.TestCase):
     def testFindStaffLinesInImage (self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         for x in range(51) : image.putpixel((x+20,20),(0,0,0))
-        staffX, staffYs = ly2video.findStaffLinesInImage(image, 50)
+        staffX, staffYs = findStaffLinesInImage(image, 50)
         self.assertEqual(staffX, 23, "")
         self.assertEqual(staffYs[0], 20, "")
         
