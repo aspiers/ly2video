@@ -264,6 +264,40 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
 
     return groblist
 
+def getMeasuresIndices(output, dpi, leftPaperMarginPx):
+    ret = []
+    ret.append(leftPaperMarginPx)
+    lines = output.split('\n')
+
+    for line in lines:
+        if not line.startswith('ly2videoBar: '):
+            continue
+
+        m = re.match('^ly2videoBar:\\s+'
+                     # X-extents
+                     '\\(\\s*(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)\\s*\\)'
+                     # delimiter
+                     '\\s+@\\s+'
+                     # moment
+                     '(-?\\d+\\.\\d+)'
+                     '$', line)
+        if not m:
+            bug("Failed to parse ly2video line:\n%s" % line)
+        left, right, moment = m.groups()
+
+
+        left   = float(left)
+        right  = float(right)
+        centre = (left + right) / 2
+        moment = float(moment)
+        x = int(round(staffSpacesToPixels(centre, dpi))) + leftPaperMarginPx
+
+        if x not in ret :
+            ret.append(x)
+
+    ret.sort()
+    return ret
+
 def findStaffLines(imageFile, lineLength):
     """
     Takes a image and returns y co-ordinates of staff lines in pixels.
@@ -802,6 +836,9 @@ def parseOptions():
                            'scroll the notation from right to left and keep the '
                            'cursor in the centre',
                       action="store_true", default=False)
+    parser.add_option("--measure-cursor", dest="measureCursor",
+                      help='generate a cursor following the score measure by measure',
+                      action="store_true", default=False)
     parser.add_option("-t", "--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video '
                            '(with name of song and its author)',
@@ -1183,10 +1220,29 @@ def writeSpaceTimeDumper():
                 (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
                 file line char))))
 
+#(define (dump-spacetime-info-barline grob)
+  (let* ((extent       (ly:grob-extent grob grob X))
+         (system       (ly:grob-system grob))
+         (x-extent     (ly:grob-extent grob system X))
+         (left         (car x-extent))
+         (right        (cdr x-extent))
+         (paper-column (grob-get-paper-column grob))
+         (time         (ly:grob-property paper-column 'when 0))
+         (cause        (ly:grob-property grob 'cause)))
+   (if (not (equal? (ly:grob-property grob 'transparent) #t))
+    (format #t "\\nly2videoBar: (~23,16f, ~23,16f) @ ~23,16f"
+                left right
+                (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
+                ))))
+
 \layout {
   \context {
     \Voice
     \override NoteHead  #'after-line-breaking = #dump-spacetime-info
+  }
+  \context {
+    \Staff
+    \override BarLine  #'after-line-breaking = #dump-spacetime-info-barline
   }
   \context {
     \ChordNames
@@ -1360,6 +1416,10 @@ def main():
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
                                                      leftPaperMargin)
 
+    measuresXpositions = None
+    if options.measureCursor :
+        measuresXpositions = getMeasuresIndices(output, options.dpi, leftPaperMargin)
+
     notesImage = tmpPath("sanitised.png")
 
     midiPath = tmpPath("sanitised.midi")
@@ -1397,7 +1457,7 @@ def main():
         options.width, options.height, fps, getCursorLineColor(options),
         midiResolution, midiTicks, temposList)
     leftMargin, rightMargin = options.cursorMargins.split(",")
-    frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, int(leftMargin), int(rightMargin), options.scrollNotes)
+    frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes)
     frameWriter.write()
     output_divider_line()
 

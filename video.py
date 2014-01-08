@@ -34,6 +34,16 @@ def writeCursorLine(image, X, color):
         image.putpixel((X    , pixel), color)
         image.putpixel((X + 1, pixel), color)
 
+def writeMeasureCursor(image, start, end, color, cursor_height=10):
+    """Draws a box at the bottom of the image"""
+    w, h = image.size
+    if start > w :
+        raise Exception()
+    for dx in range(end-start) :
+        for y in xrange(cursor_height):
+            if start + dx < w and start + dx > 0 :
+                image.putpixel((start + dx, h-y-1), color)
+
 def findTopStaffLine(image, lineLength):
     """
     Returns the coordinates of the left-most pixel in the top line of
@@ -350,6 +360,7 @@ class VideoFrameWriter(object):
 class BlankScoreImageError (Exception):
     pass
 
+ 
 class Media (object):
     
     def __init__ (self, width = 1280, height = 720):
@@ -366,12 +377,15 @@ class Media (object):
 
 class ScoreImage (Media):
     
-    def __init__ (self, picture, notesXpostions, leftMargin = 50, rightMargin = 50, scrollNotes = False):
+    def __init__ (self, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False):
         Media.__init__(self,picture.size[0], picture.size[1])
         self.__picture = picture
         self.__notesXpositions = notesXpostions
         if len(self.__notesXpositions) > 0 :
             self.__notesXpositions.append(self.__notesXpositions[-1])
+        self.__measuresXpositions = measuresXpositions
+        #self.__measuresXpositions.append(self.__measuresXpositions[-1])
+        self.__currentMeasureIndex = 0
         self.__currentNotesIndex = 0
         self.__topCroppable = None
         self.__bottomCroppable = None
@@ -395,6 +409,9 @@ class ScoreImage (Media):
     
     def moveToNextNote (self):
         self.__currentNotesIndex += 1
+        if self.__measuresXpositions:
+            if self.currentXposition > self.__measuresXpositions[self.__currentMeasureIndex+1] :
+                self.__currentMeasureIndex += 1
         
     @property
     def notesXpostions (self):
@@ -508,8 +525,14 @@ class ScoreImage (Media):
 
         scoreFrame, cursorX = self.__cropFrame(index)
 
-        # Cursor
-        writeCursorLine(scoreFrame, cursorX, self.cursorLineColor)
+        # Cursors
+        if self.__measuresXpositions :
+            origin = index - cursorX
+            start = self.__measuresXpositions[self.__currentMeasureIndex] - origin
+            end = self.__measuresXpositions[self.__currentMeasureIndex + 1] - origin
+            writeMeasureCursor(scoreFrame, start, end, self.cursorLineColor)
+        else:
+            writeCursorLine(scoreFrame, cursorX, self.cursorLineColor)
 
         return scoreFrame
 

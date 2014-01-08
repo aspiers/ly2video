@@ -62,7 +62,7 @@ class ScoreImageTest (unittest.TestCase):
 
     # __setCropTopAndBottom
     def test__setCropTopAndBottom_withBlackImage(self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [])
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [])
         blackImage.areaHeight = 16
         blackImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(blackImage._ScoreImage__cropTop, 0, "Bad cropTop!")
@@ -75,7 +75,7 @@ class ScoreImageTest (unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
     def test__setCropTopAndBottom_withBlackImageTooBig(self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 15)
+        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [], 16, 15)
         with self.assertRaises(SystemExit) as cm:
             blackImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
@@ -83,7 +83,7 @@ class ScoreImageTest (unittest.TestCase):
     def test__setCropTopAndBottom_withBlackPoint(self):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,8),(0,0,0))
-        blackPointImage = ScoreImage(image, [])
+        blackPointImage = ScoreImage(image, [], [])
         blackPointImage.areaHeight = 9
         blackPointImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(blackPointImage._ScoreImage__cropTop, 4, "Bad cropTop!")
@@ -93,7 +93,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(30,30),(255,255,255))
         image.putpixel((8,4),(0,0,0))
         image.putpixel((8,12),(0,0,0))
-        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 20)
+        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [], 16, 20)
         with self.assertRaises(SystemExit) as cm:
             scoreImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
@@ -102,7 +102,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,4),(0,0,0))
         image.putpixel((8,12),(0,0,0))
-        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 8)
+        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [], 16, 8)
         with self.assertRaises(SystemExit) as cm:
             scoreImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
@@ -112,7 +112,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [])
+        scoreImage = ScoreImage(image, [], [])
         scoreImage.areaWidth = 200
         scoreImage.areaHeight = 40
         index = 70
@@ -126,7 +126,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [])
+        scoreImage = ScoreImage(image, [], [])
         scoreImage.areaWidth = 200
         scoreImage.areaHeight = 40
         index = 200
@@ -188,7 +188,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [70, 100])
+        scoreImage = ScoreImage(image, [70, 100], [])
         scoreImage.areaWidth = 200
         scoreImage.areaHeight = 40
         areaFrame = scoreImage.makeFrame(numFrame = 10, among = 30)
