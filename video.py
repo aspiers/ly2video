@@ -377,7 +377,7 @@ class Media (object):
 
 class ScoreImage (Media):
     
-    def __init__ (self, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False):
+    def __init__ (self, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False, noteCursor = True):
         Media.__init__(self,picture.size[0], picture.size[1])
         self.__picture = picture
         self.__notesXpositions = notesXpostions
@@ -396,6 +396,7 @@ class ScoreImage (Media):
         self.__leftEdge = None
         self.__cropTop = None
         self.__cropBottom = None
+        self.__noteCursor = noteCursor
         self.scrollNotes = scrollNotes
         self.cursorLineColor = (255,0,0)
 
@@ -531,7 +532,7 @@ class ScoreImage (Media):
             start = self.__measuresXpositions[self.__currentMeasureIndex] - origin
             end = self.__measuresXpositions[self.__currentMeasureIndex + 1] - origin
             writeMeasureCursor(scoreFrame, start, end, self.cursorLineColor)
-        else:
+        elif self.__noteCursor:
             writeCursorLine(scoreFrame, cursorX, self.cursorLineColor)
 
         return scoreFrame

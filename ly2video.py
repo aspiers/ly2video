@@ -836,6 +836,12 @@ def parseOptions():
                            'scroll the notation from right to left and keep the '
                            'cursor in the centre',
                       action="store_true", default=False)
+    parser.add_option("--no-cursor", dest="noteCursor",
+                      help='do not generate a cursor',
+                      action="store_false", default=True)
+    parser.add_option("--note-cursor", dest="noteCursor",
+                      help='generate a cursor following the score note by note (default)',
+                      action="store_true", default=True)
     parser.add_option("--measure-cursor", dest="measureCursor",
                       help='generate a cursor following the score measure by measure',
                       action="store_true", default=False)
@@ -1457,7 +1463,7 @@ def main():
         options.width, options.height, fps, getCursorLineColor(options),
         midiResolution, midiTicks, temposList)
     leftMargin, rightMargin = options.cursorMargins.split(",")
-    frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes)
+    frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes,options.noteCursor)
     frameWriter.write()
     output_divider_line()
 
