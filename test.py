@@ -195,6 +195,29 @@ class ScoreImageTest (unittest.TestCase):
         w,h = areaFrame.size
         self.assertEqual(w, 200, "")
         self.assertEqual(h, 40, "")
+  
+class CursorsTest (unittest.TestCase):
+    
+    def testWriteCursorLine (self):
+        frame = Image.new("RGB",(16,16),(255,255,255))
+        writeCursorLine(frame, 10, (255,0,0))
+        for i in range (16):
+            self.assertEqual(frame.getpixel((10,i)), (255,0,0), "")
+
+    def testWriteCursorLineOut (self):
+        frame = Image.new("RGB",(16,16),(255,255,255))
+        self.assertRaises(Exception, writeCursorLine, frame, 20)
+   
+    def testWriteMeasureCursor (self):
+        frame = Image.new("RGB",(16,16),(255,255,255))
+        writeMeasureCursor(frame, 5, 10, (255,0,0))
+        for i in range (5):
+            self.assertEqual(frame.getpixel((5+i,14)), (255,0,0), "")
+
+    def testWriteMeasureCursorOut (self):
+        frame = Image.new("RGB",(16,16),(255,255,255))
+        self.assertRaises(Exception, writeMeasureCursor, frame, 20, 30, (255,0,0))
+    
 class VideoFrameWriterTest(unittest.TestCase):
 
     def setUp(self):
