@@ -180,6 +180,11 @@ class VideoFrameWriter(object):
         self.runDir = None
         
         self.__scoreImage = None
+        self.__medias = []
+        self.__offset = 0
+
+    def push (self, media):
+        self.__medias.append(media)
 
     def estimateFrames(self):
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
@@ -243,6 +248,14 @@ class VideoFrameWriter(object):
             endTick = self.midiTicks[self.midiIndex]
             ticks = endTick - startTick
             debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
+
+            # SLIDE SHOW HANDLING
+            # convert a midi tick event into an offset (1 == quarter)
+            # The factor between midi tick and offset is 384
+            # should be more precise to convert from lilypond moment...
+            # With old notes indices data structure:
+            # offset = indices[i][0]*4
+            self.__offset = float(startTick)/384.0
 
             # If we have 1+ tempo changes in between adjacent indices,
             # we need to keep track of how many seconds elapsed since
@@ -337,6 +350,17 @@ class VideoFrameWriter(object):
             w, h =  scoreFrame.size
             frame = Image.new("RGB", (w,h), "white")
             frame.paste(scoreFrame,(0,0,w,h))
+            for media in self.__medias :
+                mediaFrame = media.makeFrame(numFrame = i, among = neededFrames, offset = self.__offset)
+                wm, hm =  mediaFrame.size
+                w = max(w,wm)
+                h += hm
+                f = Image.new("RGB", (w,h), "white")
+                f.paste(mediaFrame,(0,0,wm,hm))
+                wf, hf = frame.size
+                f.paste(frame,(0,hm,wf,h))
+                frame = f
+
                 
             # Save the frame.  ffmpeg doesn't work if the numbers in these
             # filenames are zero-padded.
@@ -360,7 +384,6 @@ class VideoFrameWriter(object):
 class BlankScoreImageError (Exception):
     pass
 
- 
 class Media (object):
     
     def __init__ (self, width = 1280, height = 720):
@@ -518,7 +541,7 @@ class ScoreImage (Media):
                                           rightEdge, self.__cropBottom))
         return (frame,cursorX)
 
-    def makeFrame (self, numFrame, among):
+    def makeFrame (self, numFrame, among, offset = None):
         startIndex  = self.currentXposition
         indexTravel = self.travelToNextNote
         travelPerFrame = float(indexTravel) / among
@@ -584,4 +607,23 @@ class ScoreImage (Media):
         if self.__bottomCroppable is None:
             self.__setBottomCroppable()
         return self.__bottomCroppable
+
+class SlideShow (Media):
     
+    def __init__(self, fileNamePrefix):
+        self.__fileNamePrefix = fileNamePrefix
+        self.__fileName = ""
+        self.__slide = None
+        self.cursorLineColor = (255,0,0)
+
+    def makeFrame (self, numFrame, among, offset = None):
+        # We check if the slide must change
+        newFileName = "%s%09.4f.png" % (self.__fileNamePrefix,offset)
+        if newFileName != self.__fileName:
+            self.__fileName = newFileName
+            if os.path.exists(self.__fileName):
+                self.__slide = Image.open(self.__fileName)
+                debug ("Add slide from file " + self.__fileName)
+        tmpSlide = self.__slide.copy()
+        return tmpSlide
+
