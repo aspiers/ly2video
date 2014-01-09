@@ -800,6 +800,8 @@ def parseOptions():
                       help="input LilyPond file", metavar="INPUT-FILE")
     parser.add_option("--slide-show", dest="slideShow",
                       help="input file prefix to generate a slide show")
+    parser.add_option("--slide-show-cursor", dest="slideShowCursor", type="float",
+                      help="start and end positions on the cursor in the slide show",nargs=2)
     parser.add_option("-o", "--output", dest="output",
                       help='name of output video (e.g. "myNotes.avi") '
                            '[INPUT-FILE.avi]',
@@ -1467,7 +1469,7 @@ def main():
     leftMargin, rightMargin = options.cursorMargins.split(",")
     frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes,options.noteCursor)
     if options.slideShow :
-        frameWriter.push(SlideShow(options.slideShow))
+        frameWriter.push(SlideShow(options.slideShow,options.slideShowCursor,midiTicks[-1]/384.0))
     frameWriter.write()
     output_divider_line()
 

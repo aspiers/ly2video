@@ -613,16 +613,26 @@ class ScoreImage (Media):
 
 class SlideShow (Media):
     
-    def __init__(self, fileNamePrefix):
+    def __init__(self, fileNamePrefix, cursorPos = None, lastOffset = None):
         self.__fileNamePrefix = fileNamePrefix
-        self.__fileName = ""
-        self.__slide = None
+        self.__fileName = "%s%09.4f.png" % (self.__fileNamePrefix,0.0)
+        self.__slide = Image.open(self.__fileName)
+        Media.__init__(self,self.__slide.size[0], self.__slide.size[1])
+        
         self.cursorLineColor = (255,0,0)
-        self.__cursorStart = 120.0 # HARD CODED!!!
-        self.__cursorEnd = 440.0# HARD CODED!!!
+        
+        # get cursor travelling data
+        if cursorPos and lastOffset:
+            self.__cursorStart = float(cursorPos[0])
+            self.__cursorEnd = float(cursorPos[1])
+            self.__lastOffset = lastOffset
+            self.__scale = (self.__cursorEnd - self.__cursorStart)/self.__lastOffset
+        else:
+            self.__cursorStart = None
+            
+            
         self.startOffset = 0.0
         self.endOffset = 0.0
-        self.__lastOffset = 40.0 # HARD CODED!!!
 
     def makeFrame (self, numFrame, among, offset = None):
         # We check if the slide must change        
