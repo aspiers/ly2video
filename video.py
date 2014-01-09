@@ -256,6 +256,9 @@ class VideoFrameWriter(object):
             # With old notes indices data structure:
             # offset = indices[i][0]*4
             self.__offset = float(startTick)/384.0
+            for media in self.__medias:
+                media.startOffset = float(startTick)/384.0
+                media.endOffset = float(endTick)/384.0
 
             # If we have 1+ tempo changes in between adjacent indices,
             # we need to keep track of how many seconds elapsed since
@@ -615,15 +618,26 @@ class SlideShow (Media):
         self.__fileName = ""
         self.__slide = None
         self.cursorLineColor = (255,0,0)
+        self.__cursorStart = 120.0 # HARD CODED!!!
+        self.__cursorEnd = 440.0# HARD CODED!!!
+        self.startOffset = 0.0
+        self.endOffset = 0.0
+        self.__lastOffset = 40.0 # HARD CODED!!!
 
     def makeFrame (self, numFrame, among, offset = None):
-        # We check if the slide must change
-        newFileName = "%s%09.4f.png" % (self.__fileNamePrefix,offset)
+        # We check if the slide must change        
+        start = self.startOffset * ((self.__cursorEnd - self.__cursorStart)/self.__lastOffset)
+        end = self.endOffset * ((self.__cursorEnd - self.__cursorStart)/self.__lastOffset)
+        travelPerFrame = float(end - start) / among
+        index = start + int(round(numFrame * travelPerFrame)) + self.__cursorStart
+
+        newFileName = "%s%09.4f.png" % (self.__fileNamePrefix,self.startOffset)
         if newFileName != self.__fileName:
             self.__fileName = newFileName
             if os.path.exists(self.__fileName):
                 self.__slide = Image.open(self.__fileName)
                 debug ("Add slide from file " + self.__fileName)
         tmpSlide = self.__slide.copy()
+        writeCursorLine(tmpSlide, int(index), self.cursorLineColor)
         return tmpSlide
 
