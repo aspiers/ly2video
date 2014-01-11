@@ -55,7 +55,7 @@ def parse_args():
     return src, beatmap, dst
 
 def main():
-    src, dst, beatmap = parse_args()
+    src, beatmap, dst = parse_args()
     generate_adjusted_midi_file(src, dst, beatmap)
 
 def get_tempos_from_beatmap(filename, resolution):
