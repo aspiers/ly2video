@@ -530,14 +530,15 @@ class ScoreImage (Media):
             cursorX = index - self.__leftEdge
             debug("        left edge at %d, cursor at %d" %
                   (self.__leftEdge, cursorX))
-#            if cursorX > self.areaWidth - self.rightMargin:
             if cursorX > self.width - self.rightMargin:
                 self.__leftEdge = index - self.leftMargin
                 cursorX = index - self.__leftEdge
                 debug("        <<< left edge at %d, cursor at %d" %
                       (self.__leftEdge, cursorX))
-
-#            rightEdge = self.__leftEdge + self.areaWidth
+            if picture_width - self.__leftEdge < self.width :
+                self.__leftEdge = picture_width - self.width
+                # the cursor has to finish its travel in the last picture cropping
+                self.rightMargin = 0
             rightEdge = self.__leftEdge + self.width
             frame = self.picture.copy().crop((self.__leftEdge, self.__cropTop,
                                           rightEdge, self.__cropBottom))
