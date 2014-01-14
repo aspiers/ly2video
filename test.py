@@ -30,11 +30,11 @@ class ScoreImageTest (unittest.TestCase):
     
     def setUp(self):
         image = Image.new("RGB",(1000,200),(255,255,255))
-        self.blankImage = ScoreImage(image, [], 1000,200)
+        self.blankImage = ScoreImage(1000,200,image, [], [])
         image = Image.new("RGB",(1000,200),(255,255,255))
         image.putpixel((500,50),(0,0,0))
         image.putpixel((500,149),(0,0,0))
-        self.pointsImage = ScoreImage(image, [], 1000,200)
+        self.pointsImage = ScoreImage(1000,200,image, [], [])
 
     # PRIVATE METHODS
     # __isLineBlank
@@ -62,20 +62,19 @@ class ScoreImageTest (unittest.TestCase):
 
     # __setCropTopAndBottom
     def test__setCropTopAndBottom_withBlackImage(self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [])
-        blackImage.areaHeight = 16
+        blackImage = ScoreImage(16,16,Image.new("RGB",(16,16),(0,0,0)), [], [])
         blackImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(blackImage._ScoreImage__cropTop, 0, "Bad cropTop!")
         self.assertEqual(blackImage._ScoreImage__cropBottom, 16, "Bad cropBottom!")
 
     def test__setCropTopAndBottom_withBlackImageTooSmall(self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 17)
+        blackImage = ScoreImage(16,17,Image.new("RGB",(16,16),(0,0,0)), [], [])
         with self.assertRaises(SystemExit) as cm:
             blackImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
 
     def test__setCropTopAndBottom_withBlackImageTooBig(self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [], 16, 15)
+        blackImage = ScoreImage(16,17,Image.new("RGB",(16,16),(0,0,0)), [], [])
         with self.assertRaises(SystemExit) as cm:
             blackImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
@@ -83,8 +82,8 @@ class ScoreImageTest (unittest.TestCase):
     def test__setCropTopAndBottom_withBlackPoint(self):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,8),(0,0,0))
-        blackPointImage = ScoreImage(image, [], [])
-        blackPointImage.areaHeight = 9
+        blackPointImage = ScoreImage(16,9,image, [], [])
+        #blackPointImage.areaHeight = 9
         blackPointImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(blackPointImage._ScoreImage__cropTop, 4, "Bad cropTop!")
         self.assertEqual(blackPointImage._ScoreImage__cropBottom, 13, "Bad cropBottom!")
@@ -93,7 +92,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(30,30),(255,255,255))
         image.putpixel((8,4),(0,0,0))
         image.putpixel((8,12),(0,0,0))
-        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [], 16, 20)
+        scoreImage = ScoreImage(16,20,Image.new("RGB",(16,16),(0,0,0)), [], [])
         with self.assertRaises(SystemExit) as cm:
             scoreImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
@@ -102,7 +101,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,4),(0,0,0))
         image.putpixel((8,12),(0,0,0))
-        scoreImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], [], 16, 8)
+        scoreImage = ScoreImage(16,8,Image.new("RGB",(16,16),(0,0,0)), [], [])
         with self.assertRaises(SystemExit) as cm:
             scoreImage._ScoreImage__setCropTopAndBottom()
         self.assertEqual(cm.exception.code, 1)
@@ -112,9 +111,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [], [])
-        scoreImage.areaWidth = 200
-        scoreImage.areaHeight = 40
+        scoreImage = ScoreImage(200,40,image, [], [])
         index = 70
         areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index)
         w,h = areaFrame.size
@@ -126,9 +123,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [], [])
-        scoreImage.areaWidth = 200
-        scoreImage.areaHeight = 40
+        scoreImage = ScoreImage(200,40,image, [], [])
         index = 200
         areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index)
         w,h = areaFrame.size
@@ -139,48 +134,48 @@ class ScoreImageTest (unittest.TestCase):
     # PUBLIC METHODS
     # topCroppable
     def testTopCroppable_withBlackImage (self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 16)
+        blackImage = ScoreImage(16,16,Image.new("RGB",(16,16),(0,0,0)), [], [])
         self.assertEqual(blackImage.topCroppable, 0, "Bad topMarginSize")
 
     def testTopCroppable_withBlankImage (self):
         def testTopCroppable(image):
             return image.topCroppable
-        blankImage = ScoreImage(Image.new("RGB",(16,16),(255,255,255)), [], 16, 16)
+        blankImage = ScoreImage(16,16,Image.new("RGB",(16,16),(255,255,255)), [], [])
         self.assertRaises(BlankScoreImageError,testTopCroppable,blankImage)
 
     def testTopCroppable_withHorizontalBlackLine (self):
         image = Image.new("RGB",(16,16),(255,255,255))
         for x in range(16) : image.putpixel((x,8),(0,0,0))
-        blackImage = ScoreImage(image, [], 16, 16)
+        blackImage = ScoreImage(16,16,image, [], [])
         self.assertEqual(blackImage.topCroppable, 8, "Bad topMarginSize")
 
     def testTopCroppable_withBlackPoint (self):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,8),(0,0,0))
-        blackImage = ScoreImage(image, [], 16, 16)
+        blackImage = ScoreImage(16,16,image, [], [])
         self.assertEqual(blackImage.topCroppable, 8, "Bad topMarginSize")
 
     # bottomCroppable
     def testBottomCroppable_withBlackImage (self):
-        blackImage = ScoreImage(Image.new("RGB",(16,16),(0,0,0)), [], 16, 16)
+        blackImage = ScoreImage(16, 16, Image.new("RGB",(16,16),(0,0,0)), [], [])
         self.assertEqual(blackImage.bottomCroppable, 0, "Bad bottomMarginSize")
 
     def testBottomCroppable_withBlankImage (self):
         def testBottomCroppable(image):
             return image.bottomCroppable
-        blankImage = ScoreImage(Image.new("RGB",(16,16),(255,255,255)), [], 16, 16)
+        blankImage = ScoreImage(16, 16, Image.new("RGB",(16,16),(255,255,255)), [], [])
         self.assertRaises(BlankScoreImageError,testBottomCroppable,blankImage)
 
     def testBottomCroppable_withHorizontalBlackLine (self):
         image = Image.new("RGB",(16,16),(255,255,255))
         for x in range(16) : image.putpixel((x,8),(0,0,0))
-        blackImage = ScoreImage(image, [], 16, 16)
+        blackImage = ScoreImage(16, 16, image, [], [])
         self.assertEqual(blackImage.bottomCroppable, 7, "Bad topMarginSize")
 
     def testBottomCroppable_withBlackPoint (self):
         image = Image.new("RGB",(16,16),(255,255,255))
         image.putpixel((8,8),(0,0,0))
-        blackImage = ScoreImage(image, [], 16, 16)
+        blackImage = ScoreImage(16, 16, image, [], [])
         self.assertEqual(blackImage.bottomCroppable, 7, "Bad topMarginSize")
         
     # makeFrame
@@ -188,7 +183,7 @@ class ScoreImageTest (unittest.TestCase):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
         for x in range(51) : image.putpixel((x+ox,20),(0,0,0))
-        scoreImage = ScoreImage(image, [70, 100], [])
+        scoreImage = ScoreImage(200, 40, image, [70, 100], [])
         scoreImage.areaWidth = 200
         scoreImage.areaHeight = 40
         areaFrame = scoreImage.makeFrame(numFrame = 10, among = 30)
@@ -222,8 +217,6 @@ class VideoFrameWriterTest(unittest.TestCase):
 
     def setUp(self):
         self.frameWriter = VideoFrameWriter(
-                                       width            = 16,
-                                       height           = 16,
                                        fps              = 30.0,
                                        cursorLineColor  = (255,0,0),
                                        midiResolution   = 384,

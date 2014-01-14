@@ -136,7 +136,7 @@ class VideoFrameWriter(object):
     skips generating one frame.
     """
 
-    def __init__(self, width, height, fps, cursorLineColor,
+    def __init__(self, fps, cursorLineColor,
                  midiResolution, midiTicks, temposList):
         """
         Params:
@@ -169,8 +169,8 @@ class VideoFrameWriter(object):
         # left edge of the cropping rectangle).
         self.leftEdge = None
 
-        self.width = width
-        self.height = height
+        self.width = None
+        self.height = None
         self.fps = fps
         self.cursorLineColor = cursorLineColor
         self.midiResolution = midiResolution
@@ -181,10 +181,10 @@ class VideoFrameWriter(object):
         
         self.__scoreImage = None
         self.__medias = []
-        self.__offset = 0
 
     def push (self, media):
-        self.__medias.append(media)
+        self.height += media.height
+	self.__medias.append(media)
 
     def estimateFrames(self):
         approxBeats = float(self.midiTicks[-1]) / self.midiResolution
@@ -202,10 +202,11 @@ class VideoFrameWriter(object):
         
     @scoreImage.setter
     def scoreImage (self, scoreImage):
+        self.width = scoreImage.width
+        self.height = scoreImage.height
         self.__scoreImage = scoreImage
-        self.__scoreImage.areaWidth = self.width
-        self.__scoreImage.areaHeight = self.height
         self.__scoreImage.cursorLineColor = self.cursorLineColor
+            
 
     def write(self):
         """
@@ -255,7 +256,6 @@ class VideoFrameWriter(object):
             # should be more precise to convert from lilypond moment...
             # With old notes indices data structure:
             # offset = indices[i][0]*4
-            self.__offset = float(startTick)/384.0
             for media in self.__medias:
                 media.startOffset = float(startTick)/384.0
                 media.endOffset = float(endTick)/384.0
@@ -349,25 +349,21 @@ class VideoFrameWriter(object):
         for i in xrange(neededFrames):
             debug("        writing frame %d" % (self.frameNum))
 
+            videoFrame = Image.new("RGB", (self.width,self.height), "white")
             scoreFrame = self.__scoreImage.makeFrame(numFrame = i, among = neededFrames)
             w, h =  scoreFrame.size
-            frame = Image.new("RGB", (w,h), "white")
-            frame.paste(scoreFrame,(0,0,w,h))
+            videoFrame.paste(scoreFrame, (0,self.height-h,w,self.height))
             for media in self.__medias :
-                mediaFrame = media.makeFrame(numFrame = i, among = neededFrames, offset = self.__offset)
+                mediaFrame = media.makeFrame(numFrame = i, among = neededFrames)
                 wm, hm =  mediaFrame.size
                 w = max(w,wm)
                 h += hm
-                f = Image.new("RGB", (w,h), "white")
-                f.paste(mediaFrame,(0,0,wm,hm))
-                wf, hf = frame.size
-                f.paste(frame,(0,hm,wf,h))
-                frame = f
-
-                
+                videoFrame.paste(mediaFrame, (0,self.height-h,wm,self.height-h+hm))
+            
+            #del draw
             # Save the frame.  ffmpeg doesn't work if the numbers in these
             # filenames are zero-padded.
-            frame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
+            videoFrame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
             self.frameNum += 1
             if not DEBUG and self.frameNum % 10 == 0:
                 sys.stdout.write(".")
@@ -403,8 +399,8 @@ class Media (object):
 
 class ScoreImage (Media):
     
-    def __init__ (self, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False, noteCursor = True):
-        Media.__init__(self,picture.size[0], picture.size[1])
+    def __init__ (self, width, height, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False, noteCursor = True):
+        Media.__init__(self, width, height)
         self.__picture = picture
         self.__notesXpositions = notesXpostions
         if len(self.__notesXpositions) > 0 :
@@ -417,8 +413,6 @@ class ScoreImage (Media):
         self.__bottomCroppable = None
         self.leftMargin = leftMargin
         self.rightMargin = rightMargin
-        self.areaWidth = 1920
-        self.areaHeight = 1080
         self.__leftEdge = None
         self.__cropTop = None
         self.__cropBottom = None
@@ -455,14 +449,15 @@ class ScoreImage (Media):
         (non-cropped) image.
         """
         if self.__cropTop is not None and self.__cropBottom is not None: return
+        picture_width, picture_height = self.__picture.size 
 
-        bottomY = self.height - self.bottomCroppable
-        progress("      Image height: %5d pixels" % self.height)
+        bottomY = picture_height - self.bottomCroppable
+        progress("      Image height: %5d pixels" % picture_height)
         progress("   Top margin size: %5d pixels" % self.topCroppable)
         progress("Bottom margin size: %5d pixels (y=%d)" %
                  (self.bottomCroppable, bottomY))
 
-        nonWhiteRows = self.height - self.topCroppable - self.bottomCroppable
+        nonWhiteRows = picture_height - self.topCroppable - self.bottomCroppable
         progress("Visible content is formed of %d non-white rows of pixels" %
                  nonWhiteRows)
 
@@ -474,8 +469,8 @@ class ScoreImage (Media):
 
         # Now choose top/bottom cropping coordinates which center
         # the content in the video frame.
-        self.__cropTop    = nonWhiteCentre - int(round(self.areaHeight / 2))
-        self.__cropBottom = self.__cropTop + self.areaHeight
+        self.__cropTop    = nonWhiteCentre - int(round(self.height / 2))
+        self.__cropBottom = self.__cropTop + self.height
 
         # Figure out the maximum height allowed which keeps the
         # cropping rectangle within the source image.
@@ -491,13 +486,13 @@ class ScoreImage (Media):
                   (-self.__cropTop, maxHeight))
             self.__cropTop = 0
 
-        if self.__cropBottom > self.height:
+        if self.__cropBottom > picture_height:
             fatal("Would have to crop %d pixels below bottom of image! "
                   "Try increasing the resolution DPI "
                   "(which would increase the size of the PNG to be cropped), "
                   "or reducing the video height to at most %d" %
-                  (self.__cropBottom - self.height, maxHeight))
-            self.__cropBottom = self.height
+                  (self.__cropBottom - picture_height, maxHeight))
+            self.__cropBottom = picture_height
 
         if self.__cropTop > self.topCroppable:
             fatal("Would have to crop %d pixels below top of visible content! "
@@ -517,6 +512,8 @@ class ScoreImage (Media):
 
     def __cropFrame(self,index):
         self.__setCropTopAndBottom()
+        picture_width, picture_height = self.__picture.size 
+
         if self.scrollNotes:
             # Get frame from image of staff
             centre = self.width / 2
@@ -533,18 +530,20 @@ class ScoreImage (Media):
             cursorX = index - self.__leftEdge
             debug("        left edge at %d, cursor at %d" %
                   (self.__leftEdge, cursorX))
-            if cursorX > self.areaWidth - self.rightMargin:
+#            if cursorX > self.areaWidth - self.rightMargin:
+            if cursorX > self.width - self.rightMargin:
                 self.__leftEdge = index - self.leftMargin
                 cursorX = index - self.__leftEdge
                 debug("        <<< left edge at %d, cursor at %d" %
                       (self.__leftEdge, cursorX))
 
-            rightEdge = self.__leftEdge + self.areaWidth
+#            rightEdge = self.__leftEdge + self.areaWidth
+            rightEdge = self.__leftEdge + self.width
             frame = self.picture.copy().crop((self.__leftEdge, self.__cropTop,
                                           rightEdge, self.__cropBottom))
         return (frame,cursorX)
 
-    def makeFrame (self, numFrame, among, offset = None):
+    def makeFrame (self, numFrame, among):
         startIndex  = self.currentXposition
         indexTravel = self.travelToNextNote
         travelPerFrame = float(indexTravel) / among
@@ -575,26 +574,28 @@ class ScoreImage (Media):
             
     def __setTopCroppable (self):
         # This is way faster than width*height invocations of getPixel()
+        picture_width, picture_height = self.__picture.size 
         pixels = self.__picture.load()
         progress("Auto-detecting top margin; this may take a while ...")
         self.__topCroppable = 0
-        for y in xrange(self.height):
-            if y == self.height - 1:
+        for y in xrange(picture_height):
+            if y == picture_height - 1:
                 raise BlankScoreImageError
-            if self.__isLineBlank(pixels, self.width, y):
+            if self.__isLineBlank(pixels, picture_width, y):
                 self.__topCroppable += 1
             else:
                 break
 
     def __setBottomCroppable (self):
         # This is way faster than width*height invocations of getPixel()
+        picture_width, picture_height = self.__picture.size 
         pixels = self.__picture.load()
         progress("Auto-detecting top margin; this may take a while ...")
         self.__bottomCroppable = 0
-        for y in xrange(self.height - 1, -1, -1):
+        for y in xrange(picture_height - 1, -1, -1):
             if y == 0:
                 raise BlankScoreImageError
-            if self.__isLineBlank(pixels, self.width, y):
+            if self.__isLineBlank(pixels, picture_width, y):
                 self.__bottomCroppable += 1
             else:
                 break
@@ -618,7 +619,6 @@ class SlideShow (Media):
         self.__fileName = "%s%09.4f.png" % (self.__fileNamePrefix,0.0)
         self.__slide = Image.open(self.__fileName)
         Media.__init__(self,self.__slide.size[0], self.__slide.size[1])
-        
         self.cursorLineColor = (255,0,0)
         
         # get cursor travelling data
@@ -634,10 +634,10 @@ class SlideShow (Media):
         self.startOffset = 0.0
         self.endOffset = 0.0
 
-    def makeFrame (self, numFrame, among, offset = None):
+    def makeFrame (self, numFrame, among):
         # We check if the slide must change        
-        start = self.startOffset * ((self.__cursorEnd - self.__cursorStart)/self.__lastOffset)
-        end = self.endOffset * ((self.__cursorEnd - self.__cursorStart)/self.__lastOffset)
+        start = self.startOffset * self.__scale
+        end = self.endOffset * self.__scale
         travelPerFrame = float(end - start) / among
         index = start + int(round(numFrame * travelPerFrame)) + self.__cursorStart
 

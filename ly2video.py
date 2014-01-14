@@ -1463,11 +1463,9 @@ def main():
     fps = options.fps
 
     # generate notes
-    frameWriter = VideoFrameWriter(
-        options.width, options.height, fps, getCursorLineColor(options),
-        midiResolution, midiTicks, temposList)
+    frameWriter = VideoFrameWriter(fps, getCursorLineColor(options), midiResolution, midiTicks, temposList)
     leftMargin, rightMargin = options.cursorMargins.split(",")
-    frameWriter.scoreImage = ScoreImage(Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes,options.noteCursor)
+    frameWriter.scoreImage = ScoreImage(options.width, options.height, Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes, options.noteCursor)
     if options.slideShow :
         frameWriter.push(SlideShow(options.slideShow,options.slideShowCursor,midiTicks[-1]/384.0))
     frameWriter.write()
