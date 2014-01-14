@@ -227,6 +227,23 @@ class VideoFrameWriterTest(unittest.TestCase):
         for x in range(16) : self.image.putpixel((x,8),(0,0,0))
 
         
+    def testPush (self):
+        frameWriter = VideoFrameWriter(30.0,(255,0,0),0,[],[])
+        frameWriter.scoreImage = Media(1000,200)
+        frameWriter.push(Media(100, 100))
+        self.assertEqual(frameWriter.height, 300)
+    
+    def testScoreImageSetter (self):
+        frameWriter = VideoFrameWriter(30.0,(255,0,0),0,[],[])
+        frameWriter.scoreImage = ScoreImage(1000,200,Image.new("RGB",(1000,200),(255,255,255)), [], [])
+        self.assertEqual(frameWriter.width, 1000)
+        self.assertEqual(frameWriter.height, 200)
+    
+    def testWrite (self):
+        pass
+    
+    def testWriteVideoFrames (self):
+        pass
         
     def testTicksToSecs (self):
         for tempo in range (1,300):
