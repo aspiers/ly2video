@@ -157,3 +157,7 @@ been possible without you.
 ## License
 
 ly2video is released under the [GNU GPL v3](http://www.gnu.org/licenses/gpl.html).
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/aspiers/ly2video/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
