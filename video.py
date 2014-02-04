@@ -135,33 +135,23 @@ class VideoFrameWriter(object):
     number and because a fractional number of frames can't be
     generated, they are stored in dropFrame and if that is > 1, it
     skips generating one frame.
+    
+    The VideoFrameWriter can manage severals medias. So the push method
+    can be used to stack medias one above the other.
     """
 
     def __init__(self, fps, cursorLineColor,
                  midiResolution, midiTicks, temposList):
         """
         Params:
-          - width:             pixel width of frames (and video)
-          - height:            pixel height of frames (and video)
+          - videoDef:          Strict definition of the final video
           - fps:               frame rate of video
           - cursorLineColor:   color of middle line
-          - scrollNotes:       False selects cursor scrolling mode,
-                               True selects note scrolling mode
-          - leftMargin:        left margin for cursor when
-                               cursor scrolling mode is enabled
-          - rightMargin:       right margin for cursor when
-                               cursor scrolling mode is enabled
           - midiResolution:    resolution of MIDI file
           - midiTicks:         list of ticks with NoteOnEvent
           - temposList:        list of possible tempos in MIDI
-          - leftMargin:        width of left margin for cursor
-          - rightMargin:       width of right margin for cursor
         """
         self.frameNum    = 0
-
-        # Keep track of wall clock time to ensure that rounding errors
-        # when aligning indices to frames don't accumulate over time.
-        #self.secs = 0.0
 
         # In cursor scrolling mode, this is the x-coordinate in the
         # original image of the left edge of the frame (i.e. the
@@ -172,9 +162,6 @@ class VideoFrameWriter(object):
         self.height = None
         self.fps = fps
         self.cursorLineColor = cursorLineColor
-        #self.midiResolution = midiResolution
-        #self.midiTicks = midiTicks
-        #self.temposList = temposList
         
         self.runDir = None
         
@@ -240,6 +227,11 @@ class BlankScoreImageError (Exception):
 
 class Media (object):
     
+    """
+    Abstract class which is handled by the VideoFrameWriter. ScoreImage
+    and SlideShow classes inherit from it.
+    """
+    
     def __init__ (self, width = 1280, height = 720):
         self.__width = width
         self.__height = height
@@ -259,8 +251,30 @@ class Media (object):
         pass
 
 class ScoreImage (Media):
+
+    """
+    This class manages:
+        - the image following: currentXposition(), travelToNextNote(),
+          moveToNextNote(), notesXpositions methods
+        - the frame drawing: the makeFrame() method.
+    This class handles the 'measure cursor', a new type of cursor.
+    """
     
     def __init__ (self, width, height, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False, noteCursor = True):
+        """
+        Params:
+          - width:             pixel width of frames (and video)
+          - height:            pixel height of frames (and video)
+          - picture:           the long width picture
+          - notesXpostions:    positions in pixel of notes
+          - measuresXpositions:positions in pixel of measures bars
+          - leftMargin:        left margin for cursor when
+                               cursor scrolling mode is enabled
+          - rightMargin:       right margin for cursor when
+                               cursor scrolling mode is enabled
+          - scrollNotes:       False selects cursor scrolling mode,
+                               True selects note scrolling mode
+        """
         Media.__init__(self, width, height)
         self.__picture = picture
         self.__notesXpositions = notesXpostions
@@ -478,6 +492,11 @@ class ScoreImage (Media):
         self.moveToNextNote()
 
 class SlideShow (Media):
+    
+    """
+    This class is needed to run show composed of several pictures as
+    the music is playing. A horizontal line cursor can be added if needed.
+    """
     
     def __init__(self, fileNamePrefix, cursorPos = None, lastOffset = None):
         self.__fileNamePrefix = fileNamePrefix
