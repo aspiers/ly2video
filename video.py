@@ -22,6 +22,7 @@
 # For more information about this program, please visit
 # <https://github.com/aspiers/ly2video/>.
 
+from synchro import *
 from utils import *
 import os
 from PIL import Image
@@ -156,13 +157,11 @@ class VideoFrameWriter(object):
           - leftMargin:        width of left margin for cursor
           - rightMargin:       width of right margin for cursor
         """
-        self.midiIndex   = 0
-        self.tempoIndex  = 0
         self.frameNum    = 0
 
         # Keep track of wall clock time to ensure that rounding errors
         # when aligning indices to frames don't accumulate over time.
-        self.secs = 0.0
+        #self.secs = 0.0
 
         # In cursor scrolling mode, this is the x-coordinate in the
         # original image of the left edge of the frame (i.e. the
@@ -173,28 +172,20 @@ class VideoFrameWriter(object):
         self.height = None
         self.fps = fps
         self.cursorLineColor = cursorLineColor
-        self.midiResolution = midiResolution
-        self.midiTicks = midiTicks
-        self.temposList = temposList
+        #self.midiResolution = midiResolution
+        #self.midiTicks = midiTicks
+        #self.temposList = temposList
         
         self.runDir = None
         
         self.__scoreImage = None
         self.__medias = []
+        self.__timecode = TimeCode (midiTicks,temposList,midiResolution,fps)
 
     def push (self, media):
         self.height += media.height
 	self.__medias.append(media)
-
-    def estimateFrames(self):
-        approxBeats = float(self.midiTicks[-1]) / self.midiResolution
-        debug("approx %.2f MIDI beats" % approxBeats)
-        beatsPerSec = 60.0 / self.tempo
-        approxDuration = approxBeats * beatsPerSec
-        debug("approx duration: %.2f seconds" % approxDuration)
-        estimatedFrames = approxDuration * self.fps
-        progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
-                 (estimatedFrames, self.fps))
+        self.__timecode.registerObserver(media)
 
     @property
     def scoreImage (self):
@@ -206,180 +197,44 @@ class VideoFrameWriter(object):
         self.height = scoreImage.height
         self.__scoreImage = scoreImage
         self.__scoreImage.cursorLineColor = self.cursorLineColor
-            
+        self.__timecode.registerObserver(scoreImage)
 
-    def write(self):
-        """
-        Params:
-          - indices:     indices of notes in pictures
-          - notesImage:  filename of the image
-        """
-        
+    def write (self):
         # folder to store frames for video
         if not os.path.exists("notes"):
             os.mkdir("notes")
 
-        firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
-        debug("first tempo is %.3f bpm" % self.tempo)
-        debug("final MIDI tick is %d" % self.midiTicks[-1])
+        while not self.__timecode.atEnd() :
+            neededFrames = self.__timecode.nbFramesToNextNote()
+            for i in xrange(neededFrames):
+                videoFrame = self.__makeFrame(i, neededFrames)
+                # Save the frame.  ffmpeg doesn't work if the numbers in these
+                # filenames are zero-padded.
+                videoFrame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
+                self.frameNum += 1
+                if not DEBUG and self.frameNum % 10 == 0:
+                    sys.stdout.write(".")
+                    sys.stdout.flush()   
 
-        self.estimateFrames()
-        progress("Writing frames ...")
-        if not DEBUG:
-            progress("A dot is displayed for every 10 frames generated.")
+            self.__timecode.goToNextNote()
 
-        initialTick = self.midiTicks[self.midiIndex]
-        if initialTick > 0:
-            debug("\ncalculating wall-clock start for first audible MIDI event")
-            # This duration isn't used, but it's necessary to
-            # calculate it like this in order to ensure tempoIndex is
-            # correct before we start writing frames.
-            silentPreludeDuration = \
-                self.secsElapsedForTempoChanges(0, initialTick)
 
-        # generate all frames in between each pair of adjacent indices
-        while self.midiIndex < len(self.midiTicks) - 1:
-#            debug("\nwall-clock secs: %f" % self.secs)
-#            debug("index: %d -> %d (indexTravel %d)" %
-#                  (startIndex, endIndex, indexTravel))
+    def __makeFrame (self, numFrame, among):
+        debug("        writing frame %d" % (self.frameNum))
 
-            # get two indices of MIDI events (ticks)
-            startTick = self.midiTicks[self.midiIndex]
-            self.midiIndex += 1
-            endTick = self.midiTicks[self.midiIndex]
-            ticks = endTick - startTick
-            debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
+        videoFrame = Image.new("RGB", (self.width,self.height), "white")
+        scoreFrame = self.__scoreImage.makeFrame(numFrame, among)
+        w, h =  scoreFrame.image.size
+        videoFrame.paste(scoreFrame.image,(0,self.height-h,w,self.height))
+        for media in self.__medias :
+            mediaFrame = media.makeFrame(numFrame, among)
+            wm, hm =  mediaFrame.size
+            w = max(w,wm)
+            h += hm
+            videoFrame.paste(mediaFrame, (0,self.height-h,wm,self.height-h+hm))
+        return videoFrame
 
-            # SLIDE SHOW HANDLING
-            # convert a midi tick event into an offset (1 == quarter)
-            # The factor between midi tick and offset is 384
-            # should be more precise to convert from lilypond moment...
-            # With old notes indices data structure:
-            # offset = indices[i][0]*4
-            for media in self.__medias:
-                media.startOffset = float(startTick)/384.0
-                media.endOffset = float(endTick)/384.0
 
-            # If we have 1+ tempo changes in between adjacent indices,
-            # we need to keep track of how many seconds elapsed since
-            # the last one, since this will allow us to calculate how
-            # many frames we need in between the current pair of
-            # indices.
-            secsSinceIndex = \
-                self.secsElapsedForTempoChanges(startTick, endTick)
-
-            # This is the exact time we are *aiming* for the frameset
-            # to finish at (i.e. the start time of the first frame
-            # generated after the writeVideoFrames() invocation below
-            # has written all the frames for the current frameset).
-            # However, since we have less than an infinite number of
-            # frames per second, there will typically be a rounding
-            # error and we'll miss our target by a small amount.
-            targetSecs = self.secs + secsSinceIndex
-
-#            debug("    secs at new index %d: %f" %
-#                  (endIndex, targetSecs))
-
-            # The ideal duration of the current frameset is the target
-            # end time minus the *actual* start time, not the ideal
-            # start time.  This is crucially important to avoid
-            # rounding errors from accumulating over the course of the
-            # video.
-            neededFrameSetSecs = targetSecs - float(self.frameNum)/self.fps
-            debug("    need next frameset to last %f secs" %
-                  neededFrameSetSecs)
-
-            debug("    need %f frames @ %.3f fps" %
-                  (neededFrameSetSecs * self.fps, self.fps))
-            neededFrames = int(round(neededFrameSetSecs * self.fps))
-
-            if neededFrames > 0:
-                self.writeVideoFrames(neededFrames)
-
-            # Update time in the *ideal* (i.e. not real) world - this
-            # is totally independent of fps.
-            self.secs = targetSecs
-            self.__scoreImage.moveToNextNote()
-        print
-
-        progress("SYNC: Generated %d frames" % self.frameNum)
-
-    def secsElapsedForTempoChanges(self, startTick, endTick):
-        """
-        Returns the time elapsed in between startTick and endTick,
-        where the only MIDI events in between (if any) are tempo
-        change events.
-        """
-        secsSinceStartIndex = 0.0
-        lastTick = startTick
-        while self.tempoIndex < len(self.temposList):
-            tempoTick, tempo = self.temposList[self.tempoIndex]
-            debug("    checking tempo #%d @ tick %d: %.3f bpm" %
-                  (self.tempoIndex, tempoTick, tempo))
-            if tempoTick >= endTick:
-                break
-
-            self.tempoIndex += 1
-            self.tempo = tempo
-
-            if tempoTick == startTick:
-                continue
-
-            # startTick < tempoTick < endTick
-            secsSinceStartIndex += self.ticksToSecs(lastTick, tempoTick)
-            debug("        last %d tempo %d" % (lastTick, tempoTick))
-            debug("        secs : %f" %
-                  (secsSinceStartIndex))
-            lastTick = tempoTick
-
-        # Add on the time elapsed between the final tempo change
-        # and endTick:
-        secsSinceStartIndex += self.ticksToSecs(lastTick, endTick)
-
-#        debug("    secs between indices %d and %d: %f" %
-#              (startIndex, endIndex, secsSinceStartIndex))
-        return secsSinceStartIndex
-
-    def writeVideoFrames(self, neededFrames):
-        """
-        Writes the required number of frames to travel indexTravel
-        pixels from startIndex, incrementing frameNum for each frame
-        written.
-        """
-        for i in xrange(neededFrames):
-            debug("        writing frame %d" % (self.frameNum))
-
-            videoFrame = Image.new("RGB", (self.width,self.height), "white")
-            scoreFrame = self.__scoreImage.makeFrame(numFrame = i, among = neededFrames)
-            w, h =  scoreFrame.size
-            videoFrame.paste(scoreFrame, (0,self.height-h,w,self.height))
-            for media in self.__medias :
-                mediaFrame = media.makeFrame(numFrame = i, among = neededFrames)
-                wm, hm =  mediaFrame.size
-                w = max(w,wm)
-                h += hm
-                videoFrame.paste(mediaFrame, (0,self.height-h,wm,self.height-h+hm))
-            
-            #del draw
-            # Save the frame.  ffmpeg doesn't work if the numbers in these
-            # filenames are zero-padded.
-            videoFrame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
-            self.frameNum += 1
-            if not DEBUG and self.frameNum % 10 == 0:
-                sys.stdout.write(".")
-                sys.stdout.flush()   
-
-    def ticksToSecs(self, startTick, endTick):
-        beatsSinceTick = float(endTick - startTick) / self.midiResolution
-        debug("        beats from tick %d -> %d: %f (%d ticks per beat)" %
-              (startTick, endTick, beatsSinceTick, self.midiResolution))
-
-        secsSinceTick = beatsSinceTick * 60.0 / self.tempo
-        debug("        secs  from tick %d -> %d: %f (%.3f bpm)" %
-              (startTick, endTick, secsSinceTick, self.tempo))
-
-        return secsSinceTick
-  
 class BlankScoreImageError (Exception):
     pass
 
@@ -396,6 +251,12 @@ class Media (object):
     @property
     def height (self):
         return self.__height
+    
+    def makeFrame (self, numframe, among):
+        pass
+    
+    def update (self, timecode):
+        pass
 
 class ScoreImage (Media):
     
@@ -612,6 +473,9 @@ class ScoreImage (Media):
         if self.__bottomCroppable is None:
             self.__setBottomCroppable()
         return self.__bottomCroppable
+    
+    def update (self, timecode):
+        self.moveToNextNote()
 
 class SlideShow (Media):
     
@@ -651,4 +515,8 @@ class SlideShow (Media):
         tmpSlide = self.__slide.copy()
         writeCursorLine(tmpSlide, int(index), self.cursorLineColor)
         return tmpSlide
+    
+    def update(self, timecode):
+        self.startOffset = timecode.currentOffset
+        self.endOffset = timecode.nextOffset
 

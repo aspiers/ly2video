@@ -93,3 +93,20 @@ def tmpPath(*dirs):
     segments.extend(dirs)
     return os.path.join(RUNDIR, *segments)
 
+
+class Observable:
+    
+    def __init__(self):
+        self.__observers = []
+    
+    def registerObserver(self, observer):
+        self.__observers.append(observer)
+
+    def notifyObservers (self):
+        for observer in self.__observers :
+            observer.update(self)
+
+class Observer:
+    
+    def update (self, observable):
+        pass
