@@ -355,31 +355,31 @@ class ScoreImage (Media):
 
         if self.__cropTop < 0:
             fatal("Would have to crop %d pixels above top of image! "
-                  "Try increasing the resolution DPI "
+                  "Try increasing the resolution DPI (option -r)"
                   "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height to at most %d" %
+                  "or reducing the video height to at most %d (option -y)." %
                   (-self.__cropTop, maxHeight))
             self.__cropTop = 0
 
         if self.__cropBottom > picture_height:
             fatal("Would have to crop %d pixels below bottom of image! "
-                  "Try increasing the resolution DPI "
+                  "Try increasing the resolution DPI (option -r)"
                   "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height to at most %d" %
+                  "or reducing the video height to at most %d (option -y)." %
                   (self.__cropBottom - picture_height, maxHeight))
             self.__cropBottom = picture_height
 
         if self.__cropTop > self.topCroppable:
             fatal("Would have to crop %d pixels below top of visible content! "
-                  "Try increasing the video height to at least %d, "
-                  "or decreasing the resolution DPI."
+                  "Try increasing the video height to at least %d (option -y), "
+                  "or decreasing the resolution DPI (option -r)."
                   % (self.__cropTop - self.topCroppable, nonWhiteRows))
             self.__cropTop = self.topCroppable
 
         if self.__cropBottom < bottomY:
             fatal("Would have to crop %d pixels above bottom of visible content! "
-                  "Try increasing the video height to at least %d, "
-                  "or decreasing the resolution DPI."
+                  "Try increasing the video height to at least %d (option -y), "
+                  "or decreasing the resolution DPI (option -r)."
                   % (bottomY - self.__cropBottom, nonWhiteRows))
             self.__cropBottom = bottomY
 
