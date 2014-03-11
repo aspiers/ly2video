@@ -37,7 +37,7 @@ import urllib
 import pipes
 from collections import namedtuple
 from distutils.version import StrictVersion
-from optparse import OptionParser
+from argparse import ArgumentParser
 from struct import pack
 
 from PIL import Image, ImageDraw, ImageFont
@@ -794,86 +794,86 @@ def generateSilence(name, length):
     return out
 
 def parseOptions():
-    parser = OptionParser("usage: %prog [options]")
+    parser = ArgumentParser(prog=sys.argv[0])
 
-    parser.add_option("-i", "--input", dest="input",
+    parser.add_argument("-i", "--input", required=True,
                       help="input LilyPond file", metavar="INPUT-FILE")
-    parser.add_option("--slide-show", dest="slideShow",
-                      help="input file prefix to generate a slide show")
-    parser.add_option("--slide-show-cursor", dest="slideShowCursor", type="float",
+    parser.add_argument("--slide-show", dest="slideShow",
+                      help="input file prefix to genarate a slide show")
+    parser.add_argument("--slide-show-cursor", dest="slideShowCursor", type=float,
                       help="start and end positions on the cursor in the slide show",nargs=2)
-    parser.add_option("-o", "--output", dest="output",
+    parser.add_argument("-o", "--output",
                       help='name of output video (e.g. "myNotes.avi") '
                            '[INPUT-FILE.avi]',
                       metavar="OUTPUT-FILE")
-    parser.add_option("-b", "--beatmap", dest="beatmap",
+    parser.add_argument("-b", "--beatmap",
                       help='name of beatmap file for adjusting MIDI tempo',
                       metavar="FILE")
-    parser.add_option("-c", "--color", dest="color",
+    parser.add_argument("-c", "--color",
                       help='name of color of middle bar [red]',
                       metavar="COLOR", default="red")
-    parser.add_option("-f", "--fps", dest="fps",
+    parser.add_argument("-f", "--fps", dest="fps",
                       help='frame rate of final video [30]',
-                      type="float", metavar="FPS", default=30.0)
-    parser.add_option("-q", "--quality", dest="quality",
+                      type=float, metavar="FPS", default=30.0)
+    parser.add_argument("-q", "--quality",
                       help="video encoding quality as used by ffmpeg's -q option "
                            '(1 is best, 31 is worst) [10]',
-                      type="int", metavar="N", default=10)
-    parser.add_option("-r", "--resolution", dest="dpi",
+                      type=int, metavar="N", default=10)
+    parser.add_argument("-r", "--resolution", dest="dpi",
                       help='resolution in DPI [110]',
-                      metavar="DPI", type="int", default=110)
-    parser.add_option("-x", "--width", dest="width",
+                      metavar="DPI", type=int, default=110)
+    parser.add_argument("-x", "--width",
                       help='pixel width of final video [1280]',
-                      metavar="WIDTH", type="int", default=1280)
-    parser.add_option("-y", "--height", dest="height",
+                      metavar="WIDTH", type=int, default=1280)
+    parser.add_argument("-y", "--height",
                       help='pixel height of final video [720]',
-                      metavar="HEIGHT", type="int", default=720)
-    parser.add_option("-m", "--cursor-margins", dest="cursorMargins",
+                      metavar="HEIGHT", type=int, default=720)
+    parser.add_argument("-m", "--cursor-margins", dest="cursorMargins",
                       help='width of left/right margins for scrolling '
                            'in pixels [50,100]',
-                      metavar="WIDTH,WIDTH", type="string", default='50,100')
-    parser.add_option("-p", "--padding", dest="padding",
+                      metavar="WIDTH,WIDTH", default='50,100')
+    parser.add_argument("-p", "--padding",
                       help='time to pause on initial and final frames [1,1]',
-                      metavar="SECS,SECS", type="string", default='1,1')
-    parser.add_option("-s", "--scroll-notes", dest="scrollNotes",
+                      metavar="SECS,SECS", default='1,1')
+    parser.add_argument("-s", "--scroll-notes", dest="scrollNotes",
                       help='rather than scrolling the cursor from left to right, '
                            'scroll the notation from right to left and keep the '
                            'cursor in the centre',
                       action="store_true", default=False)
-    parser.add_option("--no-cursor", dest="noteCursor",
+    parser.add_argument("--no-cursor", dest="noteCursor",
                       help='do not generate a cursor',
                       action="store_false", default=True)
-    parser.add_option("--note-cursor", dest="noteCursor",
+    parser.add_argument("--note-cursor", dest="noteCursor",
                       help='generate a cursor following the score note by note (default)',
                       action="store_true", default=True)
-    parser.add_option("--measure-cursor", dest="measureCursor",
+    parser.add_argument("--measure-cursor", dest="measureCursor",
                       help='generate a cursor following the score measure by measure',
                       action="store_true", default=False)
-    parser.add_option("-t", "--title-at-start", dest="titleAtStart",
+    parser.add_argument("-t", "--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video '
                            '(with name of song and its author)',
                       action="store_true", default=False)
-    parser.add_option("--title-duration", dest="titleDuration",
+    parser.add_argument("--title-duration", dest="titleDuration",
                       help='time to display the title screen [3]',
-                      type="int", metavar="SECONDS", default=3)
-    parser.add_option("--ttf", "--title-ttf", dest="titleTtfFile",
+                      type=int, metavar="SECONDS", default=3)
+    parser.add_argument("--ttf", "--title-ttf", dest="titleTtfFile",
                       help='path to TTF font file to use in title',
-                      type="string", metavar="FONT-FILE")
-    parser.add_option("--windows-ffmpeg", dest="winFfmpeg",
+                      metavar="FONT-FILE")
+    parser.add_argument("--windows-ffmpeg", dest="winFfmpeg",
                       help='(for Windows users) folder with ffpeg.exe '
                            '(e.g. "C:\\ffmpeg\\bin\\")',
                       metavar="PATH", default="")
-    parser.add_option("--windows-timidity", dest="winTimidity",
+    parser.add_argument("--windows-timidity", dest="winTimidity",
                       help='(for Windows users) folder with '
                            'timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
-    parser.add_option("-d", "--debug", dest="debug",
+    parser.add_argument("-d", "--debug",
                       help="enable debugging mode",
                       action="store_true", default=False)
-    parser.add_option("-k", "--keep", dest="keepTempFiles",
+    parser.add_argument("-k", "--keep", dest="keepTempFiles",
                       help="don't remove temporary working files",
                       action="store_true", default=False)
-    parser.add_option("-v", "--version", dest="showVersion",
+    parser.add_argument("-v", "--version", dest="showVersion",
                       help="show program version",
                       action="store_true", default=False)
 
@@ -881,7 +881,7 @@ def parseOptions():
         parser.print_help()
         sys.exit(0)
 
-    options, args = parser.parse_args()
+    options = parser.parse_args()
 
     if options.showVersion:
         showVersion()
@@ -892,7 +892,7 @@ def parseOptions():
     if options.debug:
         setDebug()
 
-    return options, args
+    return options
 
 def getVersion():
     try:
@@ -1387,7 +1387,7 @@ def main():
 
     - create a video file from the individual frames
     """
-    (options, args) = parseOptions()
+    options = parseOptions()
 
     lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
 
