@@ -1467,7 +1467,8 @@ def main():
     leftMargin, rightMargin = options.cursorMargins.split(",")
     frameWriter.scoreImage = ScoreImage(options.width, options.height, Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes, options.noteCursor)
     if options.slideShow :
-        frameWriter.push(SlideShow(options.slideShow,options.slideShowCursor,midiTicks[-1]/384.0))
+        lastOffset = midiTicks[-1]/midiResolution
+        frameWriter.push(SlideShow(options.slideShow,options.slideShowCursor,lastOffset))
     frameWriter.write()
     output_divider_line()
 

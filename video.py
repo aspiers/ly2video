@@ -211,8 +211,8 @@ class VideoFrameWriter(object):
 
         videoFrame = Image.new("RGB", (self.width,self.height), "white")
         scoreFrame = self.__scoreImage.makeFrame(numFrame, among)
-        w, h =  scoreFrame.image.size
-        videoFrame.paste(scoreFrame.image,(0,self.height-h,w,self.height))
+        w, h =  scoreFrame.size
+        videoFrame.paste(scoreFrame,(0,self.height-h,w,self.height))
         for media in self.__medias :
             mediaFrame = media.makeFrame(numFrame, among)
             wm, hm =  mediaFrame.size

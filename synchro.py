@@ -77,8 +77,8 @@ class TimeCode (Observable):
 
         self.__currentTick = self.__miditicks[self.__currentTickIndex]
         self.__nextTick = self.__miditicks[self.__currentTickIndex + 1]
-        self.currentOffset = float(self.__currentTick)/384.0
-        self.nextOffset = float(self.__nextTick)/384.0
+        self.currentOffset = float(self.__currentTick)/self.midiResolution
+        self.nextOffset = float(self.__nextTick)/self.midiResolution
 
     
     def atEnd(self):
@@ -88,8 +88,8 @@ class TimeCode (Observable):
         self.__currentTickIndex += 1
         self.__currentTick = self.__miditicks[self.__currentTickIndex]
         self.__nextTick = self.__miditicks[self.__currentTickIndex+1]
-        self.currentOffset = float(self.__currentTick)/384.0
-        self.nextOffset = float(self.__nextTick)/384.0
+        self.currentOffset = float(self.__currentTick)/self.midiResolution
+        self.nextOffset = float(self.__nextTick)/self.midiResolution
         ticks = self.__nextTick - self.__currentTick
         debug("ticks: %d -> %d (%d)" % (self.__currentTick, self.__nextTick, ticks))
 
