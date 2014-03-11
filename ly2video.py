@@ -803,7 +803,7 @@ def parseOptions():
 
     group_inout.add_argument("-b", "--beatmap",
                       help='name of beatmap file for adjusting MIDI tempo',
-                      metavar="FILE")
+                      metavar="BEATMAP-FILE")
 
     group_inout.add_argument("--slide-show", dest="slideShow",
                              help="input file prefix to generate a slide show (see doc/slideshow.txt)",
@@ -852,7 +852,7 @@ def parseOptions():
     group_cursors = parser.add_argument_group(title='Cursors')
 
     group_cursors.add_argument("-c", "--color",
-                      help='name of color of middle bar [%(default)s]',
+                      help='name of the cursor color [%(default)s]',
                       metavar="COLOR", default="red")
     group_cursors.add_argument("--no-cursor", dest="noteCursor",
                       help='do not generate a cursor',
@@ -864,7 +864,7 @@ def parseOptions():
                       help='generate a cursor following the score measure by measure',
                       action="store_true", default=False)
     group_cursors.add_argument("--slide-show-cursor", dest="slideShowCursor", type=float,
-                      help="start and end positions on the cursor in the slide show",nargs=2)
+                      help="start and end positions on the cursor in the slide show", nargs=2, metavar=("START", "END"))
 
     group_startend = parser.add_argument_group(title='Start and end of the video')
 
