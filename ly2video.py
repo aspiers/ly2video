@@ -810,30 +810,30 @@ def parseOptions():
                       help='name of beatmap file for adjusting MIDI tempo',
                       metavar="FILE")
     parser.add_argument("-c", "--color",
-                      help='name of color of middle bar [red]',
+                      help='name of color of middle bar [%(default)s]',
                       metavar="COLOR", default="red")
     parser.add_argument("-f", "--fps", dest="fps",
-                      help='frame rate of final video [30]',
+                        help='frame rate of final video [%(default)s]',
                       type=float, metavar="FPS", default=30.0)
     parser.add_argument("-q", "--quality",
                       help="video encoding quality as used by ffmpeg's -q option "
-                           '(1 is best, 31 is worst) [10]',
+                           '(1 is best, 31 is worst) [%(default)s]',
                       type=int, metavar="N", default=10)
     parser.add_argument("-r", "--resolution", dest="dpi",
-                      help='resolution in DPI [110]',
+                        help='resolution in DPI [%(default)s]',
                       metavar="DPI", type=int, default=110)
     parser.add_argument("-x", "--width",
-                      help='pixel width of final video [1280]',
+                        help='pixel width of final video [%(default)s]',
                       metavar="WIDTH", type=int, default=1280)
     parser.add_argument("-y", "--height",
-                      help='pixel height of final video [720]',
+                        help='pixel height of final video [%(default)s]',
                       metavar="HEIGHT", type=int, default=720)
     parser.add_argument("-m", "--cursor-margins", dest="cursorMargins",
                       help='width of left/right margins for scrolling '
-                           'in pixels [50,100]',
+                           'in pixels [%(default)s]',
                       metavar="WIDTH,WIDTH", default='50,100')
     parser.add_argument("-p", "--padding",
-                      help='time to pause on initial and final frames [1,1]',
+                        help='time to pause on initial and final frames [%(default)s]',
                       metavar="SECS,SECS", default='1,1')
     parser.add_argument("-s", "--scroll-notes", dest="scrollNotes",
                       help='rather than scrolling the cursor from left to right, '
@@ -854,7 +854,7 @@ def parseOptions():
                            '(with name of song and its author)',
                       action="store_true", default=False)
     parser.add_argument("--title-duration", dest="titleDuration",
-                      help='time to display the title screen [3]',
+                        help='time to display the title screen [%(default)s]',
                       type=int, metavar="SECONDS", default=3)
     parser.add_argument("--ttf", "--title-ttf", dest="titleTtfFile",
                       help='path to TTF font file to use in title',
