@@ -796,84 +796,113 @@ def generateSilence(name, length):
 def parseOptions():
     parser = ArgumentParser(prog=sys.argv[0])
 
-    parser.add_argument("-i", "--input", required=True,
-                      help="input LilyPond file", metavar="INPUT-FILE")
-    parser.add_argument("--slide-show", dest="slideShow",
-                      help="input file prefix to genarate a slide show")
-    parser.add_argument("--slide-show-cursor", dest="slideShowCursor", type=float,
-                      help="start and end positions on the cursor in the slide show",nargs=2)
-    parser.add_argument("-o", "--output",
+    group_inout = parser.add_argument_group(title='Input/output files')
+
+    group_inout.add_argument("-i", "--input", required=True,
+                        help="input LilyPond file", metavar="INPUT-FILE")
+
+    group_inout.add_argument("-b", "--beatmap",
+                      help='name of beatmap file for adjusting MIDI tempo',
+                      metavar="FILE")
+
+    group_inout.add_argument("--slide-show", dest="slideShow",
+                             help="input file prefix to generate a slide show (see doc/slideshow.txt)",
+                             metavar="SLIDESHOW-PREFIX")
+
+    group_inout.add_argument("-o", "--output",
                       help='name of output video (e.g. "myNotes.avi") '
                            '[INPUT-FILE.avi]',
                       metavar="OUTPUT-FILE")
-    parser.add_argument("-b", "--beatmap",
-                      help='name of beatmap file for adjusting MIDI tempo',
-                      metavar="FILE")
-    parser.add_argument("-c", "--color",
-                      help='name of color of middle bar [%(default)s]',
-                      metavar="COLOR", default="red")
-    parser.add_argument("-f", "--fps", dest="fps",
-                        help='frame rate of final video [%(default)s]',
-                      type=float, metavar="FPS", default=30.0)
-    parser.add_argument("-q", "--quality",
-                      help="video encoding quality as used by ffmpeg's -q option "
-                           '(1 is best, 31 is worst) [%(default)s]',
-                      type=int, metavar="N", default=10)
-    parser.add_argument("-r", "--resolution", dest="dpi",
-                        help='resolution in DPI [%(default)s]',
-                      metavar="DPI", type=int, default=110)
-    parser.add_argument("-x", "--width",
-                        help='pixel width of final video [%(default)s]',
-                      metavar="WIDTH", type=int, default=1280)
-    parser.add_argument("-y", "--height",
-                        help='pixel height of final video [%(default)s]',
-                      metavar="HEIGHT", type=int, default=720)
-    parser.add_argument("-m", "--cursor-margins", dest="cursorMargins",
+
+    group_scroll = parser.add_argument_group(title='Scrolling')
+
+    group_scroll.add_argument("-m", "--cursor-margins", dest="cursorMargins",
                       help='width of left/right margins for scrolling '
                            'in pixels [%(default)s]',
                       metavar="WIDTH,WIDTH", default='50,100')
-    parser.add_argument("-p", "--padding",
-                        help='time to pause on initial and final frames [%(default)s]',
-                      metavar="SECS,SECS", default='1,1')
-    parser.add_argument("-s", "--scroll-notes", dest="scrollNotes",
+
+    group_scroll.add_argument("-s", "--scroll-notes", dest="scrollNotes",
                       help='rather than scrolling the cursor from left to right, '
                            'scroll the notation from right to left and keep the '
                            'cursor in the centre',
                       action="store_true", default=False)
-    parser.add_argument("--no-cursor", dest="noteCursor",
+
+    group_video = parser.add_argument_group(title='Video output')
+
+    group_video.add_argument("-f", "--fps", dest="fps",
+                        help='frame rate of final video [%(default)s]',
+                      type=float, metavar="FPS", default=30.0)
+    group_video.add_argument("-q", "--quality",
+                      help="video encoding quality as used by ffmpeg's -q option "
+                           '(1 is best, 31 is worst) [%(default)s]',
+                      type=int, metavar="N", default=10)
+    group_video.add_argument("-r", "--resolution",dest="dpi",
+                        help='resolution in DPI [%(default)s]',
+                      metavar="DPI", type=int, default=110)
+    group_video.add_argument("--videoDef",
+                      help='Definition of final video [1280x720]',
+                      default=None)
+    group_video.add_argument("-x", "--width",
+                        help='pixel width of final video [%(default)s]',
+                      metavar="WIDTH", type=int, default=1280)
+    group_video.add_argument("-y", "--height",
+                        help='pixel height of final video [%(default)s]',
+                      metavar="HEIGHT", type=int, default=720)
+
+    group_cursors = parser.add_argument_group(title='Cursors')
+
+    group_cursors.add_argument("-c", "--color",
+                      help='name of color of middle bar [%(default)s]',
+                      metavar="COLOR", default="red")
+    group_cursors.add_argument("--no-cursor", dest="noteCursor",
                       help='do not generate a cursor',
                       action="store_false", default=True)
-    parser.add_argument("--note-cursor", dest="noteCursor",
+    group_cursors.add_argument("--note-cursor", dest="noteCursor",
                       help='generate a cursor following the score note by note (default)',
                       action="store_true", default=True)
-    parser.add_argument("--measure-cursor", dest="measureCursor",
+    group_cursors.add_argument("--measure-cursor", dest="measureCursor",
                       help='generate a cursor following the score measure by measure',
                       action="store_true", default=False)
-    parser.add_argument("-t", "--title-at-start", dest="titleAtStart",
+    group_cursors.add_argument("--slide-show-cursor", dest="slideShowCursor", type=float,
+                      help="start and end positions on the cursor in the slide show",nargs=2)
+
+    group_startend = parser.add_argument_group(title='Start and end of the video')
+
+    group_startend.add_argument("-t", "--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video '
                            '(with name of song and its author)',
                       action="store_true", default=False)
-    parser.add_argument("--title-duration", dest="titleDuration",
+    group_startend.add_argument("--title-duration", dest="titleDuration",
                         help='time to display the title screen [%(default)s]',
                       type=int, metavar="SECONDS", default=3)
-    parser.add_argument("--ttf", "--title-ttf", dest="titleTtfFile",
+    group_startend.add_argument("--ttf", "--title-ttf", dest="titleTtfFile",
                       help='path to TTF font file to use in title',
                       metavar="FONT-FILE")
-    parser.add_argument("--windows-ffmpeg", dest="winFfmpeg",
+
+    group_startend.add_argument("-p", "--padding",
+                        help='time to pause on initial and final frames [%(default)s]',
+                      metavar="SECS,SECS", default='1,1')
+
+    group_os = parser.add_argument_group(title='External programs')
+
+    group_os.add_argument("--windows-ffmpeg", dest="winFfmpeg",
                       help='(for Windows users) folder with ffpeg.exe '
                            '(e.g. "C:\\ffmpeg\\bin\\")',
                       metavar="PATH", default="")
-    parser.add_argument("--windows-timidity", dest="winTimidity",
+    group_os.add_argument("--windows-timidity", dest="winTimidity",
                       help='(for Windows users) folder with '
                            'timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
-    parser.add_argument("-d", "--debug",
+
+    group_debug = parser.add_argument_group(title='Debug')
+
+    group_debug.add_argument("-d", "--debug",
                       help="enable debugging mode",
                       action="store_true", default=False)
-    parser.add_argument("-k", "--keep", dest="keepTempFiles",
+    group_debug.add_argument("-k", "--keep", dest="keepTempFiles",
                       help="don't remove temporary working files",
                       action="store_true", default=False)
-    parser.add_argument("-v", "--version", dest="showVersion",
+    group_debug.add_argument("-v", "--version", dest="showVersion",
                       help="show program version",
                       action="store_true", default=False)
 
