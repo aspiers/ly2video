@@ -4,6 +4,7 @@
 # ly2video - generate performances video from LilyPond source files
 # Copyright (C) 2012 Jiri "FireTight" Szabo
 # Copyright (C) 2012 Adam Spiers
+# Copyright (C) 2014 Emmanuel Leguy
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,17 +37,18 @@ import urllib
 import pipes
 from collections import namedtuple
 from distutils.version import StrictVersion
-from optparse import OptionParser
+from argparse import ArgumentParser
 from struct import pack
 
 from PIL import Image, ImageDraw, ImageFont
 from ly.tokenize import MusicTokenizer, Tokenizer
 import ly.tools
 import midi
+from utils import *
+from video import *
 
 from pprint import pprint, pformat
 
-DEBUG = False # --debug sets to True
 
 GLOBAL_STAFF_SIZE = 20
 
@@ -262,43 +264,39 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
 
     return groblist
 
-def findTopStaffLine(image, lineLength):
-    """
-    Returns the coordinates of the left-most pixel in the top line of
-    the first staff in the image.
+def getMeasuresIndices(output, dpi, leftPaperMarginPx):
+    ret = []
+    ret.append(leftPaperMarginPx)
+    lines = output.split('\n')
 
-    FIXME: The code assumes that the first staff is not indented
-    further right than subsequent staffs.
+    for line in lines:
+        if not line.startswith('ly2videoBar: '):
+            continue
 
-    Params:
-    - image:        image with staff lines
-    - lineLength:   needed length of line to accept it as staff line
-    """
-    # position of the first line on image
-    firstLinePos = (-1, -1)
+        m = re.match('^ly2videoBar:\\s+'
+                     # X-extents
+                     '\\(\\s*(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)\\s*\\)'
+                     # delimiter
+                     '\\s+@\\s+'
+                     # moment
+                     '(-?\\d+\\.\\d+)'
+                     '$', line)
+        if not m:
+            bug("Failed to parse ly2video line:\n%s" % line)
+        left, right, moment = m.groups()
 
-    width, height = image.size
 
-    # Start searching at the hard left but allow for a left margin.
-    for x in xrange(width):
-        for y in xrange(height):
-            for length in xrange(lineLength):
-                # testing color of pixels in range (startPos, startPos + lineLength)
-                if image.getpixel((x + length, y)) == (255,255,255):
-                    # if it's white then it's not a staff line
-                    firstLinePos = (-1, -1)
-                    break
-                else:
-                    # else it can be
-                    firstLinePos = (x, y)
-            # when have a valid position, break out
-            if firstLinePos != (-1, -1):
-                break
-        if firstLinePos != (-1, -1):
-            break
+        left   = float(left)
+        right  = float(right)
+        centre = (left + right) / 2
+        moment = float(moment)
+        x = int(round(staffSpacesToPixels(centre, dpi))) + leftPaperMarginPx
 
-    progress("First staff line found at (%d, %d)" % firstLinePos)
-    return firstLinePos
+        if x not in ret :
+            ret.append(x)
+
+    ret.sort()
+    return ret
 
 def findStaffLines(imageFile, lineLength):
     """
@@ -315,45 +313,6 @@ def findStaffLines(imageFile, lineLength):
 
     x, ys = findStaffLinesInImage(image, lineLength)
     return ys
-
-def findStaffLinesInImage(image, lineLength):
-    """
-    Takes a image and returns co-ordinates of staff lines in pixels.
-
-    Params:
-      - image:        image object containing staff lines
-      - lineLength:   required length of line for acceptance as staff line
-
-    Returns a tuple of the following items:
-      - x:   x co-ordinate of left end of staff lines
-      - ys:  list of y co-ordinates of staff lines
-    """
-    firstLineX, firstLineY = findTopStaffLine(image, lineLength)
-    # move 3 pixels to the right, to avoid line of pixels connectings
-    # all staffs together
-    firstLineX += 3
-
-    lines = []
-    newLine = True
-
-    width, height = image.size
-
-    for y in xrange(firstLineY, height):
-        # if color of that pixel isn't white
-        if image.getpixel((firstLineX, y)) != (255,255,255):
-            # and it can be new staff line
-            if newLine:
-                # accept it
-                newLine = False
-                lines.append(y)
-        else:
-            # it's space between lines
-            newLine = True
-
-    del image
-
-    # return staff line indices
-    return firstLineX, lines
 
 def generateTitleFrame(titleText, width, height, ttfFile):
     """
@@ -650,6 +609,7 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     currentLySrcFile = None
 
+    index = None
     while i < len(leftmostGrobsByMoment):
         if midiIndex == len(midiTicks):
             warn("Ran out of MIDI indices after %d. Current index: %d" %
@@ -769,411 +729,6 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     return alignedNoteIndices
 
-class VideoFrameWriter(object):
-    """
-    Generates frames for the final video, synchronized with audio.
-    Each frame is written to disk as a PNG file.
-
-    Counts time between starts of two notes, gets their positions on
-    image and generates needed amount of frames. The index of the last
-    note is repeated, so that every index can be the left one in a pair.
-    The required number of frames for every pair is computed as a real
-    number and because a fractional number of frames can't be
-    generated, they are stored in dropFrame and if that is > 1, it
-    skips generating one frame.
-    """
-
-    def __init__(self, width, height, fps, cursorLineColor,
-                 scrollNotes, leftMargin, rightMargin,
-                 midiResolution, midiTicks, temposList):
-        """
-        Params:
-          - width:             pixel width of frames (and video)
-          - height:            pixel height of frames (and video)
-          - fps:               frame rate of video
-          - cursorLineColor:   color of middle line
-          - scrollNotes:       False selects cursor scrolling mode,
-                               True selects note scrolling mode
-          - leftMargin:        left margin for cursor when
-                               cursor scrolling mode is enabled
-          - rightMargin:       right margin for cursor when
-                               cursor scrolling mode is enabled
-          - midiResolution:    resolution of MIDI file
-          - midiTicks:         list of ticks with NoteOnEvent
-          - temposList:        list of possible tempos in MIDI
-          - leftMargin:        width of left margin for cursor
-          - rightMargin:       width of right margin for cursor
-        """
-        self.midiIndex   = 0
-        self.tempoIndex  = 0
-        self.frameNum    = 0
-
-        # Keep track of wall clock time to ensure that rounding errors
-        # when aligning indices to frames don't accumulate over time.
-        self.secs = 0.0
-
-        self.scrollNotes = scrollNotes
-
-        # In cursor scrolling mode, this is the x-coordinate in the
-        # original image of the left edge of the frame (i.e. the
-        # left edge of the cropping rectangle).
-        self.leftEdge = None
-
-        self.width = width
-        self.height = height
-        self.fps = fps
-        self.cursorLineColor = cursorLineColor
-        self.midiResolution = midiResolution
-        self.midiTicks = midiTicks
-        self.temposList = temposList
-        self.leftMargin = leftMargin
-        self.rightMargin = rightMargin
-
-    def estimateFrames(self):
-        approxBeats = float(self.midiTicks[-1]) / self.midiResolution
-        debug("approx %.2f MIDI beats" % approxBeats)
-        beatsPerSec = 60.0 / self.tempo
-        approxDuration = approxBeats * beatsPerSec
-        debug("approx duration: %.2f seconds" % approxDuration)
-        estimatedFrames = approxDuration * self.fps
-        progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
-                 (estimatedFrames, self.fps))
-
-    def write(self, indices, notesImage):
-        """
-        Params:
-          - indices:     indices of notes in pictures
-          - notesImage:  filename of the image
-        """
-        # folder to store frames for video
-        if not os.path.exists("notes"):
-            os.mkdir("notes")
-
-        firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
-        debug("first tempo is %.3f bpm" % self.tempo)
-        debug("final MIDI tick is %d" % self.midiTicks[-1])
-
-        notesPic = Image.open(notesImage)
-        cropTop, cropBottom = self.getCropTopAndBottom(notesPic)
-
-        # duplicate last index
-        indices.append(indices[-1])
-
-        self.estimateFrames()
-        progress("Writing frames ...")
-        if not DEBUG:
-            progress("A dot is displayed for every 10 frames generated.")
-
-        initialTick = self.midiTicks[self.midiIndex]
-        if initialTick > 0:
-            debug("\ncalculating wall-clock start for first audible MIDI event")
-            # This duration isn't used, but it's necessary to
-            # calculate it like this in order to ensure tempoIndex is
-            # correct before we start writing frames.
-            silentPreludeDuration = \
-                self.secsElapsedForTempoChanges(0, initialTick,
-                                                0, indices[0])
-
-        # generate all frames in between each pair of adjacent indices
-        for i in xrange(len(indices) - 1):
-            # get two indices of notes (pixels)
-            startIndex  = indices[i]
-            endIndex    = indices[i + 1]
-            indexTravel = endIndex - startIndex
-
-            debug("\nwall-clock secs: %f" % self.secs)
-            debug("index: %d -> %d (indexTravel %d)" %
-                  (startIndex, endIndex, indexTravel))
-
-            # get two indices of MIDI events (ticks)
-            startTick = self.midiTicks[self.midiIndex]
-            self.midiIndex += 1
-            endTick = self.midiTicks[self.midiIndex]
-            ticks = endTick - startTick
-            debug("ticks: %d -> %d (%d)" % (startTick, endTick, ticks))
-
-            # If we have 1+ tempo changes in between adjacent indices,
-            # we need to keep track of how many seconds elapsed since
-            # the last one, since this will allow us to calculate how
-            # many frames we need in between the current pair of
-            # indices.
-            secsSinceIndex = \
-                self.secsElapsedForTempoChanges(startTick, endTick,
-                                                startIndex, endIndex)
-
-            # This is the exact time we are *aiming* for the frameset
-            # to finish at (i.e. the start time of the first frame
-            # generated after the writeVideoFrames() invocation below
-            # has written all the frames for the current frameset).
-            # However, since we have less than an infinite number of
-            # frames per second, there will typically be a rounding
-            # error and we'll miss our target by a small amount.
-            targetSecs = self.secs + secsSinceIndex
-
-            debug("    secs at new index %d: %f" %
-                  (endIndex, targetSecs))
-
-            # The ideal duration of the current frameset is the target
-            # end time minus the *actual* start time, not the ideal
-            # start time.  This is crucially important to avoid
-            # rounding errors from accumulating over the course of the
-            # video.
-            neededFrameSetSecs = targetSecs - float(self.frameNum)/self.fps
-            debug("    need next frameset to last %f secs" %
-                  neededFrameSetSecs)
-
-            debug("    need %f frames @ %.3f fps" %
-                  (neededFrameSetSecs * self.fps, self.fps))
-            neededFrames = int(round(neededFrameSetSecs * self.fps))
-
-            if neededFrames > 0:
-                self.writeVideoFrames(
-                    neededFrames, startIndex, indexTravel,
-                    notesPic, cropTop, cropBottom)
-
-            # Update time in the *ideal* (i.e. not real) world - this
-            # is totally independent of fps.
-            self.secs = targetSecs
-
-        print
-
-        progress("SYNC: Generated %d frames" % self.frameNum)
-
-    def getCropTopAndBottom(self, image):
-        """
-        Returns a tuple containing the y-coordinates of the top and
-        bottom edges of the cropping rectangle, relative to the given
-        (non-cropped) image.
-        """
-        width, height = image.size
-
-        topMarginSize, bottomMarginSize = self.getTopAndBottomMarginSizes(image)
-        bottomY = height - bottomMarginSize
-        progress("      Image height: %5d pixels" % height)
-        progress("   Top margin size: %5d pixels" % topMarginSize)
-        progress("Bottom margin size: %5d pixels (y=%d)" %
-                 (bottomMarginSize, bottomY))
-
-        nonWhiteRows = height - topMarginSize - bottomMarginSize
-        progress("Visible content is formed of %d non-white rows of pixels" %
-                 nonWhiteRows)
-
-        # y-coordinate of centre of the visible content, relative to
-        # the original non-cropped image
-        nonWhiteCentre = topMarginSize + int(round(nonWhiteRows/2))
-        progress("Centre of visible content is %d pixels from top" %
-                 nonWhiteCentre)
-
-        # Now choose top/bottom cropping coordinates which center
-        # the content in the video frame.
-        cropTop    = nonWhiteCentre - int(round(self.height / 2))
-        cropBottom = cropTop + self.height
-
-        # Figure out the maximum height allowed which keeps the
-        # cropping rectangle within the source image.
-        maxTopHalf    =    topMarginSize + nonWhiteRows / 2
-        maxBottomHalf = bottomMarginSize + nonWhiteRows / 2
-        maxHeight = min(maxTopHalf, maxBottomHalf) * 2
-
-        if cropTop < 0:
-            fatal("Would have to crop %d pixels above top of image! "
-                  "Try increasing the resolution DPI "
-                  "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height to at most %d" %
-                  (-cropTop, maxHeight))
-            cropTop = 0
-
-        if cropBottom > height:
-            fatal("Would have to crop %d pixels below bottom of image! "
-                  "Try increasing the resolution DPI "
-                  "(which would increase the size of the PNG to be cropped), "
-                  "or reducing the video height to at most %d" %
-                  (cropBottom - height, maxHeight))
-            cropBottom = height
-
-        if cropTop > topMarginSize:
-            fatal("Would have to crop %d pixels below top of visible content! "
-                  "Try increasing the video height to at least %d, "
-                  "or decreasing the resolution DPI."
-                  % (cropTop - topMarginSize, nonWhiteRows))
-            cropTop = topMarginSize
-
-        if cropBottom < bottomY:
-            fatal("Would have to crop %d pixels above bottom of visible content! "
-                  "Try increasing the video height to at least %d, "
-                  "or decreasing the resolution DPI."
-                  % (bottomY - cropBottom, nonWhiteRows))
-            cropBottom = bottomY
-
-        progress("Will crop from y=%d to y=%d" % (cropTop, cropBottom))
-
-        return cropTop, cropBottom
-
-    def getTopAndBottomMarginSizes(self, image):
-        """
-        Counts the number of white-only rows of pixels at the top and
-        bottom of the given image.
-        """
-
-        width, height = image.size
-
-        # This is way faster than width*height invocations of getPixel()
-        pixels = image.load()
-
-        progress("Auto-detecting top margin; this may take a while ...")
-        topMargin = 0
-        for y in xrange(height):
-            if self.isLineBlank(pixels, width, y):
-                topMargin += 1
-                if topMargin % 10 == 0:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-            else:
-                break
-        if topMargin >= 10:
-            print
-
-        progress("Auto-detecting bottom margin; this may take a while ...")
-        bottomMargin = 0
-        for y in xrange(height - 1, -1, -1):
-            if self.isLineBlank(pixels, width, y):
-                bottomMargin += 1
-                if bottomMargin % 10 == 0:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-            else:
-                break
-        if bottomMargin >= 10:
-            print
-
-        bottomY = height - bottomMargin
-        if topMargin >= bottomY:
-            bug("Image was entirely white!\n"
-                "Top margin %d, bottom margin %d (y=%d), height %d" %
-                (topMargin, bottomMargin, bottomY, height))
-
-        return topMargin, bottomMargin
-
-    def isLineBlank(self, pixels, width, y):
-        """
-        Returns True iff the line with the given y coordinate
-        is entirely white.
-        """
-        for x in xrange(width):
-            if pixels[x, y] != (255, 255, 255):
-                return False
-        return True
-
-    def secsElapsedForTempoChanges(self, startTick, endTick,
-                                   startIndex, endIndex):
-        """
-        Returns the time elapsed in between startTick and endTick,
-        where the only MIDI events in between (if any) are tempo
-        change events.
-        """
-        secsSinceStartIndex = 0.0
-        lastTick = startTick
-        while self.tempoIndex < len(self.temposList):
-            tempoTick, tempo = self.temposList[self.tempoIndex]
-            debug("    checking tempo #%d @ tick %d: %.3f bpm" %
-                  (self.tempoIndex, tempoTick, tempo))
-            if tempoTick >= endTick:
-                break
-
-            self.tempoIndex += 1
-            self.tempo = tempo
-
-            if tempoTick == startTick:
-                continue
-
-            # startTick < tempoTick < endTick
-            secsSinceStartIndex += self.ticksToSecs(lastTick, tempoTick)
-            debug("        last %d tempo %d" % (lastTick, tempoTick))
-            debug("        secs since index %d: %f" %
-                  (startIndex, secsSinceStartIndex))
-            lastTick = tempoTick
-
-        # Add on the time elapsed between the final tempo change
-        # and endTick:
-        secsSinceStartIndex += self.ticksToSecs(lastTick, endTick)
-
-        debug("    secs between indices %d and %d: %f" %
-              (startIndex, endIndex, secsSinceStartIndex))
-        return secsSinceStartIndex
-
-    def writeVideoFrames(self, neededFrames, startIndex, indexTravel,
-                         notesPic, cropTop, cropBottom):
-        """
-        Writes the required number of frames to travel indexTravel
-        pixels from startIndex, incrementing frameNum for each frame
-        written.
-        """
-        travelPerFrame = float(indexTravel) / neededFrames
-        debug("    travel per frame: %f pixels" % travelPerFrame)
-        debug("    generating %d frames: %d -> %d" %
-              (neededFrames, self.frameNum, self.frameNum + neededFrames - 1))
-
-        for i in xrange(neededFrames):
-            index = startIndex + int(round(i * travelPerFrame))
-            debug("        writing frame %d index %d" %
-                  (self.frameNum, index))
-
-            frame, cursorX = self.cropFrame(notesPic, index,
-                                            cropTop, cropBottom)
-            self.writeCursorLine(frame, cursorX)
-
-            # Save the frame.  ffmpeg doesn't work if the numbers in these
-            # filenames are zero-padded.
-            frame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
-            self.frameNum += 1
-            if not DEBUG and self.frameNum % 10 == 0:
-                sys.stdout.write(".")
-                sys.stdout.flush()
-
-    def cropFrame(self, notesPic, index, top, bottom):
-        if self.scrollNotes:
-            # Get frame from image of staff
-            centre = self.width / 2
-            left  = int(index - centre)
-            right = int(index + centre)
-            frame = notesPic.copy().crop((left, top, right, bottom))
-            cursorX = centre
-        else:
-            if self.leftEdge is None:
-                # first frame
-                staffX, staffYs = findStaffLinesInImage(notesPic, 50)
-                self.leftEdge = staffX - self.leftMargin
-
-            cursorX = index - self.leftEdge
-            debug("        left edge at %d, cursor at %d" %
-                  (self.leftEdge, cursorX))
-            if cursorX > self.width - self.rightMargin:
-                self.leftEdge = index - self.leftMargin
-                cursorX = index - self.leftEdge
-                debug("        <<< left edge at %d, cursor at %d" %
-                      (self.leftEdge, cursorX))
-
-            rightEdge = self.leftEdge + self.width
-            frame = notesPic.copy().crop((self.leftEdge, top,
-                                          rightEdge, bottom))
-        return frame, cursorX
-
-    def writeCursorLine(self, frame, x):
-        for pixel in xrange(self.height):
-            frame.putpixel((x    , pixel), self.cursorLineColor)
-            frame.putpixel((x + 1, pixel), self.cursorLineColor)
-
-    def ticksToSecs(self, startTick, endTick):
-        beatsSinceTick = float(endTick - startTick) / self.midiResolution
-        debug("        beats from tick %d -> %d: %f (%d ticks per beat)" %
-              (startTick, endTick, beatsSinceTick, self.midiResolution))
-
-        secsSinceTick = beatsSinceTick * 60.0 / self.tempo
-        debug("        secs  from tick %d -> %d: %f (%.3f bpm)" %
-              (startTick, endTick, secsSinceTick, self.tempo))
-
-        return secsSinceTick
-
 def genWavFile(timidity, midiPath):
     """
     Call TiMidity++ to convert MIDI to .wav.
@@ -1238,131 +793,116 @@ def generateSilence(name, length):
     fSilence.close()
     return out
 
-def output_divider_line():
-    progress(60 * "-")
-
-def debug(text):
-    if DEBUG:
-        print text
-
-def progress(text):
-    print text
-
-def stderr(text):
-    sys.stderr.write(text + "\n")
-
-def warn(text):
-    stderr("WARNING: " + text)
-
-def fatal(text, status=1):
-    output_divider_line()
-    stderr("ERROR: " + text)
-    sys.exit(status)
-
-def bug(text, *issues):
-    if len(issues) == 0:
-        msg = """
-Sorry, ly2video has encountered a fatal bug as described above,
-which it could not attribute to any known cause :-( 
-
-Please consider searching:
-        """
-    else:
-        msg = """
-Sorry, ly2video has encountered a fatal bug as described above :-(
-It might be due to the following known issue(s):
-
-"""
-        for issue in issues:
-            msg += "    https://github.com/aspiers/ly2video/issues/%d\n" % issue
-
-        msg += """
-If you suspect this is not the case, please visit:
-"""
-
-    msg += """
-    https://github.com/aspiers/ly2video/issues
-
-and if the problem is not listed there, please file a new
-entry so we can get it fixed.  Thanks!
-
-Aborted execution.\
-"""
-    fatal(text + "\n" + msg)
-
-def tmpPath(*dirs):
-    segments = [ 'ly2video.tmp' ]
-    segments.extend(dirs)
-    return os.path.join(runDir, *segments)
-
 def parseOptions():
-    parser = OptionParser("usage: %prog [options]")
+    parser = ArgumentParser(prog=sys.argv[0])
 
-    parser.add_option("-i", "--input", dest="input",
-                      help="input LilyPond file", metavar="INPUT-FILE")
-    parser.add_option("-o", "--output", dest="output",
+    group_inout = parser.add_argument_group(title='Input/output files')
+
+    group_inout.add_argument("-i", "--input", required=True,
+                        help="input LilyPond file", metavar="INPUT-FILE")
+
+    group_inout.add_argument("-b", "--beatmap",
+                      help='name of beatmap file for adjusting MIDI tempo',
+                      metavar="BEATMAP-FILE")
+
+    group_inout.add_argument("--slide-show", dest="slideShow",
+                             help="input file prefix to generate a slide show (see doc/slideshow.txt)",
+                             metavar="SLIDESHOW-PREFIX")
+
+    group_inout.add_argument("-o", "--output",
                       help='name of output video (e.g. "myNotes.avi") '
                            '[INPUT-FILE.avi]',
                       metavar="OUTPUT-FILE")
-    parser.add_option("-b", "--beatmap", dest="beatmap",
-                      help='name of beatmap file for adjusting MIDI tempo',
-                      metavar="FILE")
-    parser.add_option("-c", "--color", dest="color",
-                      help='name of color of middle bar [red]',
-                      metavar="COLOR", default="red")
-    parser.add_option("-f", "--fps", dest="fps",
-                      help='frame rate of final video [30]',
-                      type="float", metavar="FPS", default=30.0)
-    parser.add_option("-q", "--quality", dest="quality",
-                      help="video encoding quality as used by ffmpeg's -q option "
-                           '(1 is best, 31 is worst) [10]',
-                      type="int", metavar="N", default=10)
-    parser.add_option("-r", "--resolution", dest="dpi",
-                      help='resolution in DPI [110]',
-                      metavar="DPI", type="int", default=110)
-    parser.add_option("-x", "--width", dest="width",
-                      help='pixel width of final video [1280]',
-                      metavar="WIDTH", type="int", default=1280)
-    parser.add_option("-y", "--height", dest="height",
-                      help='pixel height of final video [720]',
-                      metavar="HEIGHT", type="int", default=720)
-    parser.add_option("-m", "--cursor-margins", dest="cursorMargins",
+
+    group_scroll = parser.add_argument_group(title='Scrolling')
+
+    group_scroll.add_argument("-m", "--cursor-margins", dest="cursorMargins",
                       help='width of left/right margins for scrolling '
-                           'in pixels [50,100]',
-                      metavar="WIDTH,WIDTH", type="string", default='50,100')
-    parser.add_option("-p", "--padding", dest="padding",
-                      help='time to pause on initial and final frames [1,1]',
-                      metavar="SECS,SECS", type="string", default='1,1')
-    parser.add_option("-s", "--scroll-notes", dest="scrollNotes",
+                           'in pixels [%(default)s]',
+                      metavar="WIDTH,WIDTH", default='50,100')
+
+    group_scroll.add_argument("-s", "--scroll-notes", dest="scrollNotes",
                       help='rather than scrolling the cursor from left to right, '
                            'scroll the notation from right to left and keep the '
                            'cursor in the centre',
                       action="store_true", default=False)
-    parser.add_option("-t", "--title-at-start", dest="titleAtStart",
+
+    group_video = parser.add_argument_group(title='Video output')
+
+    group_video.add_argument("-f", "--fps", dest="fps",
+                        help='frame rate of final video [%(default)s]',
+                      type=float, metavar="FPS", default=30.0)
+    group_video.add_argument("-q", "--quality",
+                      help="video encoding quality as used by ffmpeg's -q option "
+                           '(1 is best, 31 is worst) [%(default)s]',
+                      type=int, metavar="N", default=10)
+    group_video.add_argument("-r", "--resolution",dest="dpi",
+                        help='resolution in DPI [%(default)s]',
+                      metavar="DPI", type=int, default=110)
+    group_video.add_argument("--videoDef",
+                      help='Definition of final video [1280x720]',
+                      default=None)
+    group_video.add_argument("-x", "--width",
+                        help='pixel width of final video [%(default)s]',
+                      metavar="WIDTH", type=int, default=1280)
+    group_video.add_argument("-y", "--height",
+                        help='pixel height of final video [%(default)s]',
+                      metavar="HEIGHT", type=int, default=720)
+
+    group_cursors = parser.add_argument_group(title='Cursors')
+
+    group_cursors.add_argument("-c", "--color",
+                      help='name of the cursor color [%(default)s]',
+                      metavar="COLOR", default="red")
+    group_cursors.add_argument("--no-cursor", dest="noteCursor",
+                      help='do not generate a cursor',
+                      action="store_false", default=True)
+    group_cursors.add_argument("--note-cursor", dest="noteCursor",
+                      help='generate a cursor following the score note by note (default)',
+                      action="store_true", default=True)
+    group_cursors.add_argument("--measure-cursor", dest="measureCursor",
+                      help='generate a cursor following the score measure by measure',
+                      action="store_true", default=False)
+    group_cursors.add_argument("--slide-show-cursor", dest="slideShowCursor", type=float,
+                      help="start and end positions on the cursor in the slide show", nargs=2, metavar=("START", "END"))
+
+    group_startend = parser.add_argument_group(title='Start and end of the video')
+
+    group_startend.add_argument("-t", "--title-at-start", dest="titleAtStart",
                       help='adds title screen at the start of video '
                            '(with name of song and its author)',
                       action="store_true", default=False)
-    parser.add_option("--title-duration", dest="titleDuration",
-                      help='time to display the title screen [3]',
-                      type="int", metavar="SECONDS", default=3)
-    parser.add_option("--ttf", "--title-ttf", dest="titleTtfFile",
+    group_startend.add_argument("--title-duration", dest="titleDuration",
+                        help='time to display the title screen [%(default)s]',
+                      type=int, metavar="SECONDS", default=3)
+    group_startend.add_argument("--ttf", "--title-ttf", dest="titleTtfFile",
                       help='path to TTF font file to use in title',
-                      type="string", metavar="FONT-FILE")
-    parser.add_option("--windows-ffmpeg", dest="winFfmpeg",
+                      metavar="FONT-FILE")
+
+    group_startend.add_argument("-p", "--padding",
+                        help='time to pause on initial and final frames [%(default)s]',
+                      metavar="SECS,SECS", default='1,1')
+
+    group_os = parser.add_argument_group(title='External programs')
+
+    group_os.add_argument("--windows-ffmpeg", dest="winFfmpeg",
                       help='(for Windows users) folder with ffpeg.exe '
                            '(e.g. "C:\\ffmpeg\\bin\\")',
                       metavar="PATH", default="")
-    parser.add_option("--windows-timidity", dest="winTimidity",
+    group_os.add_argument("--windows-timidity", dest="winTimidity",
                       help='(for Windows users) folder with '
                            'timidity.exe (e.g. "C:\\timidity\\")',
                       metavar="PATH", default="")
-    parser.add_option("-d", "--debug", dest="debug",
+
+    group_debug = parser.add_argument_group(title='Debug')
+
+    group_debug.add_argument("-d", "--debug",
                       help="enable debugging mode",
                       action="store_true", default=False)
-    parser.add_option("-k", "--keep", dest="keepTempFiles",
+    group_debug.add_argument("-k", "--keep", dest="keepTempFiles",
                       help="don't remove temporary working files",
                       action="store_true", default=False)
-    parser.add_option("-v", "--version", dest="showVersion",
+    group_debug.add_argument("-v", "--version", dest="showVersion",
                       help="show program version",
                       action="store_true", default=False)
 
@@ -1370,7 +910,7 @@ def parseOptions():
         parser.print_help()
         sys.exit(0)
 
-    options, args = parser.parse_args()
+    options = parser.parse_args()
 
     if options.showVersion:
         showVersion()
@@ -1379,10 +919,9 @@ def parseOptions():
         fatal("Must specify --title-ttf=FONT-FILE with --title-at-start.")
 
     if options.debug:
-        global DEBUG
-        DEBUG = True
+        setDebug()
 
-    return options, args
+    return options
 
 def getVersion():
     try:
@@ -1401,7 +940,7 @@ def getVersion():
 def showVersion():
     print """ly2video %s
 
-Copyright (C) 2012 Jiri "FireTight" Szabo, Adam Spiers
+Copyright (C) 2012-2014 Jiri "FireTight" Szabo, Adam Spiers, Emmanuel Leguy
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.""" % getVersion()
@@ -1720,10 +1259,29 @@ def writeSpaceTimeDumper():
                 (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
                 file line char))))
 
+#(define (dump-spacetime-info-barline grob)
+  (let* ((extent       (ly:grob-extent grob grob X))
+         (system       (ly:grob-system grob))
+         (x-extent     (ly:grob-extent grob system X))
+         (left         (car x-extent))
+         (right        (cdr x-extent))
+         (paper-column (grob-get-paper-column grob))
+         (time         (ly:grob-property paper-column 'when 0))
+         (cause        (ly:grob-property grob 'cause)))
+   (if (not (equal? (ly:grob-property grob 'transparent) #t))
+    (format #t "\\nly2videoBar: (~23,16f, ~23,16f) @ ~23,16f"
+                left right
+                (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
+                ))))
+
 \layout {
   \context {
     \Voice
     \override NoteHead  #'after-line-breaking = #dump-spacetime-info
+  }
+  \context {
+    \Staff
+    \override BarLine  #'after-line-breaking = #dump-spacetime-info-barline
   }
   \context {
     \ChordNames
@@ -1858,7 +1416,7 @@ def main():
 
     - create a video file from the individual frames
     """
-    (options, args) = parseOptions()
+    options = parseOptions()
 
     lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
 
@@ -1866,7 +1424,8 @@ def main():
     # we'll have somewhere nice to save state.
     global runDir
     runDir = os.getcwd()
-
+    setRunDir (runDir)
+    
     # Delete old temporary files.
     if os.path.isdir(tmpPath()):
         shutil.rmtree(tmpPath())
@@ -1895,6 +1454,10 @@ def main():
     output = runLilyPond(sanitisedLyFileName, options.dpi)
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
                                                      leftPaperMargin)
+
+    measuresXpositions = None
+    if options.measureCursor :
+        measuresXpositions = getMeasuresIndices(output, options.dpi, leftPaperMargin)
 
     notesImage = tmpPath("sanitised.png")
 
@@ -1929,12 +1492,13 @@ def main():
     fps = options.fps
 
     # generate notes
+    frameWriter = VideoFrameWriter(fps, getCursorLineColor(options), midiResolution, midiTicks, temposList)
     leftMargin, rightMargin = options.cursorMargins.split(",")
-    frameWriter = VideoFrameWriter(
-        options.width, options.height, fps, getCursorLineColor(options),
-        options.scrollNotes, int(leftMargin), int(rightMargin),
-        midiResolution, midiTicks, temposList)
-    frameWriter.write(noteIndices, notesImage)
+    frameWriter.scoreImage = ScoreImage(options.width, options.height, Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes, options.noteCursor)
+    if options.slideShow :
+        lastOffset = midiTicks[-1]/midiResolution
+        frameWriter.push(SlideShow(options.slideShow,options.slideShowCursor,lastOffset))
+    frameWriter.write()
     output_divider_line()
 
     wavPath = genWavFile(timidity, midiPath)

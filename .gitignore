@@ -2,3 +2,8 @@ build/
 src/
 ly2video.tmp/
 README.html
+*~
+*.pyc
+.project
+.settings
+.pydevproject

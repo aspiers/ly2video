@@ -1,0 +1,22 @@
+
+--slide-show
+
+The option --slide-show adds the possibility to display a slide shown up to the score. 
+This slide show is composed of a set of png files 
+  - sharing a common prefix (for example "/path/to/dir/slide-")
+  - having each one a suffix with the format "0000.0000.png", giving 
+    the offset (in quarters) when the image must be displayed.
+
+For example, given these files:
+  /path/to/dir/slide-0000.0000.png
+  /path/to/dir/slide-0000.0050.png
+  /path/to/dir/slide-0008.0025.png
+
+with the command:
+  ly2video --slide-show "/path/to/dir/slide-" ...
+
+The first file will be displayed at the begining of the score. 
+The second one replaces the first one at offset 0.5000 (one eighth after the start), and so on.
+
+
+
