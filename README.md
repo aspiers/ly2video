@@ -130,7 +130,7 @@ but I'll try, and even if I can't help, this is github, so anyone else
 can potentially help you out too.
 
 If you know how to fix a problem or contribute an enhancement, you are
-extremely welcome to [fork this repository](https://github.com/aspiers/ly2video/fork_select),
+extremely welcome to [fork this repository](https://github.com/aspiers/ly2video/fork),
 commit your fix, and then send a [pull request](https://help.github.com/articles/using-pull-requests)!
 
 ## Acknowledgements
