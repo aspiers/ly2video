@@ -212,6 +212,13 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     corresponds to the left-most grob at that moment.
     """
 
+    i = output.find("*** Warning")
+    while i > 0 and len(output) > 200:
+        debug("Invalid LilyPond output detected: " + output[i-20:i+190])
+        output = output[0:i-1] + output[i+154:]
+        progress("Removed incorrect LilyPond message (Issue 2569) at position {}, length is now {}".format(i, len(output)))
+        i = output.find("*** Warning")
+
     lines = output.split('\n')
 
     leftmostGrobs = { }
