@@ -109,7 +109,7 @@ Once you have `virtualenvwrapper` installed, it's as simple as:
 Just run
 
     python2 setup.py install --root=INSTALLATION_DIR
-    
+
 from the main directory to install it to some directory INSTALLATION_DIR. Running
 `python2 setup.py build` first will build it separately from the install step, if desired.
 
@@ -160,4 +160,3 @@ ly2video is released under the [GNU GPL v3](http://www.gnu.org/licenses/gpl.html
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/aspiers/ly2video/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-
