@@ -115,7 +115,7 @@ from the main directory to install it to some directory INSTALLATION_DIR. Runnin
 
 ## Usage
 
-Run `./ly2video.py --help` to display usage information.
+Run `ly2video.py --help` to display usage information.
 
 You must ensure that your `.ly` input file contains both `\layout { }`
 and `\midi` commands, which ensure that valid `.midi` and `.png` files
