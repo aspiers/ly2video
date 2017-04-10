@@ -1,9 +1,15 @@
 # ly2video
 
-ly2video is a Python script which converts music represented by a [GNU
+`ly2video` is a Python script which converts music represented by a [GNU
 LilyPond](http://lilypond.org) file into a video containing a
 horizontally scrolling music staff which is synchronized with a
 MIDI-generated audio rendering of the music.
+
+It is also possible to [synchronize the video of the scrolling music
+notation with a previously recorded audio track of the same
+music](doc/how-to-audio-sync.md), such as a live performance, even
+when the audio uses [*tempo rubato*](https://en.wikipedia.org/wiki/Tempo_rubato)
+or is not precisely metronomic.
 
 ## Examples
 
