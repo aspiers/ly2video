@@ -631,7 +631,7 @@ def getNoteIndices(leftmostGrobsByMoment,
                     "but didn't have a last chord saved." % lySrcLocation)
             grobPitchValue = lastChord[0]
 
-        debug("%-3s @ %3d:%3d | grob(time=%.4f, x=%5d, tick=%5d) | MIDI(tick=%5d)" %
+        debug("%-3s @ %3d:%3d | grob(time=%3.4f, x=%5d, tick=%5d) | MIDI(tick=%5d)" %
               (grobPitchToken, lySrcLocation.lineNum + 1, lySrcLocation.columnNum,
                moment, index, grobTick, midiTick))
 
