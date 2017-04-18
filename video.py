@@ -135,7 +135,7 @@ class VideoFrameWriter(object):
     number and because a fractional number of frames can't be
     generated, they are stored in dropFrame and if that is > 1, it
     skips generating one frame.
-    
+
     The VideoFrameWriter can manage severals medias. So the push method
     can be used to stack medias one above the other.
     """
@@ -162,9 +162,9 @@ class VideoFrameWriter(object):
         self.height = None
         self.fps = fps
         self.cursorLineColor = cursorLineColor
-        
+
         self.runDir = None
-        
+
         self.__scoreImage = None
         self.__medias = []
         self.__timecode = TimeCode (midiTicks,temposList,midiResolution,fps)
@@ -177,7 +177,7 @@ class VideoFrameWriter(object):
     @property
     def scoreImage (self):
         return self.__scoreImage
-        
+
     @scoreImage.setter
     def scoreImage (self, scoreImage):
         self.width = scoreImage.width
@@ -201,7 +201,7 @@ class VideoFrameWriter(object):
                 self.frameNum += 1
                 if not DEBUG and self.frameNum % 10 == 0:
                     sys.stdout.write(".")
-                    sys.stdout.flush()   
+                    sys.stdout.flush()
 
             self.__timecode.goToNextNote()
 
@@ -226,27 +226,27 @@ class BlankScoreImageError (Exception):
     pass
 
 class Media (object):
-    
+
     """
     Abstract class which is handled by the VideoFrameWriter. ScoreImage
     and SlideShow classes inherit from it.
     """
-    
+
     def __init__ (self, width = 1280, height = 720):
         self.__width = width
         self.__height = height
-        
+
     @property
     def width (self):
         return self.__width
-    
+
     @property
     def height (self):
         return self.__height
-    
+
     def makeFrame (self, numframe, among):
         pass
-    
+
     def update (self, timecode):
         pass
 
@@ -259,7 +259,7 @@ class ScoreImage (Media):
         - the frame drawing: the makeFrame() method.
     This class handles the 'measure cursor', a new type of cursor.
     """
-    
+
     def __init__ (self, width, height, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False, noteCursor = True):
         """
         Params:
@@ -298,25 +298,25 @@ class ScoreImage (Media):
     @property
     def currentXposition (self):
         return self.__notesXpositions[self.__currentNotesIndex]
-    
+
     @property
     def travelToNextNote (self):
         return self.__notesXpositions[self.__currentNotesIndex+1] - self.__notesXpositions[self.__currentNotesIndex]
-    
+
     def moveToNextNote (self):
         self.__currentNotesIndex += 1
         if self.__measuresXpositions:
             if self.currentXposition > self.__measuresXpositions[self.__currentMeasureIndex+1] :
                 self.__currentMeasureIndex += 1
-        
+
     @property
     def notesXpostions (self):
         return self.__notesXpositions
-        
+
     @property
     def picture (self):
         return self.__picture
-   
+
     def __setCropTopAndBottom(self):
         """
         set the y-coordinates of the top and
@@ -324,7 +324,7 @@ class ScoreImage (Media):
         (non-cropped) image.
         """
         if self.__cropTop is not None and self.__cropBottom is not None: return
-        picture_width, picture_height = self.__picture.size 
+        picture_width, picture_height = self.__picture.size
 
         bottomY = picture_height - self.bottomCroppable
         progress("      Image height: %5d pixels" % picture_height)
@@ -387,7 +387,7 @@ class ScoreImage (Media):
 
     def __cropFrame(self,index):
         self.__setCropTopAndBottom()
-        picture_width, picture_height = self.__picture.size 
+        picture_width, picture_height = self.__picture.size
 
         if self.scrollNotes:
             # Get frame from image of staff
@@ -447,10 +447,10 @@ class ScoreImage (Media):
             if pixels[x, y] != (255, 255, 255):
                 return False
         return True
-            
+
     def __setTopCroppable (self):
         # This is way faster than width*height invocations of getPixel()
-        picture_width, picture_height = self.__picture.size 
+        picture_width, picture_height = self.__picture.size
         pixels = self.__picture.load()
         progress("Auto-detecting top margin; this may take a while ...")
         self.__topCroppable = 0
@@ -464,7 +464,7 @@ class ScoreImage (Media):
 
     def __setBottomCroppable (self):
         # This is way faster than width*height invocations of getPixel()
-        picture_width, picture_height = self.__picture.size 
+        picture_width, picture_height = self.__picture.size
         pixels = self.__picture.load()
         progress("Auto-detecting top margin; this may take a while ...")
         self.__bottomCroppable = 0
@@ -475,7 +475,7 @@ class ScoreImage (Media):
                 self.__bottomCroppable += 1
             else:
                 break
-        
+
     @property
     def topCroppable (self): # raises BlankScoreImageError
         if self.__topCroppable is None:
@@ -487,24 +487,24 @@ class ScoreImage (Media):
         if self.__bottomCroppable is None:
             self.__setBottomCroppable()
         return self.__bottomCroppable
-    
+
     def update (self, timecode):
         self.moveToNextNote()
 
 class SlideShow (Media):
-    
+
     """
     This class is needed to run show composed of several pictures as
     the music is playing. A horizontal line cursor can be added if needed.
     """
-    
+
     def __init__(self, fileNamePrefix, cursorPos = None, lastOffset = None):
         self.__fileNamePrefix = fileNamePrefix
         self.__fileName = "%s%09.4f.png" % (self.__fileNamePrefix,0.0)
         self.__slide = Image.open(self.__fileName)
         Media.__init__(self,self.__slide.size[0], self.__slide.size[1])
         self.cursorLineColor = (255,0,0)
-        
+
         # get cursor travelling data
         if cursorPos and lastOffset:
             self.__cursorStart = float(cursorPos[0])
@@ -513,13 +513,13 @@ class SlideShow (Media):
             self.__scale = (self.__cursorEnd - self.__cursorStart)/self.__lastOffset
         else:
             self.__cursorStart = None
-            
-            
+
+
         self.startOffset = 0.0
         self.endOffset = 0.0
 
     def makeFrame (self, numFrame, among):
-        # We check if the slide must change        
+        # We check if the slide must change
         start = self.startOffset * self.__scale
         end = self.endOffset * self.__scale
         travelPerFrame = float(end - start) / among
@@ -534,8 +534,7 @@ class SlideShow (Media):
         tmpSlide = self.__slide.copy()
         writeCursorLine(tmpSlide, int(index), self.cursorLineColor)
         return tmpSlide
-    
+
     def update(self, timecode):
         self.startOffset = timecode.currentOffset
         self.endOffset = timecode.nextOffset
-

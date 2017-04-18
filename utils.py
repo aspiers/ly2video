@@ -31,7 +31,7 @@ RUNDIR = ""
 def setDebug():
     global DEBUG
     DEBUG = True
-    
+
 def debug(text):
     if DEBUG:
         print text
@@ -44,7 +44,7 @@ def stderr(text):
 
 def warn(text):
     stderr("WARNING: " + text)
-    
+
 def output_divider_line():
     progress(60 * "-")
 
@@ -57,7 +57,7 @@ def bug(text, *issues):
     if len(issues) == 0:
         msg = """
 Sorry, ly2video has encountered a fatal bug as described above,
-which it could not attribute to any known cause :-( 
+which it could not attribute to any known cause :-(
 
 Please consider searching:
         """
@@ -83,11 +83,11 @@ entry so we can get it fixed.  Thanks!
 Aborted execution.\
 """
     fatal(text + "\n" + msg)
-    
+
 def setRunDir (runDir):
     global RUNDIR
     RUNDIR = runDir
-    
+
 def tmpPath(*dirs):
     segments = [ 'ly2video.tmp' ]
     segments.extend(dirs)
@@ -95,10 +95,10 @@ def tmpPath(*dirs):
 
 
 class Observable:
-    
+
     def __init__(self):
         self.__observers = []
-    
+
     def registerObserver(self, observer):
         self.__observers.append(observer)
 
@@ -107,6 +107,6 @@ class Observable:
             observer.update(self)
 
 class Observer:
-    
+
     def update (self, observable):
         pass
