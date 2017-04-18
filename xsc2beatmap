@@ -64,13 +64,16 @@ def read_beats(filename):
         if "Howmany" in line:
             continue
 
-        m = re.match('^([SMB]),(\d+),([01]),(\w+),(\d+),(\d+:\d+:\d+\.\d+)$', line)
+        m = re.match('^([SMB]),(\d+),([01]),(\w*),(\d+),(\d+:\d+:\d+\.\d+)$', line)
         if not m:
             sys.stderr.write("Failed to parse line:\n" + line)
             sys.exit(1)
 
         marker_type, samples, auto, label, subdivision, timestamp = \
             m.groups()
+
+        if label == "":
+            label = "-"
 
         secs = timestamp_to_secs(timestamp)
 
