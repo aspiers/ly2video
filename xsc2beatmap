@@ -101,7 +101,7 @@ def read_beats(filename):
                             previous + i*beat_length
                         beats.append((str(i+1), section, measure, i+1,
                                       interpolated_secs))
-                
+
             if beat <= 1:
                 beat = time_signature[0]
             time_signature = (beat, 4) # FIXME: support other denominators

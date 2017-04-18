@@ -23,16 +23,16 @@
 # <https://github.com/aspiers/ly2video/>.
 
 from utils import *
-    
+
 class TimeCode (Observable):
-    
+
     """
     The sychro.Timecode class handles the synchronisation data: atEnd(),
     gotToNextNote(), nbFramesToNextNote() methods.
     The 'Observer' design pattern to produce frames. The timecode object is a
     kind of 'conductor' of the process
     """
-    
+
     def __init__(self, miditicks, temposList, midiResolution, fps):
         """
         Params:
@@ -49,13 +49,13 @@ class TimeCode (Observable):
         self.tempoIndex  = 0
         self.temposList = temposList
         self.midiResolution = midiResolution
-        
+
         # Keep track of wall clock time to ensure that rounding errors
         # when aligning indices to frames don't accumulate over time.
         self.secs = 0.0
-        
+
         self.__wroteFrames = 0
-        
+
         firstTempoTick, self.tempo = self.temposList[self.tempoIndex]
         debug("first tempo is %.3f bpm" % self.tempo)
         debug("final MIDI tick is %d" % self.__miditicks[-1])
@@ -80,10 +80,10 @@ class TimeCode (Observable):
         self.currentOffset = float(self.__currentTick)/self.midiResolution
         self.nextOffset = float(self.__nextTick)/self.midiResolution
 
-    
+
     def atEnd(self):
         return self.__currentTickIndex + 2 >= len(self.__miditicks)
-    
+
     def goToNextNote (self):
         self.__currentTickIndex += 1
         self.__currentTick = self.__miditicks[self.__currentTickIndex]
@@ -94,7 +94,7 @@ class TimeCode (Observable):
         debug("ticks: %d -> %d (%d)" % (self.__currentTick, self.__nextTick, ticks))
 
         self.notifyObservers()
-        
+
     def nbFramesToNextNote(self):
         # If we have 1+ tempo changes in between adjacent indices,
         # we need to keep track of how many seconds elapsed since
@@ -127,9 +127,9 @@ class TimeCode (Observable):
         # Update time in the *ideal* (i.e. not real) world - this
         # is totally independent of fps.
         self.secs = targetSecs
-        
+
         return neededFrames
-    
+
     def secsElapsedForTempoChanges(self, startTick, endTick):
         """
         Returns the time elapsed in between startTick and endTick,
@@ -165,7 +165,7 @@ class TimeCode (Observable):
 #        debug("    secs between indices %d and %d: %f" %
 #              (startIndex, endIndex, secsSinceStartIndex))
         return secsSinceStartIndex
-    
+
     def ticksToSecs(self, startTick, endTick):
         beatsSinceTick = float(endTick - startTick) / self.midiResolution
         debug("        beats from tick %d -> %d: %f (%d ticks per beat)" %
@@ -186,7 +186,3 @@ class TimeCode (Observable):
         estimatedFrames = approxDuration * self.fps
         progress("SYNC: ly2video will generate approx. %d frames at %.3f frames/sec." %
                  (estimatedFrames, self.fps))
-
-
-    
-    

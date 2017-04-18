@@ -132,7 +132,7 @@ def apply_rubato(tracks, tempos):
         next_tempo_tick = next_tempo[0]
         if next_tempo_tick > final_tick:
             break # no point appending tempos after we ran out of notes
-        
+
         tc = new_tempo_event(*(tempos.pop(0)))
         control.append(tc)
 
