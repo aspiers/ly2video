@@ -60,29 +60,33 @@ def main():
 
 def get_tempos_from_beatmap(filename, resolution):
     xsc = open(filename)
-    tempos = [ ]
+    qpms = [ ]  # quarter-notes per minute
     tick = 0
     for line in xsc.readlines():
         fields = line.split()
         label, section, measure, beat, timestamp = fields[0:5]
-        
+        beat_value = float(fields[5]) / int(fields[6])
+
         # There is no tempo for the final beat
-        if len(fields) == 6:
-            tempo = float(fields[5])
-            tempos.append((tick, tempo, int(section), int(measure), int(beat)))
+        if len(fields) == 8:
+            bpm = float(fields[7])
+            qpm = bpm * beat_value
+            qpms.append((tick, bpm, qpm, int(section), int(measure), int(beat)))
             tick += resolution
         else:
             break
     xsc.close()
-    return tempos
+    return qpms
 
 
-def new_tempo_event(tick, new_tempo, section, measure, beat):
-    print("inserting %.2fbpm @ section %d bar %d beat %d tick %d" %
-          (new_tempo, section, measure, beat, tick))
+def new_tempo_event(tick, new_bpm, new_qpm, section, measure, beat):
+    print("inserting %6.2fbpm (%6.2fqpm) @ section %d bar %3d beat %d tick %6d" %
+          (new_bpm, new_qpm, section, measure, beat, tick))
     tc = midi.SetTempoEvent()
     tc.tick = tick
-    tc.set_bpm(new_tempo)
+    # N.B. the midi library's API incorrectly refers to bpm when
+    # it actually means qpm:
+    tc.set_bpm(new_qpm)
     return tc
 
 def apply_rubato(tracks, tempos):
@@ -117,7 +121,7 @@ def apply_rubato(tracks, tempos):
 
         # remove any pre-existing SetTempoEvents
         if isinstance(event, midi.SetTempoEvent):
-            print
+            print "  - dropping SetTempoEvent"
             del control[event_index]
         else:
             event_index += 1
