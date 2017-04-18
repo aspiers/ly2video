@@ -954,7 +954,7 @@ def portableDevNull():
 
 def applyBeatmap(src, dst, beatmap):
     prog = "midi-rubato"
-    cmd = [prog, src, dst, beatmap]
+    cmd = [prog, src, beatmap, dst]
     progress("Applying beatmap via '%s'" % " ".join(cmd))
     debug(safeRun(cmd))
 
