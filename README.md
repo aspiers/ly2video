@@ -64,7 +64,7 @@ like:
 
 ### Installing dependencies on Arch-based Linux distributions
 
-Download the source tarball from [the Arch User Repository](https://aur.archlinux.org/packages/ly2video/), extract it, and run
+Download the source tarball from [the Arch User Repository](https://aur.archlinux.org/packages/ly2video-git/), extract it, and run
 
     makepkg -si
 
