@@ -28,20 +28,20 @@ from synchro import *
 from PIL import Image
 
 class TimeCodeTest (unittest.TestCase):
-    
+
     def setUp(self):
         self.timecode = TimeCode([0,384,768,1152],[(0,60.0)], 384, 30.0)
-    
+
     def testTicksToSecs_withNullInterval (self):
         for tempo in range (1,300):
             self.timecode.tempo = float(tempo)
             secsSinceStartIndex = self.timecode.ticksToSecs(0, 0)
             self.assertEqual(secsSinceStartIndex, 0.0, "")
-    
+
     def testTicksToSecs_withOneSecInterval (self):
         secsSinceStartIndex = self.timecode.ticksToSecs(0, 384)
         self.assertEqual(secsSinceStartIndex, 1.0, "")
-        
+
     def testTicksToSecs_withTwoSecInterval (self):
         secsSinceStartIndex = self.timecode.ticksToSecs(0, 768)
         self.assertEqual(secsSinceStartIndex, 2.0, "")
@@ -50,7 +50,7 @@ class TimeCodeTest (unittest.TestCase):
         self.timecode.tempo = 90.0
         secsSinceStartIndex = self.timecode.ticksToSecs(0, 1152)
         self.assertEqual(secsSinceStartIndex, 2.0, "")
-        
+
     def testSecsElapsedForTempoChanges (self):
         self.timecode.temposList = [(0, 60.0),(1152, 90.0),(3456, 60.0)]
         result = self.timecode.secsElapsedForTempoChanges(startTick = 0, endTick = 1152)
@@ -63,7 +63,7 @@ class TimeCodeTest (unittest.TestCase):
         self.assertEqual(result,3.0,"")
         result = self.timecode.secsElapsedForTempoChanges(startTick = 0, endTick = 4608)
         self.assertEqual(result,12.0,"")
-        
+
     def testNbFramesToNextNote(self):
         self.assertEqual(self.timecode.nbFramesToNextNote(), 30, "")
 
@@ -74,7 +74,7 @@ class TimeCodeTest (unittest.TestCase):
     def testNbFramesToNextNote_withApprox_minus(self):
         self.timecode = TimeCode([0,390,768,1152],[(0,60.0)], 384, 30.0)
         self.assertEqual(self.timecode.nbFramesToNextNote(), 30, "")
-        
+
     def testNbFramesToNextNote_withApprox_correction(self):
         self.timecode = TimeCode([0,370,768,1152],[(0,60.0)], 384, 30.0)
         self.assertEqual(self.timecode.nbFramesToNextNote(), 29, "")
@@ -118,7 +118,7 @@ class TimeCodeTest (unittest.TestCase):
         self.timecode.goToNextNote()
         self.assertEqual(slideshow.startOffset,1.0,"")
         os.remove("test0000.0000.png")
-        
+
     def testCompleteFollowing (self):
         scoreimage = ScoreImage(16,16,Image.new("RGB",(16,16),(0,0,0)), [0,1,2,3], [])
         image = Image.new("RGB",(16,16),(0,0,0))
@@ -137,17 +137,17 @@ class TimeCodeTest (unittest.TestCase):
             self.assertNotEqual(slideshow.startOffset, memOffset, "")
             memOffset = slideshow.startOffset
         os.remove("test0000.0000.png")
-       
+
     def testNotAtEnd(self):
         self.assertFalse(self.timecode.atEnd(), "")
 
     def testAtEnd(self):
         self.timecode.goToNextNote()
         self.timecode.goToNextNote()
-        self.assertTrue(self.timecode.atEnd(), "")    
-        
+        self.assertTrue(self.timecode.atEnd(), "")
+
 class ScoreImageTest (unittest.TestCase):
-    
+
     def setUp(self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         self.blankImage = ScoreImage(1000,200,image, [], [])
@@ -238,7 +238,7 @@ class ScoreImageTest (unittest.TestCase):
         self.assertEqual(w, 200, "")
         self.assertEqual(h, 40, "")
         self.assertEqual(cursorX, 97 , "")
-        
+
     def test__cropFrame_withIndexHigherThanWidth (self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
@@ -259,7 +259,7 @@ class ScoreImageTest (unittest.TestCase):
         areaFrame, cursorX = scoreImage._ScoreImage__cropFrame(index = 300)
         # must be tequal to left margin
         self.assertEqual(cursorX, 50 , "")
-        
+
     def test__cropFrame_lastCropping (self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         ox=20
@@ -290,24 +290,24 @@ class ScoreImageTest (unittest.TestCase):
         self.assertGreater(cursorX, 300, "")
         # No new cropping. For a new cropping the cursor position is equals to left margin.
         self.assertNotEqual(cursorX, 50, "")
-    
+
     def test__init__Xposition(self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         scoreImage = ScoreImage(500,40,image, [1,2,3], [], 50, 200)
         self.assertEqual(scoreImage.currentXposition, 1, "")
-        
+
     def testMoveToNextNote(self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         scoreImage = ScoreImage(500,40,image, [1,2,3], [], 50, 200)
         scoreImage.moveToNextNote()
         self.assertEqual(scoreImage.currentXposition, 2, "")
-    
+
     def testTravelToNextNote (self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         scoreImage = ScoreImage(500,40,image, [10,20,30], [], 50, 200)
         self.assertEqual(scoreImage.travelToNextNote, 10, "")
-        
-        
+
+
     # PUBLIC METHODS
     # topCroppable
     def testTopCroppable_withBlackImage (self):
@@ -354,7 +354,7 @@ class ScoreImageTest (unittest.TestCase):
         image.putpixel((8,8),(0,0,0))
         blackImage = ScoreImage(16, 16, image, [], [])
         self.assertEqual(blackImage.bottomCroppable, 7, "Bad topMarginSize")
-        
+
     # makeFrame
     def testMakeFrame (self):
         image = Image.new("RGB",(1000,200),(255,255,255))
@@ -367,9 +367,9 @@ class ScoreImageTest (unittest.TestCase):
         w,h = areaFrame.size
         self.assertEqual(w, 200, "")
         self.assertEqual(h, 40, "")
-  
+
 class CursorsTest (unittest.TestCase):
-    
+
     def testWriteCursorLine (self):
         frame = Image.new("RGB",(16,16),(255,255,255))
         writeCursorLine(frame, 10, (255,0,0))
@@ -379,7 +379,7 @@ class CursorsTest (unittest.TestCase):
     def testWriteCursorLineOut (self):
         frame = Image.new("RGB",(16,16),(255,255,255))
         self.assertRaises(Exception, writeCursorLine, frame, 20)
-   
+
     def testWriteMeasureCursor (self):
         frame = Image.new("RGB",(16,16),(255,255,255))
         writeMeasureCursor(frame, 5, 10, (255,0,0))
@@ -403,26 +403,26 @@ class VideoFrameWriterTest(unittest.TestCase):
         self.image = Image.new("RGB",(16,16),(255,255,255))
         for x in range(16) : self.image.putpixel((x,8),(0,0,0))
 
-        
+
     def testPush (self):
         frameWriter = VideoFrameWriter(30.0,(255,0,0),384.0,[0,384,768,1152],[(0,60.0)])
         frameWriter.scoreImage = Media(1000,200)
         frameWriter.push(Media(100, 100))
         self.assertEqual(frameWriter.height, 300)
-    
+
     def testScoreImageSetter (self):
         frameWriter = VideoFrameWriter(30.0,(255,0,0),384.0,[0,384,768,1152],[(0,60.0)])
         frameWriter.scoreImage = ScoreImage(1000,200,Image.new("RGB",(1000,200),(255,255,255)), [], [])
         self.assertEqual(frameWriter.width, 1000)
         self.assertEqual(frameWriter.height, 200)
-    
+
     def testFindStaffLinesInImage (self):
         image = Image.new("RGB",(1000,200),(255,255,255))
         for x in range(51) : image.putpixel((x+20,20),(0,0,0))
         staffX, staffYs = findStaffLinesInImage(image, 50)
         self.assertEqual(staffX, 23, "")
         self.assertEqual(staffYs[0], 20, "")
-        
-    
+
+
 if __name__ == "__main__":
     unittest.main()
