@@ -44,8 +44,8 @@ from PIL import Image, ImageDraw, ImageFont
 from ly.tokenize import MusicTokenizer, Tokenizer
 import ly.tools
 import midi
-from utils import *
-from video import *
+from ly2video.utils import *
+from ly2video.video import *
 
 from pprint import pprint, pformat
 
@@ -794,7 +794,7 @@ def generateSilence(name, length):
     return out
 
 def parseOptions():
-    parser = ArgumentParser(prog=sys.argv[0])
+    parser = ArgumentParser(prog=os.path.basename(sys.argv[0]))
 
     group_inout = parser.add_argument_group(title='Input/output files')
 

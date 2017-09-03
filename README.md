@@ -116,8 +116,9 @@ Just run
 
     python2 setup.py install --root=INSTALLATION_DIR
 
-from the main directory to install it to some directory INSTALLATION_DIR. Running
-`python2 setup.py build` first will build it separately from the install step, if desired.
+from the main directory to install it to some directory
+`INSTALLATION_DIR`. Running `python2 setup.py build` first will build
+it separately from the install step, if desired.
 
 ## Usage
 

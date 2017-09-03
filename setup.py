@@ -9,6 +9,14 @@ setup(name='ly2video',
       author='Adam Spiers',
       author_email='github@adamspiers.org',
       url='https://github.com/aspiers/ly2video',
-      packages=['ly'],
-      scripts=['ly2video.py', 'midi-rubato', 'xsc2beatmap'],
+      packages=['ly2video', 'ly'],
+      entry_points={
+          'console_scripts': [
+              'ly2video = ly2video.cli:main'
+          ]
+      },
+      scripts=[
+          'scripts/midi-rubato',
+          'scripts/xsc2beatmap'
+      ],
 )

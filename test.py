@@ -23,8 +23,8 @@
 # <https://github.com/aspiers/ly2video/>.
 
 import unittest
-from video import *
-from synchro import *
+from ly2video.video import *
+from ly2video.synchro import *
 from PIL import Image
 
 class TimeCodeTest (unittest.TestCase):

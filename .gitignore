@@ -1,4 +1,5 @@
 build/
+dist/
 src/
 ly2video.tmp/
 README.html
@@ -7,3 +8,5 @@ README.html
 .project
 .settings
 .pydevproject
+.venv/
+*.egg-info/
