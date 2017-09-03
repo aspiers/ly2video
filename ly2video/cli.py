@@ -24,7 +24,6 @@
 
 # Used to determine --version output for released versions, not
 # when running from a git check-out:
-VERSION = '0.4.2'
 
 import collections
 import copy
@@ -49,6 +48,7 @@ from ly2video.video import *
 
 from pprint import pprint, pformat
 
+VERSION = '0.4.2'
 
 GLOBAL_STAFF_SIZE = 20
 
@@ -56,17 +56,20 @@ C_MAJOR_SCALE_STEPS = [
     # Maps notes of the C major scale into semi-tones above C.
     # This is needed to map the pitch of ly.tools.Pitch notes
     # into MIDI pitch values within a given octave.
-     0, # c
-     2, # d
-     4, # e
-     5, # f
-     7, # g
-     9, # a
-    11, # b
+    0,   # c
+    2,   # d
+    4,   # e
+    5,   # f
+    7,   # g
+    9,   # a
+    11,  # b
 ]
 
-NOTE_NAMES = [ "C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb",
-               "G", "G#/Ab", "A", "A#/Bb", "B" ]
+NOTE_NAMES = [
+    "C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb",
+    "G", "G#/Ab", "A", "A#/Bb", "B"
+]
+
 
 class LySrc(object):
     """
@@ -74,9 +77,9 @@ class LySrc(object):
     are cached in memory along with the changelist from converting
     relative note pitches to absolute pitches.
     """
-    cache = { }
+    cache = {}
 
-    __slots__ = [ 'filename', 'lines', 'parser', 'absolutePitches' ]
+    __slots__ = ['filename', 'lines', 'parser', 'absolutePitches']
 
     @classmethod
     def get(cls, filename):
@@ -93,7 +96,7 @@ class LySrc(object):
 
     def readLines(self):
         with open(self.filename) as f:
-            self.lines = [ line for line in f.readlines() ]
+            self.lines = [line for line in f.readlines()]
 
     def initParser(self, document):
         language, keyPitch = ly.tools.languageAndKey(document)
@@ -103,7 +106,7 @@ class LySrc(object):
 
     def getAbsolutePitches(self, document):
         if document.find('\\relative') == -1:
-            self.absolutePitches = { }
+            self.absolutePitches = {}
             return
 
         # N.B. line numbers in this are numbered starting from 0
@@ -121,7 +124,8 @@ class LySrc(object):
         else:
             # text representations of absolute and relative pitch are the same
             # (absolutePitches contains a changelist, i.e. only differences)
-            grobPitchText = self.lines[lySrcLocation.lineNum][lySrcLocation.columnNum:]
+            grobPitchText = \
+                self.lines[lySrcLocation.lineNum][lySrcLocation.columnNum:]
 
         try:
             grobPitchToken = self.parser.tokens(grobPitchText).next()
@@ -133,13 +137,16 @@ class LySrc(object):
             # 'q' means a repeated chord in LilyPond
             return None, grobPitchToken
 
-        if not isinstance(grobPitchToken, ly.tokenize.MusicTokenizer.Pitch):
-            bug("Expected pitch token during conversion from relative to absolute\n"
-                "pitch, but found %s instance @ %s:\n\n    %s" %
-                (grobPitchToken.__class__, lySrcLocation, grobPitchToken), 33, 37)
+        if not isinstance(grobPitchToken,
+                          ly2video.ly.tokenize.MusicTokenizer.Pitch):
+            bug("Expected pitch token during conversion from relative to\n"
+                "absolute pitch, but found %s instance @ %s:\n\n    %s" %
+                (grobPitchToken.__class__, lySrcLocation, grobPitchToken),
+                33, 37)
 
         grobPitchValue = pitchValue(grobPitchToken, self.parser)
         return grobPitchValue, grobPitchToken
+
 
 class LySrcLocation(object):
     """
@@ -147,7 +154,7 @@ class LySrcLocation(object):
     count from 0, but are displayed counting from 1, since that
     matches what editors such as emacs and vim show.
     """
-    __slots__ = [ 'filename', 'lineNum', 'columnNum' ]
+    __slots__ = ['filename', 'lineNum', 'columnNum']
 
     def __init__(self, filename, lineNum, columnNum):
         self.filename  = filename
@@ -163,9 +170,11 @@ class LySrcLocation(object):
     def getAbsolutePitch(self):
         return LySrc.get(self.filename).getAbsolutePitch(self)
 
+
 def preprocessLyFile(lyFile, lilypondVersion, dumper):
     version = getLyVersion(lyFile)
-    progress("Version in %s: %s" % (lyFile, version if version else "unspecified"))
+    progress("Version in %s: %s" %
+             (lyFile, version if version else "unspecified"))
     if version and version != lilypondVersion:
         progress("Will convert to: %s" % lilypondVersion)
         newLyFile = tmpPath('converted.ly')
@@ -189,21 +198,23 @@ def preprocessLyFile(lyFile, lilypondVersion, dumper):
 
     return newLyFile
 
+
 def runLilyPond(lyFileName, dpi, *args):
     progress("Generating PNG and MIDI files ...")
     cmd = [
         "lilypond",
         "--png",
         "-I", runDir,
-        "-dmidi-extension=midi", # default on Windows is .mid
+        "-dmidi-extension=midi",  # default on Windows is .mid
         "-dresolution=%d" % dpi
-    ] + list(args) + [ lyFileName ]
+    ] + list(args) + [lyFileName]
     output_divider_line()
     os.chdir(tmpPath())
     output = safeRun(cmd, exitcode=9)
     output_divider_line()
     progress("Generated PNG and MIDI files")
     return output
+
 
 def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     """
@@ -214,7 +225,7 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
 
     lines = output.split('\n')
 
-    leftmostGrobs = { }
+    leftmostGrobs = {}
     currentLySrcFile = None
 
     for line in lines:
@@ -245,7 +256,7 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
         right  = float(right)
         centre = (left + right) / 2
         moment = float(moment)
-        line   = int(line) - 1 # LilyPond counts from 1
+        line   = int(line) - 1  # LilyPond counts from 1
         column = int(column)
         x = int(round(staffSpacesToPixels(centre, dpi))) + leftPaperMarginPx
 
@@ -255,14 +266,15 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
             debug("leftmost grob for moment %9f is now x =%5d @ %3d:%d"
                   % (moment, x, line + 1, column))
 
-    groblist = [ tuple([moment] + leftmostGrobs[moment])
-                 for moment in sorted(leftmostGrobs.keys()) ]
+    groblist = [tuple([moment] + leftmostGrobs[moment])
+                for moment in sorted(leftmostGrobs.keys())]
 
     if not groblist:
         bug("Didn't find any notes; something must have gone wrong "
             "with the use of dump-spacetime-info.")
 
     return groblist
+
 
 def getMeasuresIndices(output, dpi, leftPaperMarginPx):
     ret = []
@@ -285,18 +297,18 @@ def getMeasuresIndices(output, dpi, leftPaperMarginPx):
             bug("Failed to parse ly2video line:\n%s" % line)
         left, right, moment = m.groups()
 
-
         left   = float(left)
         right  = float(right)
         centre = (left + right) / 2
         moment = float(moment)
         x = int(round(staffSpacesToPixels(centre, dpi))) + leftPaperMarginPx
 
-        if x not in ret :
+        if x not in ret:
             ret.append(x)
 
     ret.sort()
     return ret
+
 
 def findStaffLines(imageFile, lineLength):
     """
@@ -314,6 +326,7 @@ def findStaffLines(imageFile, lineLength):
     x, ys = findStaffLinesInImage(image, lineLength)
     return ys
 
+
 def generateTitleFrame(titleText, width, height, ttfFile):
     """
     Generates frame with name of song and its author.
@@ -326,7 +339,7 @@ def generateTitleFrame(titleText, width, height, ttfFile):
     """
 
     # create image of title screen
-    titleScreen = Image.new("RGB", (width, height), (255,255,255))
+    titleScreen = Image.new("RGB", (width, height), (255, 255, 255))
     # it will draw text on titleScreen
     drawer = ImageDraw.Draw(titleScreen)
 
@@ -335,34 +348,40 @@ def generateTitleFrame(titleText, width, height, ttfFile):
     # font for author
     authorFont = ImageFont.truetype(ttfFile, height / 25)
 
-    # args - position of left upper corner of rectangle (around text), text, font and color (black)
+    # args - position of left upper corner of rectangle (around text),
+    # text, font and color (black)
     drawer.text(((width - nameFont.getsize(titleText.name)[0]) / 2,
-                 (height - nameFont.getsize(titleText.name)[1]) / 2 - height / 25),
-                titleText.name, font=nameFont, fill=(0,0,0))
+                 (height - nameFont.getsize(titleText.name)[1]) / 2 -
+                 height / 25),
+                titleText.name, font=nameFont, fill=(0, 0, 0))
     # same thing
     drawer.text(((width - authorFont.getsize(titleText.author)[0]) / 2,
                  (height / 2) + height / 25),
-                titleText.author, font=authorFont, fill=(0,0,0))
+                titleText.author, font=authorFont, fill=(0, 0, 0))
 
     out = tmpPath("title.png")
     titleScreen.save(out)
     return out
 
+
 def staffSpacesToPixels(ss, dpi):
     staffSpacePoints = GLOBAL_STAFF_SIZE / 4
     points = ss * staffSpacePoints
-    pointsPerInch = 72.27 # Donald Knuth's TeX points
+    pointsPerInch = 72.27  # Donald Knuth's TeX points
     inches = points / pointsPerInch
     return inches * dpi
+
 
 def mmToPixel(mm, dpi):
     pixelsPerMm = dpi / 25.4
     return mm * pixelsPerMm
 
+
 def pixelsToMm(pixels, dpi):
     inchesPerPixel = 1.0 / dpi
     mmPerPixel = inchesPerPixel * 25.4
     return pixels * mmPerPixel
+
 
 def writePaperHeader(fFile, dpi, numOfLines, lilypondVersion):
     """
@@ -401,6 +420,7 @@ def writePaperHeader(fFile, dpi, numOfLines, lilypondVersion):
 
     return leftPixels
 
+
 def getTemposList(midiFile):
     """
     Returns a list of tempo changes in midiFile.  Each tempo change is
@@ -412,10 +432,12 @@ def getTemposList(midiFile):
     for event in midiHeader:
         # if it's SetTempoEvent
         if isinstance(event, midi.SetTempoEvent):
-            debug("tick %6d: tempo change to %.3f bpm" % (event.tick, event.bpm))
+            debug("tick %6d: tempo change to %.3f bpm" %
+                  (event.tick, event.bpm))
             temposList.append((event.tick, event.bpm))
 
     return temposList
+
 
 def getNotesInTicks(midiFile):
     """
@@ -476,6 +498,7 @@ def getNotesInTicks(midiFile):
 
     return notesInTicks, pitchBends
 
+
 def getMidiEvents(midiFileName):
     """
     Extracts useful information from a given MIDI file and returns it.
@@ -525,6 +548,7 @@ def getMidiEvents(midiFileName):
 
     return (midiResolution, temposList, midiTicks, notesInTicks, pitchBends)
 
+
 def pitchValue(token, parser):
     """
     Returns the numerical pitch of the token representing a note,
@@ -537,23 +561,25 @@ def pitchValue(token, parser):
     accidentalSemitoneSteps = 2 * p.alter
 
     pitch = (p.octave + 4) * 12 + \
-            C_MAJOR_SCALE_STEPS[p.note] + \
-            accidentalSemitoneSteps
+        C_MAJOR_SCALE_STEPS[p.note] + \
+        accidentalSemitoneSteps
 
     return pitch
+
 
 def getMidiPitches(events, pitchBends):
     """
     Build dicts tracking which pitches (modulo the octave)
     are present in the current tick and index.
     """
-    midiPitches = { }
+    midiPitches = {}
     for event in events:
         pitch = event.get_pitch()
         if event in pitchBends:
             pitch += float(pitchBends[event].get_pitch()) / 4096
         midiPitches[pitch] = event
     return midiPitches
+
 
 def getNoteIndices(leftmostGrobsByMoment,
                    midiResolution, midiTicks, notesInTicks, pitchBends):
@@ -599,7 +625,7 @@ def getNoteIndices(leftmostGrobsByMoment,
 
     originalTickCount = len(midiTicks)
     ticksSkipped  = 0
-    lastChord = [ ]
+    lastChord = []
 
     # final indices of notes
     alignedNoteIndices = []
@@ -613,11 +639,12 @@ def getNoteIndices(leftmostGrobsByMoment,
     while i < len(leftmostGrobsByMoment):
         if midiIndex == len(midiTicks):
             warn("Ran out of MIDI indices after %d. Current index: %d" %
-                  (midiIndex, index))
+                 (midiIndex, index))
             break
 
         moment, index, lySrcLocation = leftmostGrobsByMoment[i]
-        if currentLySrcFile is None or currentLySrcFile != lySrcLocation.filename:
+        if currentLySrcFile is None or \
+           currentLySrcFile != lySrcLocation.filename:
             currentLySrcFile = lySrcLocation.filename
             debug("Current .ly source file: %s" % currentLySrcFile)
 
@@ -631,11 +658,13 @@ def getNoteIndices(leftmostGrobsByMoment,
                     "but didn't have a last chord saved." % lySrcLocation)
             grobPitchValue = lastChord[0]
 
-        debug("%-3s @ %3d:%3d | grob(time=%3.4f, x=%5d, tick=%5d) | MIDI(tick=%5d)" %
-              (grobPitchToken, lySrcLocation.lineNum + 1, lySrcLocation.columnNum,
+        debug("%-3s @ %3d:%3d | grob(time=%3.4f, x=%5d, tick=%5d) | "
+              "MIDI(tick=%5d)" %
+              (grobPitchToken, lySrcLocation.lineNum + 1,
+               lySrcLocation.columnNum,
                moment, index, grobTick, midiTick))
 
-        if not midiTick in notesInTicks:
+        if midiTick not in notesInTicks:
             # This should mean that we reached the tick corresponding
             # to the final EndOfTrackEvent (see getMidiEvents()).
             midiIndex += 1
@@ -654,7 +683,8 @@ def getNoteIndices(leftmostGrobsByMoment,
             # skip the tick.
             ticksSkipped += 1
             midiTicks.pop(midiIndex)
-            msg = "    WARNING: skipping MIDI tick %d since no grob matched; contents:" % midiTick
+            msg = "    WARNING: skipping MIDI tick %d since " \
+                  "no grob matched; contents:" % midiTick
             for event in events:
                 msg += ("\n        pitch %d length %d" %
                         (event.get_pitch(), event.length))
@@ -686,10 +716,10 @@ def getNoteIndices(leftmostGrobsByMoment,
         if grobPitchValue not in midiPitches:
             debug("    grob's pitch %d not found in midiPitches; "
                   "probably a tie/ChordName" % grobPitchValue)
-            midiPitches = [ str(event.get_pitch()) for event in events ]
+            midiPitches = [str(event.get_pitch()) for event in events]
             debug("    midiPitches: %s" %
-                  " ".join([ "%s (%s)" % (pitch, NOTE_NAMES[int(pitch) % 12])
-                             for pitch in sorted(midiPitches) ]))
+                  " ".join(["%s (%s)" % (pitch, NOTE_NAMES[int(pitch) % 12])
+                            for pitch in sorted(midiPitches)]))
             if midiIndex == 0:
                 # This is the first MIDI event - we can't skip it,
                 # because then the audio and video would start in
@@ -709,25 +739,28 @@ def getNoteIndices(leftmostGrobsByMoment,
             # pitches not MIDI pitches,
             lastChord = midiPitches
         else:
-            lastChord = [ ]
+            lastChord = []
 
     if midiIndex < len(midiTicks) - 1:
         # Could happen if last note is a dangling tie?
-        warn("ran out of notes at MIDI tick %d (%d/%d ticks)" % \
-                 (midiTicks[midiIndex], midiIndex + 1, len(midiTicks)))
+        warn("ran out of notes at MIDI tick %d (%d/%d ticks)" %
+             (midiTicks[midiIndex], midiIndex + 1, len(midiTicks)))
 
     progress("sync points found: %5d\n"
              "             from: %5d original indices\n"
              "              and: %5d original ticks\n"
              "   last tick used: %5d\n"
              "    ticks skipped: %5d"   %
-             (len(alignedNoteIndices), len(leftmostGrobsByMoment), originalTickCount,
+             (len(alignedNoteIndices),
+              len(leftmostGrobsByMoment),
+              originalTickCount,
               midiIndex, ticksSkipped))
 
     if len(alignedNoteIndices) < 2:
         bug("Not enough synchronization points found!  Aborting.")
 
     return alignedNoteIndices
+
 
 def genWavFile(timidity, midiPath):
     """
@@ -746,6 +779,7 @@ def genWavFile(timidity, midiPath):
         bug("TiMidity++ failed to generate %s" % wavExpected)
     return wavExpected
 
+
 def generateSilence(name, length):
     """
     Generates silent audio for the title screen.
@@ -763,7 +797,7 @@ def generateSilence(name, length):
     sample = 44100  # sample rate
     ExtraParamSize = 0
     Subchunk1Size = 16 + 2 + ExtraParamSize
-    Subchunk2Size = int(length * sample * channels * bps/8)
+    Subchunk2Size = int(length * sample * channels * bps / 8)
     ChunkSize = 4 + (8 + Subchunk1Size) + (8 + Subchunk2Size)
 
     outdir = tmpPath("silence")
@@ -774,137 +808,162 @@ def generateSilence(name, length):
     fSilence = open(out, "w")
 
     fSilence.write("".join([
-        'RIFF',                                # ChunkID (magic)      # 0x00
-        pack('<I', ChunkSize),                 # ChunkSize            # 0x04
-        'WAVE',                                # Format               # 0x08
-        'fmt ',                                # Subchunk1ID          # 0x0c
-        pack('<I', Subchunk1Size),             # Subchunk1Size        # 0x10
-        pack('<H', 1),                         # AudioFormat (1=PCM)  # 0x14
-        pack('<H', channels),                  # NumChannels          # 0x16
-        pack('<I', sample),                    # SampleRate           # 0x18
-        pack('<I', bps/8 * channels * sample), # ByteRate             # 0x1c
-        pack('<H', bps/8 * channels),          # BlockAlign           # 0x20
-        pack('<H', bps),                       # BitsPerSample        # 0x22
-        pack('<H', ExtraParamSize),            # ExtraParamSize       # 0x22
-        'data',                                # Subchunk2ID          # 0x24
-        pack('<I', Subchunk2Size),             # Subchunk2Size        # 0x28
-        '\0'*Subchunk2Size
+        'RIFF',                                   # ChunkID (magic)      # 0x00
+        pack('<I', ChunkSize),                    # ChunkSize            # 0x04
+        'WAVE',                                   # Format               # 0x08
+        'fmt ',                                   # Subchunk1ID          # 0x0c
+        pack('<I', Subchunk1Size),                # Subchunk1Size        # 0x10
+        pack('<H', 1),                            # AudioFormat (1=PCM)  # 0x14
+        pack('<H', channels),                     # NumChannels          # 0x16
+        pack('<I', sample),                       # SampleRate           # 0x18
+        pack('<I', bps / 8 * channels * sample),  # ByteRate             # 0x1c
+        pack('<H', bps / 8 * channels),           # BlockAlign           # 0x20
+        pack('<H', bps),                          # BitsPerSample        # 0x22
+        pack('<H', ExtraParamSize),               # ExtraParamSize       # 0x22
+        'data',                                   # Subchunk2ID          # 0x24
+        pack('<I', Subchunk2Size),                # Subchunk2Size        # 0x28
+        '\0' * Subchunk2Size
     ]))
     fSilence.close()
     return out
+
 
 def parseOptions():
     parser = ArgumentParser(prog=os.path.basename(sys.argv[0]))
 
     group_inout = parser.add_argument_group(title='Input/output files')
 
-    group_inout.add_argument("-i", "--input", required=True,
-                        help="input LilyPond file", metavar="INPUT-FILE")
-
-    group_inout.add_argument("-b", "--beatmap",
-                      help='name of beatmap file for adjusting MIDI tempo',
-                      metavar="BEATMAP-FILE")
-
-    group_inout.add_argument("--slide-show", dest="slideShow",
-                             help="input file prefix to generate a slide show (see doc/slideshow.txt)",
-                             metavar="SLIDESHOW-PREFIX")
-
-    group_inout.add_argument("-o", "--output",
-                      help='name of output video (e.g. "myNotes.avi") '
-                           '[INPUT-FILE.avi]',
-                      metavar="OUTPUT-FILE")
+    group_inout.add_argument(
+        "-i", "--input", required=True,
+        help="input LilyPond file", metavar="INPUT-FILE")
+    group_inout.add_argument(
+        "-b", "--beatmap",
+        help='name of beatmap file for adjusting MIDI tempo',
+        metavar="BEATMAP-FILE")
+    group_inout.add_argument(
+        "--slide-show", dest="slideShow",
+        help="input file prefix to generate a slide show "
+        "(see doc/slideshow.txt)",
+        metavar="SLIDESHOW-PREFIX")
+    group_inout.add_argument(
+        "-o", "--output",
+        help='name of output video (e.g. "myNotes.avi") '
+        '[INPUT-FILE.avi]',
+        metavar="OUTPUT-FILE")
 
     group_scroll = parser.add_argument_group(title='Scrolling')
 
-    group_scroll.add_argument("-m", "--cursor-margins", dest="cursorMargins",
-                      help='width of left/right margins for scrolling '
-                           'in pixels [%(default)s]',
-                      metavar="WIDTH,WIDTH", default='50,100')
-
-    group_scroll.add_argument("-s", "--scroll-notes", dest="scrollNotes",
-                      help='rather than scrolling the cursor from left to right, '
-                           'scroll the notation from right to left and keep the '
-                           'cursor in the centre',
-                      action="store_true", default=False)
+    group_scroll.add_argument(
+        "-m", "--cursor-margins", dest="cursorMargins",
+        help='width of left/right margins for scrolling '
+        'in pixels [%(default)s]',
+        metavar="WIDTH,WIDTH", default='50,100')
+    group_scroll.add_argument(
+        "-s", "--scroll-notes", dest="scrollNotes",
+        help='rather than scrolling the cursor from left to right, '
+        'scroll the notation from right to left and keep the '
+        'cursor in the centre',
+        action="store_true", default=False)
 
     group_video = parser.add_argument_group(title='Video output')
 
-    group_video.add_argument("-f", "--fps", dest="fps",
-                        help='frame rate of final video [%(default)s]',
-                      type=float, metavar="FPS", default=30.0)
-    group_video.add_argument("-q", "--quality",
-                      help="video encoding quality as used by ffmpeg's -q option "
-                           '(1 is best, 31 is worst) [%(default)s]',
-                      type=int, metavar="N", default=10)
-    group_video.add_argument("-r", "--resolution",dest="dpi",
-                        help='resolution in DPI [%(default)s]',
-                      metavar="DPI", type=int, default=110)
-    group_video.add_argument("--videoDef",
-                      help='Definition of final video [1280x720]',
-                      default=None)
-    group_video.add_argument("-x", "--width",
-                        help='pixel width of final video [%(default)s]',
-                      metavar="WIDTH", type=int, default=1280)
-    group_video.add_argument("-y", "--height",
-                        help='pixel height of final video [%(default)s]',
-                      metavar="HEIGHT", type=int, default=720)
+    group_video.add_argument(
+        "-f", "--fps", dest="fps",
+        help='frame rate of final video [%(default)s]',
+        type=float, metavar="FPS", default=30.0)
+    group_video.add_argument(
+        "-q", "--quality",
+        help="video encoding quality as used by ffmpeg's -q option "
+        '(1 is best, 31 is worst) [%(default)s]',
+        type=int, metavar="N", default=10)
+    group_video.add_argument(
+        "-r", "--resolution", dest="dpi",
+        help='resolution in DPI [%(default)s]',
+        metavar="DPI", type=int, default=110)
+    group_video.add_argument(
+        "--videoDef",
+        help='Definition of final video [1280x720]',
+        default=None)
+    group_video.add_argument(
+        "-x", "--width",
+        help='pixel width of final video [%(default)s]',
+        metavar="WIDTH", type=int, default=1280)
+    group_video.add_argument(
+        "-y", "--height",
+        help='pixel height of final video [%(default)s]',
+        metavar="HEIGHT", type=int, default=720)
 
     group_cursors = parser.add_argument_group(title='Cursors')
 
-    group_cursors.add_argument("-c", "--color",
-                      help='name of the cursor color [%(default)s]',
-                      metavar="COLOR", default="red")
-    group_cursors.add_argument("--no-cursor", dest="noteCursor",
-                      help='do not generate a cursor',
-                      action="store_false", default=True)
-    group_cursors.add_argument("--note-cursor", dest="noteCursor",
-                      help='generate a cursor following the score note by note (default)',
-                      action="store_true", default=True)
-    group_cursors.add_argument("--measure-cursor", dest="measureCursor",
-                      help='generate a cursor following the score measure by measure',
-                      action="store_true", default=False)
-    group_cursors.add_argument("--slide-show-cursor", dest="slideShowCursor", type=float,
-                      help="start and end positions on the cursor in the slide show", nargs=2, metavar=("START", "END"))
+    group_cursors.add_argument(
+        "-c", "--color",
+        help='name of the cursor color [%(default)s]',
+        metavar="COLOR", default="red")
+    group_cursors.add_argument(
+        "--no-cursor", dest="noteCursor",
+        help='do not generate a cursor',
+        action="store_false", default=True)
+    group_cursors.add_argument(
+        "--note-cursor", dest="noteCursor",
+        help='generate a cursor following the score note by note (default)',
+        action="store_true", default=True)
+    group_cursors.add_argument(
+        "--measure-cursor", dest="measureCursor",
+        help='generate a cursor following the score measure by measure',
+        action="store_true", default=False)
+    group_cursors.add_argument(
+        "--slide-show-cursor", dest="slideShowCursor", type=float,
+        help="start and end positions on the cursor in the slide show",
+        nargs=2, metavar=("START", "END"))
 
-    group_startend = parser.add_argument_group(title='Start and end of the video')
+    group_startend = parser.add_argument_group(
+        title='Start and end of the video')
 
-    group_startend.add_argument("-t", "--title-at-start", dest="titleAtStart",
-                      help='adds title screen at the start of video '
-                           '(with name of song and its author)',
-                      action="store_true", default=False)
-    group_startend.add_argument("--title-duration", dest="titleDuration",
-                        help='time to display the title screen [%(default)s]',
-                      type=int, metavar="SECONDS", default=3)
-    group_startend.add_argument("--ttf", "--title-ttf", dest="titleTtfFile",
-                      help='path to TTF font file to use in title',
-                      metavar="FONT-FILE")
-
-    group_startend.add_argument("-p", "--padding",
-                        help='time to pause on initial and final frames [%(default)s]',
-                      metavar="SECS,SECS", default='1,1')
+    group_startend.add_argument(
+        "-t", "--title-at-start", dest="titleAtStart",
+        help='adds title screen at the start of video '
+        '(with name of song and its author)',
+        action="store_true", default=False)
+    group_startend.add_argument(
+        "--title-duration", dest="titleDuration",
+        help='time to display the title screen [%(default)s]',
+        type=int, metavar="SECONDS", default=3)
+    group_startend.add_argument(
+        "--ttf", "--title-ttf", dest="titleTtfFile",
+        help='path to TTF font file to use in title',
+        metavar="FONT-FILE")
+    group_startend.add_argument(
+        "-p", "--padding",
+        help='time to pause on initial and final frames [%(default)s]',
+        metavar="SECS,SECS", default='1,1')
 
     group_os = parser.add_argument_group(title='External programs')
 
-    group_os.add_argument("--windows-ffmpeg", dest="winFfmpeg",
-                      help='(for Windows users) folder with ffpeg.exe '
-                           '(e.g. "C:\\ffmpeg\\bin\\")',
-                      metavar="PATH", default="")
-    group_os.add_argument("--windows-timidity", dest="winTimidity",
-                      help='(for Windows users) folder with '
-                           'timidity.exe (e.g. "C:\\timidity\\")',
-                      metavar="PATH", default="")
+    group_os.add_argument(
+        "--windows-ffmpeg", dest="winFfmpeg",
+        help='(for Windows users) folder with ffpeg.exe '
+        '(e.g. "C:\\ffmpeg\\bin\\")',
+        metavar="PATH", default="")
+    group_os.add_argument(
+        "--windows-timidity", dest="winTimidity",
+        help='(for Windows users) folder with '
+        'timidity.exe (e.g. "C:\\timidity\\")',
+        metavar="PATH", default="")
 
     group_debug = parser.add_argument_group(title='Debug')
 
-    group_debug.add_argument("-d", "--debug",
-                      help="enable debugging mode",
-                      action="store_true", default=False)
-    group_debug.add_argument("-k", "--keep", dest="keepTempFiles",
-                      help="don't remove temporary working files",
-                      action="store_true", default=False)
-    group_debug.add_argument("-v", "--version", dest="showVersion",
-                      help="show program version",
-                      action="store_true", default=False)
+    group_debug.add_argument(
+        "-d", "--debug",
+        help="enable debugging mode",
+        action="store_true", default=False)
+    group_debug.add_argument(
+        "-k", "--keep", dest="keepTempFiles",
+        help="don't remove temporary working files",
+        action="store_true", default=False)
+    group_debug.add_argument(
+        "-v", "--version", dest="showVersion",
+        help="show program version",
+        action="store_true", default=False)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -923,9 +982,10 @@ def parseOptions():
 
     return options
 
+
 def getVersion():
     try:
-        stdout = subprocess.check_output([ "git", "describe", "--tags" ],
+        stdout = subprocess.check_output(["git", "describe", "--tags"],
                                          cwd=os.path.dirname(__file__))
         m = re.match('^(v\d\S+)', stdout)
         if m:
@@ -937,6 +997,7 @@ def getVersion():
 
     return VERSION
 
+
 def showVersion():
     print """ly2video %s
 
@@ -946,17 +1007,20 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.""" % getVersion()
     sys.exit(0)
 
+
 def portableDevNull():
     if sys.platform.startswith("linux"):
         return "/dev/null"
     elif sys.platform.startswith("win"):
         return "NUL"
 
+
 def applyBeatmap(src, dst, beatmap):
     prog = "midi-rubato"
     cmd = [prog, src, beatmap, dst]
     progress("Applying beatmap via '%s'" % " ".join(cmd))
     debug(safeRun(cmd))
+
 
 def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
     if shell:
@@ -986,6 +1050,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
 
     return stdout
 
+
 def findExecutableDependencies(options):
     stdout = safeRun(["lilypond", "-v"], "LilyPond was not found.", 1)
     progress("LilyPond was found.")
@@ -1000,7 +1065,8 @@ def findExecutableDependencies(options):
     #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
     if StrictVersion(version) < StrictVersion('2.15.41'):
         fatal("You have LilyPond %s which does not support\n"
-              "infinitely long lines.  Please upgrade to >= 2.15.41." % version)
+              "infinitely long lines.  Please upgrade to >= 2.15.41." %
+              version)
 
     redirectToNull = " >%s" % portableDevNull()
 
@@ -1018,28 +1084,31 @@ def findExecutableDependencies(options):
 
     return version, ffmpeg, timidity
 
+
 def getCursorLineColor(options):
     options.color = options.color.lower()
     if options.color == "black":
-        return (0,0,0)
+        return (0, 0, 0)
     elif options.color == "yellow":
-        return (255,255,0)
+        return (255, 255, 0)
     elif options.color == "red":
-        return (255,0,0)
+        return (255, 0, 0)
     elif options.color == "green":
-        return (0,128,0)
+        return (0, 128, 0)
     elif options.color == "blue":
-        return (0,0,255)
+        return (0, 0, 255)
     elif options.color == "brown":
-        return (165,42,42)
+        return (165, 42, 42)
     else:
         warn("Color was not found, ly2video will use default one ('red').")
-        return (255,0,0)
+        return (255, 0, 0)
+
 
 def absPathFromRunDir(path):
     if os.path.isabs(path):
         return path
     return os.path.join(runDir, path)
+
 
 def getOutputFile(options):
     outputFile = options.output
@@ -1047,6 +1116,7 @@ def getOutputFile(options):
         basename, ext = os.path.splitext(options.input)
         outputFile = basename + '.avi'
     return absPathFromRunDir(outputFile)
+
 
 def generateNotesVideo(ffmpeg, fps, quality, wavPath):
     progress("Generating video with animated notation\n")
@@ -1065,6 +1135,7 @@ def generateNotesVideo(ffmpeg, fps, quality, wavPath):
     output_divider_line()
     return notesPath
 
+
 def generateStaticVideoFrames(name, frames, srcFrame):
     outdir = tmpPath(name)
     if not os.path.exists(outdir):
@@ -1074,14 +1145,17 @@ def generateStaticVideoFrames(name, frames, srcFrame):
     for i in xrange(frames):
         os.symlink(srcFrame, os.path.join(outdir, frameFileTemplate % i))
 
-    progress("Generated %d frames in %s/ from %s\n" % (frames, outdir, srcFrame))
+    progress("Generated %d frames in %s/ from %s\n" %
+             (frames, outdir, srcFrame))
     return tmpPath(name, frameFileTemplate)
+
 
 def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
     out         = tmpPath('%s.mpg' % name)
     frames = int(desiredDuration * fps)
     trueDuration = float(frames) / fps
-    progress("Generating silent video %s, duration %fs\n" % (out, trueDuration))
+    progress("Generating silent video %s, duration %fs\n" %
+             (out, trueDuration))
     framePath   = generateStaticVideoFrames(name, frames, srcFrame)
     silentAudio = generateSilence(name, trueDuration)
     cmd = [
@@ -1097,11 +1171,12 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
     output_divider_line()
     return out
 
+
 def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
     fps = float(options.fps)
     quality = str(options.quality)
 
-    videos = [ generateNotesVideo(ffmpeg, fps, quality, wavPath) ]
+    videos = [generateNotesVideo(ffmpeg, fps, quality, wavPath)]
 
     initialPadding, finalPadding = options.padding.split(",")
 
@@ -1132,13 +1207,13 @@ def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
         os.rename(videos[0], outputFile)
     else:
         progress("Joining videos:\n%s" %
-                 "".join([ "  %s\n" % video for video in videos ]))
+                 "".join(["  %s\n" % video for video in videos]))
 
         if sys.platform.startswith("linux"):
-            inputArgs = " ".join([ pipes.quote(video) for video in videos ])
+            inputArgs = " ".join([pipes.quote(video) for video in videos])
             safeRun("cat %s > '%s'" % (inputArgs, outputFile), shell=True)
         elif sys.platform.startswith("win"):
-            inputArgs = " + ".join([ '"%s" /B' % video for video in videos ])
+            inputArgs = " + ".join(['"%s" /B' % video for video in videos])
             os.system('copy %s "%s" /B' % (inputArgs, outputFile))
 
     # Could also do this with ffmpeg:
@@ -1147,9 +1222,10 @@ def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
     #
     # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
 
+
 def getLyVersion(fileName):
     # if I don't have input file, end
-    if fileName == None:
+    if fileName is None:
         fatal("LilyPond input file was not specified.", 4)
     else:
         # otherwise try to open fileName
@@ -1172,6 +1248,7 @@ def getLyVersion(fileName):
     fLyFile.close()
 
     return version
+
 
 def getNumStaffLines(lyFileName, dpi):
     # generate preview of notes
@@ -1218,6 +1295,7 @@ def getNumStaffLines(lyFileName, dpi):
 
     progress("Found %d staff lines" % numStaffLines)
     return numStaffLines
+
 
 def writeSpaceTimeDumper():
     filename = 'dump-spacetime-info.ly'
@@ -1292,6 +1370,7 @@ def writeSpaceTimeDumper():
     f.close()
     return '\\include "%s"\n' % filename
 
+
 def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                titleText, lilypondVersion):
     fLyFile = open(lyFile, "r")
@@ -1316,20 +1395,21 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
     while line != "":
         # ignore these commands
         if line.find("#(set-global-staff-size") != -1 or \
-            line.find("\\bookOutputName") != -1:
+           line.find("\\bookOutputName") != -1:
             pass
 
         # if I find version, write own paper block right behind it
         elif line.find("\\version") != -1:
             fSanitisedLyFile.write(line)
-            leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, dpi,
-                                                 numStaffLines, lilypondVersion)
+            leftPaperMarginPx = writePaperHeader(
+                fSanitisedLyFile, dpi, numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
         elif (line.find("\\header") != -1 or headerPart):
             if line.find("\\header") != -1:
-                fSanitisedLyFile.write("\\header {\n   tagline = ##f composer = ##f\n}\n")
+                fSanitisedLyFile.write(
+                    "\\header {\n   tagline = ##f composer = ##f\n}\n")
                 headerPart = True
 
             if re.search("title\\s*=", line):
@@ -1378,8 +1458,9 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                 finalLine = (line[:line.find("\\noBreak")]
                              + line[line.find("\\noBreak") + len("\\noBreak"):])
             elif line.find("\\pageBreak") != -1:
-                finalLine = (line[:line.find("\\pageBreak")]
-                             + line[line.find("\\pageBreak") + len("\\pageBreak"):])
+                finalLine = (line[:line.find("\\pageBreak")] +
+                             line[line.find("\\pageBreak") +
+                             len("\\pageBreak"):])
             else:
                 finalLine = line
 
@@ -1395,9 +1476,11 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                                              numStaffLines, lilypondVersion)
 
     fSanitisedLyFile.close()
-    progress("Wrote sanitised version of %s into %s" % (lyFile, sanitisedLyFileName))
+    progress("Wrote sanitised version of %s into %s" %
+             (lyFile, sanitisedLyFileName))
 
     return sanitisedLyFileName, leftPaperMarginPx
+
 
 def main():
     """
@@ -1424,8 +1507,8 @@ def main():
     # we'll have somewhere nice to save state.
     global runDir
     runDir = os.getcwd()
-    setRunDir (runDir)
-    
+    setRunDir(runDir)
+
     # Delete old temporary files.
     if os.path.isdir(tmpPath()):
         shutil.rmtree(tmpPath())
@@ -1456,8 +1539,9 @@ def main():
                                                      leftPaperMargin)
 
     measuresXpositions = None
-    if options.measureCursor :
-        measuresXpositions = getMeasuresIndices(output, options.dpi, leftPaperMargin)
+    if options.measureCursor:
+        measuresXpositions = getMeasuresIndices(output, options.dpi,
+                                                leftPaperMargin)
 
     notesImage = tmpPath("sanitised.png")
 
@@ -1492,12 +1576,19 @@ def main():
     fps = options.fps
 
     # generate notes
-    frameWriter = VideoFrameWriter(fps, getCursorLineColor(options), midiResolution, midiTicks, temposList)
+    frameWriter = VideoFrameWriter(
+        fps, getCursorLineColor(options),
+        midiResolution, midiTicks, temposList)
     leftMargin, rightMargin = options.cursorMargins.split(",")
-    frameWriter.scoreImage = ScoreImage(options.width, options.height, Image.open(notesImage), noteIndices, measuresXpositions, int(leftMargin), int(rightMargin), options.scrollNotes, options.noteCursor)
-    if options.slideShow :
-        lastOffset = midiTicks[-1]/midiResolution
-        frameWriter.push(SlideShow(options.slideShow,options.slideShowCursor,lastOffset))
+    frameWriter.scoreImage = ScoreImage(
+        options.width, options.height,
+        Image.open(notesImage), noteIndices, measuresXpositions,
+        int(leftMargin), int(rightMargin),
+        options.scrollNotes, options.noteCursor)
+    if options.slideShow:
+        lastOffset = midiTicks[-1] / midiResolution
+        frameWriter.push(
+            SlideShow(options.slideShow, options.slideShowCursor, lastOffset))
     frameWriter.write()
     output_divider_line()
 
