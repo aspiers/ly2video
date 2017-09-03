@@ -10,3 +10,4 @@ README.html
 .pydevproject
 .venv/
 *.egg-info/
+/.tox/
