@@ -79,9 +79,9 @@ subclass the Parser classes.
 """
 
 import re
-import ly.rx
-import ly.pitch
-import ly.words
+import rx
+import pitch
+import words
 
 
 def _make_re(classes):
@@ -437,7 +437,7 @@ class Tokenizer(object):
             tokenizer.enter(tokenizer.LanguageParser, self)
     
     class LanguageName(StringQuoted):
-        rx = r'"({0})"'.format('|'.join(ly.pitch.pitchInfo.keys()))
+        rx = r'"({0})"'.format('|'.join(pitch.pitchInfo.keys()))
         def __init__(self, matchObj, tokenizer):
             tokenizer.language = self[1:-1]
             tokenizer.endArgument()
@@ -451,7 +451,7 @@ class Tokenizer(object):
         rx = r'"(\\[\\"]|[^"])*"'
     
     class IncludeLanguageFile(IncludeFile):
-        rx = r'"({0})\.ly"'.format('|'.join(ly.pitch.pitchInfo.keys()))
+        rx = r'"({0})\.ly"'.format('|'.join(pitch.pitchInfo.keys()))
         def __init__(self, matchObj, tokenizer):
             tokenizer.language = self[1:-4]
             tokenizer.endArgument()
@@ -489,11 +489,11 @@ class Tokenizer(object):
     class MarkupCommand(Command):
         def __init__(self, matchObj, tokenizer):
             command = self[1:]
-            if command in ly.words.markupcommands_nargs[0]:
+            if command in words.markupcommands_nargs[0]:
                 tokenizer.endArgument()
             else:
                 for argcount in 2, 3, 4:
-                    if command in ly.words.markupcommands_nargs[argcount]:
+                    if command in words.markupcommands_nargs[argcount]:
                         break
                 else:
                     argcount = 1
@@ -709,7 +709,7 @@ class MusicTokenizer(LineColumnMixin, Tokenizer):
         rx = ">"
         
     class Pitch(Tokenizer.Item):
-        rx = ly.rx.named_pitch
+        rx = rx.named_pitch
         def __init__(self, matchObj, tokenizer):
             self.step = matchObj.group('step')
             self.octave = matchObj.group('octave') or ''
@@ -732,7 +732,7 @@ class MusicTokenizer(LineColumnMixin, Tokenizer):
     class NoteModeParser(ToplevelParser, Tokenizer.NoteModeParser): pass
 
     def readStep(self, pitchToken):
-        return ly.pitch.pitchReader[self.language](pitchToken.step)
+        return pitch.pitchReader[self.language](pitchToken.step)
 
 
 class LineColumnTokenizer(LineColumnMixin, Tokenizer):

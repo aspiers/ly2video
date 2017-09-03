@@ -23,21 +23,21 @@ from __future__ import unicode_literals
 All kinds of tools needed to manipulate strings with LilyPond input.
 """
 
-import ly.pitch
-import ly.tokenize        
+import pitch as lypitch
+import tokenize
 
 
-class Pitch(ly.pitch.Pitch):
+class Pitch(lypitch.Pitch):
     @classmethod
     def fromToken(cls, token, tokenizer):
         result = tokenizer.readStep(token)
         if result:
             p = cls()
             p.note, p.alter = result
-            p.octave = ly.pitch.octaveToNum(token.octave)
+            p.octave = lypitch.octaveToNum(token.octave)
             p.cautionary = token.cautionary
             if token.octcheck:
-                p.octaveCheck = ly.pitch.octaveToNum(token.octcheck)
+                p.octaveCheck = lypitch.octaveToNum(token.octcheck)
             return p
     
 
@@ -46,7 +46,7 @@ def relativeToAbsolute(text, start = 0, changes = None):
     Convert \relative { }  music to absolute pitches.
     Returns a ChangeList instance that contains the changes.
     """
-    tokenizer = ly.tokenize.MusicTokenizer()
+    tokenizer = tokenize.MusicTokenizer()
     tokens = tokenizer.tokens(text)
     
     # Walk through not-selected text, to track the state and the 
@@ -57,7 +57,7 @@ def relativeToAbsolute(text, start = 0, changes = None):
                 break
     
     if changes is None:
-        changes = ly.tokenize.ChangeList(text)
+        changes = tokenize.ChangeList(text)
     
     def newPitch(token, pitch, lastPitch):
         """
@@ -66,7 +66,7 @@ def relativeToAbsolute(text, start = 0, changes = None):
         """
         pitch.absolute(lastPitch)
         changes.replaceToken(token,
-            token.step + ly.pitch.octaveToString(pitch.octave) + token.cautionary)
+            token.step + lypitch.octaveToString(pitch.octave) + token.cautionary)
         
     class gen(object):
         """
@@ -194,7 +194,7 @@ def absoluteToRelative(text, start = 0, changes = None):
     """
     Converts the selected music expression or all toplevel expressions to \relative ones.
     """
-    tokenizer = ly.tokenize.MusicTokenizer()
+    tokenizer = tokenize.MusicTokenizer()
     tokens = tokenizer.tokens(text)
     
     # Walk through not-selected text, to track the state and the 
@@ -205,7 +205,7 @@ def absoluteToRelative(text, start = 0, changes = None):
                 break
     
     if changes is None:
-        changes = ly.tokenize.ChangeList(text)
+        changes = tokenize.ChangeList(text)
     
     def newPitch(token, pitch):
         """
@@ -213,7 +213,7 @@ def absoluteToRelative(text, start = 0, changes = None):
         token.
         """
         changes.replaceToken(token,
-            token.step + ly.pitch.octaveToString(pitch.octave) + token.cautionary)
+            token.step + lypitch.octaveToString(pitch.octave) + token.cautionary)
         
     class gen(object):
         """
@@ -308,14 +308,14 @@ def absoluteToRelative(text, start = 0, changes = None):
             except StopIteration:
                 pass # because of the next(source) statements
     if startToken is None:  # no single expression converted?
-        raise ly.NoMusicExpressionFound
+        raise NoMusicExpressionFound
     return changes
 
 def languageAndKey(text):
     """
     Return language and key signature pitch (as Pitch) of text.
     """
-    tokenizer = ly.tokenize.MusicTokenizer()
+    tokenizer = tokenize.MusicTokenizer()
     tokens = iter(tokenizer.tokens(text))
     keyPitch = Pitch.c0()
 
@@ -334,14 +334,14 @@ def languageAndKey(text):
 def transpose(text, transposer, start = 0, changes = None):
     """
     Transpose all or selected pitches.
-    Raises ly.QuarterToneAlterationNotAvailable if quarter tones are
+    Raises QuarterToneAlterationNotAvailable if quarter tones are
     requested but not available in the current language.
     """
-    tokenizer = ly.tokenize.MusicTokenizer()
+    tokenizer = tokenize.MusicTokenizer()
     tokens = tokenizer.tokens(text)
     
     if changes is None:
-        changes = ly.tokenize.ChangeList(text)
+        changes = tokenize.ChangeList(text)
     
     class gen(object):
         """
@@ -528,10 +528,10 @@ def transpose(text, transposer, start = 0, changes = None):
 def translate(text, lang, start = 0, changes = None):
     """
     Change the LilyPond pitch name language in our document to lang.
-    Raises ly.QuarterToneAlterationNotAvailable if quarter tones are
+    Raises QuarterToneAlterationNotAvailable if quarter tones are
     requested but not available in the target language.
     """
-    tokenizer = ly.tokenize.Tokenizer()
+    tokenizer = tokenize.Tokenizer()
     tokens = tokenizer.tokens(text)
     
     # Walk through not-selected text, to track the state and the 
@@ -542,20 +542,20 @@ def translate(text, lang, start = 0, changes = None):
                 break
     
     if changes is None:
-        changes = ly.tokenize.ChangeList(text)
+        changes = tokenize.ChangeList(text)
 
-    writer = ly.pitch.pitchWriter[lang]
-    reader = ly.pitch.pitchReader[tokenizer.language]
+    writer = lypitch.pitchWriter[lang]
+    reader = lypitch.pitchReader[tokenizer.language]
     
     # Now walk through the part that needs to be translated.
     includeCommandChanged = False
     for token in tokens:
         if isinstance(token, tokenizer.IncludeLanguageFile):
-            reader = ly.pitch.pitchReader[tokenizer.language]
+            reader = lypitch.pitchReader[tokenizer.language]
             changes.replaceToken(token, '"{0}.ly"'.format(lang))
             includeCommandChanged = True
         elif isinstance(token, tokenizer.LanguageName):
-            reader = ly.pitch.pitchReader[tokenizer.language]
+            reader = lypitch.pitchReader[tokenizer.language]
             changes.replaceToken(token, '"{0}"'.format(lang))
             includeCommandChanged = True
         elif isinstance(token, tokenizer.PitchWord):

@@ -22,7 +22,7 @@ from __future__ import unicode_literals
 import re
 from fractions import Fraction
 
-import ly
+import ly2video.ly
 
 class Pitch(object):
     """

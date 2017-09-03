@@ -40,8 +40,8 @@ from argparse import ArgumentParser
 from struct import pack
 
 from PIL import Image, ImageDraw, ImageFont
-from ly.tokenize import MusicTokenizer, Tokenizer
-import ly.tools
+from ly2video.ly.tokenize import MusicTokenizer, Tokenizer
+import ly2video.ly.tools
 import midi
 from ly2video.utils import *
 from ly2video.video import *
@@ -54,7 +54,7 @@ GLOBAL_STAFF_SIZE = 20
 
 C_MAJOR_SCALE_STEPS = [
     # Maps notes of the C major scale into semi-tones above C.
-    # This is needed to map the pitch of ly.tools.Pitch notes
+    # This is needed to map the pitch of ly2video.ly.tools.Pitch notes
     # into MIDI pitch values within a given octave.
     0,   # c
     2,   # d
@@ -99,7 +99,7 @@ class LySrc(object):
             self.lines = [line for line in f.readlines()]
 
     def initParser(self, document):
-        language, keyPitch = ly.tools.languageAndKey(document)
+        language, keyPitch = ly2video.ly.tools.languageAndKey(document)
         progress('Detected language as %s' % language)
         self.parser = MusicTokenizer()
         self.parser.language = language
@@ -110,7 +110,7 @@ class LySrc(object):
             return
 
         # N.B. line numbers in this are numbered starting from 0
-        changelist = ly.tools.relativeToAbsolute(document)
+        changelist = ly2video.ly.tools.relativeToAbsolute(document)
         self.absolutePitches = changelist.token_changes_by_coords
         debug("absolutePitches: %s" % repr(self.absolutePitches))
         if not self.absolutePitches:
@@ -556,7 +556,7 @@ def pitchValue(token, parser):
     increment of 1 is equivalent to going up a semi-tone (half-step).
     This facilitates comparison to MIDI NoteOn events.
     """
-    p = ly.tools.Pitch.fromToken(token, parser)
+    p = ly2video.ly.tools.Pitch.fromToken(token, parser)
 
     accidentalSemitoneSteps = 2 * p.alter
 
