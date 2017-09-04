@@ -1412,7 +1412,7 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                     "\\header {\n   tagline = ##f composer = ##f\n}\n")
                 headerPart = True
 
-            if re.search("title\\s*=", line):
+            if re.search("\\btitle\\s*=", line):
                 titleText.name = line.split("=")[-1].strip()[1:-1]
             if re.search("composer\\s*=", line):
                 titleText.author = line.split("=")[-1].strip()[1:-1]
