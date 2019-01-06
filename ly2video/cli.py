@@ -1472,7 +1472,7 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        leftPaperMarginPx = writePaperHeader(fSanitisedLyFile,
+        leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, dpi,
                                              numStaffLines, lilypondVersion)
 
     fSanitisedLyFile.close()
