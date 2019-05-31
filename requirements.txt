@@ -1,4 +1,4 @@
-PIL==1.1.7
+Pillow==1.0
 
 # python-midi 0.2.2 is also required; however, the upstream repository
 # still has an unmerged pull request fixing a significant tempo
