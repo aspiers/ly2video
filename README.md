@@ -79,7 +79,7 @@ If you have an AUR helper such as [yaourt](https://wiki.archlinux.org/index.php/
 
 where yaourt would be replaced by the name of your AUR helper if you have a different helper installed.
 
-Regardless, after installing the package, you can use the script by running `ly2video.py` with the required arguments.
+Regardless, after installing the package, you can use the script by running `ly2video` with the required arguments.
 
 ### Installing dependencies on other platforms
 
@@ -122,7 +122,7 @@ it separately from the install step, if desired.
 
 ## Usage
 
-Run `ly2video.py --help` to display usage information.
+Run `ly2video --help` to display usage information.
 
 You must ensure that your `.ly` input file contains both `\layout { }`
 and `\midi` commands, which ensure that valid `.midi` and `.png` files
