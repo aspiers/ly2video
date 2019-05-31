@@ -90,14 +90,14 @@ information, so that this README can be updated.  Thanks!
 
 ### Installing required Python module dependencies
 
-[ly2video requires some specific Python modules](https://github.com/aspiers/ly2video/blob/master/pip-requires.txt) - **do NOT install these manually!** (unless you are a Python expert.)
+[ly2video requires some specific Python modules](https://github.com/aspiers/ly2video/blob/master/requirements.txt) - **do NOT install these manually!** (unless you are a Python expert.)
 They can be installed system-wide via:
 
-    sudo pip install -r pip-requires.txt
+    sudo pip install -r requirements.txt
 
 or for the current user via:
 
-    pip install --user -r pip-requires.txt
+    pip install --user -r requirements.txt
 
 You can optionally protect against the risk of installation of these
 Python modules destabilising any other Python applications you may
@@ -108,7 +108,7 @@ convenient way to do this is via
 Once you have `virtualenvwrapper` installed, it's as simple as:
 
     mkvirtualenv ly2video
-    pip install -r pip-requires.txt
+    pip install -r requirements.txt
 
 ### Installing ly2video itself
 
