@@ -112,13 +112,19 @@ Once you have `virtualenvwrapper` installed, it's as simple as:
 
 ### Installing ly2video itself
 
-Just run
+This is done via [Python's standard package installation
+mechanism](https://packaging.python.org/tutorials/installing-packages/).
 
-    python2 setup.py install --root=INSTALLATION_DIR
+For example, to install system-wide, just run
 
-from the main directory to install it to some directory
-`INSTALLATION_DIR`. Running `python2 setup.py build` first will build
-it separately from the install step, if desired.
+    sudo pip install .
+
+or for the current user via:
+
+    sudo pip install --user .
+
+If something fails, please double-check you correctly met the
+requirements and dependencies detailed above.
 
 ## Usage
 
