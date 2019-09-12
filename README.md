@@ -21,7 +21,7 @@ Beware, here be dragons!
 
 Unfortunately I don't currently have the time to work on ly2video
 much.  These means that bitrot has set in, for example see [issue
-#73](https://github.com/aspiers/ly2video/issues/73).
+#75](https://github.com/aspiers/ly2video/issues/75).
 
 Having said that, I'll do my best to support anyone who is trying
 to get it working - please see below for how to get support.
