@@ -1209,12 +1209,10 @@ def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
         progress("Joining videos:\n%s" %
                  "".join(["  %s\n" % video for video in videos]))
 
-        if sys.platform.startswith("linux"):
-            inputArgs = " ".join([pipes.quote(video) for video in videos])
-            safeRun("cat %s > '%s'" % (inputArgs, outputFile), shell=True)
-        elif sys.platform.startswith("win"):
-            inputArgs = " + ".join(['"%s" /B' % video for video in videos])
-            os.system('copy %s "%s" /B' % (inputArgs, outputFile))
+        with open(outputFile,'wb') as wfd:
+            for video in videos:
+                with open(video,'rb') as fd:
+                    shutil.copyfileobj(fd, wfd)
 
     # Could also do this with ffmpeg:
     #
