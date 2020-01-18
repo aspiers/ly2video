@@ -260,7 +260,7 @@ class Tokenizer(object):
         
         """
         def __new__(cls, matchObj, tokenizer):
-            obj = unicode.__new__(cls, matchObj.group())
+            obj = unicode.__new__(cls, matchObj.group(), "utf-8")
             obj.pos, obj.end = matchObj.span()
             return obj
 
@@ -293,7 +293,7 @@ class Tokenizer(object):
         
         """
         def __new__(cls, value, pos):
-            obj = unicode.__new__(cls, value)
+            obj = unicode.__new__(cls, value, "utf-8")
             obj.pos = pos
             obj.end = pos + len(obj)
             return obj
