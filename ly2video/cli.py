@@ -223,6 +223,11 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     corresponds to the left-most grob at that moment.
     """
 
+    output = re.sub(
+        r"\n\*\*\* Warning: GenericResourceDir doesn't point to a valid resource directory\.\s*\n"
+        r"\s*the .+ option can be used to set this.\n\n",
+        "", output)
+
     lines = output.split('\n')
 
     leftmostGrobs = {}
