@@ -383,19 +383,24 @@ def pixelsToMm(pixels, dpi):
     return pixels * mmPerPixel
 
 
-def writePaperHeader(fFile, dpi, numOfLines, lilypondVersion):
+def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     """
     Writes own paper block into given file.
 
     Params:
     - fFile:        given opened file
+    - width:        pixel width of final video
+    - height:       pixel height of final video
+    - dpi:          resolution in DPI
     - numOfLines:   number of staff lines
+    - lilypondVersion: version of LilyPond
     """
     fFile.write("\\paper {\n")
     fFile.write("   page-breaking = #ly:one-line-breaking\n")
 
-    topPixels    = 200
-    bottomPixels = 200
+    # make sure we have enough margin to be cropped
+    topPixels    = height / 2
+    bottomPixels = height / 2
     leftPixels   = 200
     rightPixels  = 200
 
@@ -1400,7 +1405,7 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
         elif line.find("\\version") != -1:
             fSanitisedLyFile.write(line)
             leftPaperMarginPx = writePaperHeader(
-                fSanitisedLyFile, dpi, numStaffLines, lilypondVersion)
+                fSanitisedLyFile, width, height, dpi, numStaffLines, lilypondVersion)
             paperBlock = True
 
         # get needed info from header block and ignore it
@@ -1470,7 +1475,7 @@ def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
 
     # if I didn't find \version, write own paper block
     if not paperBlock:
-        leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, dpi,
+        leftPaperMarginPx = writePaperHeader(fSanitisedLyFile, width, height, dpi,
                                              numStaffLines, lilypondVersion)
 
     fSanitisedLyFile.close()
