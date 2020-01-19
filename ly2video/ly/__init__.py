@@ -93,7 +93,7 @@ def headers(i18nFunc=None):
         ('tagline',     i18n("Tagline")),
     )
 
-headerNames = zip(*headers())[0] # puvodne zip(*headers())[0]
+headerNames = list(zip(*headers()))[0] # puvodne zip(*headers())[0]
 
 def modes(i18nFunc=None):
     i18n = i18nFunc or (lambda s: s)

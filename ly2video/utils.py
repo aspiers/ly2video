@@ -34,10 +34,10 @@ def setDebug():
 
 def debug(text):
     if DEBUG:
-        print text
+        print(text)
 
 def progress(text):
-    print text
+    print(text)
 
 def stderr(text):
     sys.stderr.write(text + "\n")

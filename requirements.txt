@@ -1,4 +1,5 @@
 Pillow==6.2.0
+six==1.14.0
 
 # python-midi 0.2.2 is also required; however, the upstream repository
 # still has an unmerged pull request fixing a significant tempo
@@ -7,7 +8,9 @@ Pillow==6.2.0
 #   https://github.com/vishnubob/python-midi/pull/6
 #
 # whereas my fork has the pull request already merged in:
-git+git://github.com/aspiers/python-midi.git#egg=midi
+#git+git://github.com/aspiers/python-midi.git#egg=midi;python_version<'3.0'
+git+git://github.com/vishnubob/python-midi.git#egg=midi;python_version<'3.0'
+git+git://github.com/vishnubob/python-midi.git@feature/python3#egg=midi;python_version>='3.0'
 
 # Once https://github.com/pypa/pip/pull/526 is completed,
 # this should work instead, for anyone who wants to

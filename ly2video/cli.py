@@ -128,7 +128,7 @@ class LySrc(object):
                 self.lines[lySrcLocation.lineNum][lySrcLocation.columnNum:]
 
         try:
-            grobPitchToken = self.parser.tokens(grobPitchText).next()
+            grobPitchToken = next(self.parser.tokens(grobPitchText))
         except StopIteration:
             bug("Didn't find a note at:\n"
                 "    %s\n" % lySrcLocation)
@@ -542,8 +542,7 @@ def getMidiEvents(midiFileName):
     notesInTicks, pitchBends = getNotesInTicks(midiFile)
 
     # get all ticks with notes and sorts it
-    midiTicks = notesInTicks.keys()
-    midiTicks.sort()
+    midiTicks = sorted(notesInTicks.keys())
 
     # find the tick corresponding to the earliest EndOfTrackEvent
     # across all MIDI channels, and append it
@@ -817,24 +816,25 @@ def generateSilence(name, length):
 
     fSilence = open(out, "w")
 
-    fSilence.write("".join([
-        'RIFF',                                   # ChunkID (magic)      # 0x00
-        pack('<I', ChunkSize),                    # ChunkSize            # 0x04
-        'WAVE',                                   # Format               # 0x08
-        'fmt ',                                   # Subchunk1ID          # 0x0c
-        pack('<I', Subchunk1Size),                # Subchunk1Size        # 0x10
-        pack('<H', 1),                            # AudioFormat (1=PCM)  # 0x14
-        pack('<H', channels),                     # NumChannels          # 0x16
-        pack('<I', sample),                       # SampleRate           # 0x18
-        pack('<I', bps / 8 * channels * sample),  # ByteRate             # 0x1c
-        pack('<H', bps / 8 * channels),           # BlockAlign           # 0x20
-        pack('<H', bps),                          # BitsPerSample        # 0x22
-        pack('<H', ExtraParamSize),               # ExtraParamSize       # 0x22
-        'data',                                   # Subchunk2ID          # 0x24
-        pack('<I', Subchunk2Size),                # Subchunk2Size        # 0x28
-        '\0' * Subchunk2Size
-    ]))
-    fSilence.close()
+    with open(out, "wb") as fSilence:
+        for b in  (
+                'RIFF'.encode('utf-8'),                   # ChunkID (magic)      # 0x00
+                pack('<I', ChunkSize),                    # ChunkSize            # 0x04
+                'WAVE'.encode('utf-8'),                   # Format               # 0x08
+                'fmt '.encode('utf-8'),                   # Subchunk1ID          # 0x0c
+                pack('<I', Subchunk1Size),                # Subchunk1Size        # 0x10
+                pack('<H', 1),                            # AudioFormat (1=PCM)  # 0x14
+                pack('<H', channels),                     # NumChannels          # 0x16
+                pack('<I', sample),                       # SampleRate           # 0x18
+                pack('<I', bps // 8 * channels * sample),  # ByteRate             # 0x1c
+                pack('<H', bps // 8 * channels),           # BlockAlign           # 0x20
+                pack('<H', bps),                          # BitsPerSample        # 0x22
+                pack('<H', ExtraParamSize),               # ExtraParamSize       # 0x22
+                'data'.encode('utf-8'),                   # Subchunk2ID          # 0x24
+                pack('<I', Subchunk2Size),                # Subchunk2Size        # 0x28
+                ('\0' * Subchunk2Size).encode('utf-8')):
+            fSilence.write(b)
+
     return out
 
 
@@ -996,7 +996,8 @@ def parseOptions():
 def getVersion():
     try:
         stdout = subprocess.check_output(["git", "describe", "--tags"],
-                                         cwd=os.path.dirname(__file__))
+                                         cwd=os.path.dirname(__file__),
+                                         universal_newlines=True)
         m = re.match('^(v\d\S+)', stdout)
         if m:
             return m.group(1)
@@ -1009,12 +1010,12 @@ def getVersion():
 
 
 def showVersion():
-    print """ly2video %s
+    print("""ly2video %s
 
 Copyright (C) 2012-2014 Jiri "FireTight" Szabo, Adam Spiers, Emmanuel Leguy
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.""" % getVersion()
+There is NO WARRANTY, to the extent permitted by law.""" % getVersion())
     sys.exit(0)
 
 
@@ -1044,7 +1045,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
     debug("Running: %s\n" % quotedCmd)
 
     try:
-        stdout = subprocess.check_output(cmd, shell=shell)
+        stdout = subprocess.check_output(cmd, shell=shell, universal_newlines=True)
     except KeyboardInterrupt:
         fatal("Interrupted via keyboard; aborting.")
     except:

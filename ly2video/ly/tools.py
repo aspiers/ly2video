@@ -23,8 +23,8 @@ from __future__ import unicode_literals
 All kinds of tools needed to manipulate strings with LilyPond input.
 """
 
-import pitch as lypitch
-import tokenize
+from . import pitch as lypitch
+from . import tokenize
 
 
 class Pitch(lypitch.Pitch):
@@ -77,7 +77,7 @@ def relativeToAbsolute(text, start = 0, changes = None):
         def __iter__(self):
             return self
             
-        def next(self):
+        def __next__(self):
             token = next(tokens)
             while isinstance(token, (tokenizer.Space, tokenizer.Comment)):
                 token = next(tokens)
@@ -88,6 +88,8 @@ def relativeToAbsolute(text, start = 0, changes = None):
                 absolute()
                 token = next(tokens)
             return token
+
+        next = __next__
     
     source = gen()
     
@@ -358,7 +360,7 @@ def transpose(text, transposer, start = 0, changes = None):
         def __iter__(self):
             return self
             
-        def next(self):
+        def __next__(self):
             while True:
                 token = next(tokens)
                 if isinstance(token, (tokenizer.Space, tokenizer.Comment)):
@@ -388,6 +390,8 @@ def transpose(text, transposer, start = 0, changes = None):
                 else:
                     return token
     
+        next = __next__
+
     source = gen()
     
     def consume():

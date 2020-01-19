@@ -79,9 +79,11 @@ subclass the Parser classes.
 """
 
 import re
-import rx
-import pitch
-import words
+import sys
+from six import add_metaclass
+from . import rx
+from . import pitch
+from . import words
 
 
 def _make_re(classes):
@@ -123,6 +125,7 @@ class _tokenizer_meta(type):
                     setattr(cls, name, type(name, (attr,), {'pattern': pattern}))
 
 
+@add_metaclass(_tokenizer_meta)
 class Tokenizer(object):
     """An environment to parse LilyPond text input.
     
@@ -133,7 +136,6 @@ class Tokenizer(object):
     - Subclasses of Parser: container with regex to parse LilyPond input.
     
     """
-    __metaclass__ = _tokenizer_meta
     
     def __init__(self, parserClass = None):
         self.reset(parserClass)
@@ -250,7 +252,7 @@ class Tokenizer(object):
     
     # Classes that represent pieces of lilypond text:
     # base classes:
-    class Token(unicode):
+    class Token(unicode if sys.version_info[0] < 3 else str):
         """Represents a parsed piece of LilyPond text.
         
         The subclass determines the type.
@@ -260,7 +262,11 @@ class Tokenizer(object):
         
         """
         def __new__(cls, matchObj, tokenizer):
-            obj = unicode.__new__(cls, matchObj.group(), "utf-8")
+            if sys.version_info[0] < 3:
+                obj = unicode.__new__(cls, matchObj.group(), "utf-8")
+            else:
+                obj = str.__new__(cls, matchObj.group())
+
             obj.pos, obj.end = matchObj.span()
             return obj
 
@@ -293,7 +299,11 @@ class Tokenizer(object):
         
         """
         def __new__(cls, value, pos):
-            obj = unicode.__new__(cls, value, "utf-8")
+            if sys.version_info[0] < 3:
+                obj = unicode.__new__(cls, value, "utf-8")
+            else:
+                obj = str.__new__(cls, value)
+
             obj.pos = pos
             obj.end = pos + len(obj)
             return obj

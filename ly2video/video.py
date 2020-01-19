@@ -22,10 +22,16 @@
 # For more information about this program, please visit
 # <https://github.com/aspiers/ly2video/>.
 
-from synchro import *
-from utils import *
+from .synchro import *
+from .utils import *
 import os
 from PIL import Image
+
+# for compatible with python3, if xrange doesn't exists, use range instead
+try:
+    xrange
+except NameError:
+    xrange = range
 
 # Image manipulation functions
 
@@ -171,7 +177,7 @@ class VideoFrameWriter(object):
 
     def push (self, media):
         self.height += media.height
-	self.__medias.append(media)
+        self.__medias.append(media)
         self.__timecode.registerObserver(media)
 
     @property

@@ -240,9 +240,9 @@ pitchInfo['catalan'] = pitchInfo['italiano']
 
 
 pitchWriter = dict(
-    (lang, PitchWriter(*data)) for lang, data in pitchInfo.iteritems())
+    (lang, PitchWriter(*data)) for lang, data in pitchInfo.items())
 
 pitchReader = dict(
-    (lang, PitchReader(*data)) for lang, data in pitchInfo.iteritems())
+    (lang, PitchReader(*data)) for lang, data in pitchInfo.items())
 
 
