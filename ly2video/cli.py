@@ -199,7 +199,7 @@ def preprocessLyFile(lyFile, lilypondVersion, dumper):
     return newLyFile
 
 
-def runLilyPond(lyFileName, dpi, *args):
+def runLilyPond(lyFileName, dpi, *args, **kwargs):
     progress("Generating PNG and MIDI files ...")
     cmd = [
         "lilypond",
@@ -210,7 +210,7 @@ def runLilyPond(lyFileName, dpi, *args):
     ] + list(args) + [lyFileName]
     output_divider_line()
     os.chdir(tmpPath())
-    output = safeRun(cmd, exitcode=9)
+    output = safeRun(cmd, exitcode=9, **kwargs)
     output_divider_line()
     progress("Generated PNG and MIDI files")
     return output
@@ -222,11 +222,6 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     sorted list of (moment, xcoord) tuples where each X co-ordinate
     corresponds to the left-most grob at that moment.
     """
-
-    output = re.sub(
-        r"\n\*\*\* Warning: GenericResourceDir doesn't point to a valid resource directory\.\s*\n"
-        r"\s*the .+ option can be used to set this.\n\n",
-        "", output)
 
     lines = output.split('\n')
 
@@ -1033,7 +1028,7 @@ def applyBeatmap(src, dst, beatmap):
     debug(safeRun(cmd))
 
 
-def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
+def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preprocessor=None):
     if shell:
         quotedCmd = cmd
     else:
@@ -1045,7 +1040,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
     debug("Running: %s\n" % quotedCmd)
 
     try:
-        stdout = subprocess.check_output(cmd, shell=shell, universal_newlines=True)
+        stdout = subprocess.check_output(cmd, shell=shell)
     except KeyboardInterrupt:
         fatal("Interrupted via keyboard; aborting.")
     except:
@@ -1059,7 +1054,10 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
         else:
             fatal(errormsg, exitcode)
 
-    return stdout
+    if preprocessor:
+        stdout = preprocessor(stdout)
+
+    return stdout.decode()
 
 
 def findExecutableDependencies(options):
@@ -1543,7 +1541,17 @@ def main():
                    options.width, options.height, options.dpi,
                    numStaffLines, titleText, lilypondVersion)
 
-    output = runLilyPond(sanitisedLyFileName, options.dpi)
+
+    # the "*** Warning..." part may be inserted INSIDE UTF-8 character sequence,
+    # so we need to remove it before decode the output to text string
+    output = runLilyPond(
+        sanitisedLyFileName, options.dpi,
+        preprocessor=lambda s: re.sub(
+            b"\n\*\*\* Warning: GenericResourceDir doesn't point to a valid resource directory\.\s*\n"
+            b"\s*the .+ option can be used to set this.\n\n",
+            b"", s)
+    )
+
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
                                                      leftPaperMargin)
 
