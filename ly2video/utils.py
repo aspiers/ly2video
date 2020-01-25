@@ -24,9 +24,11 @@
 
 import sys
 import os
+import tempfile
 
 DEBUG = False # --debug sets to True
 RUNDIR = ""
+TMPDIR = ""
 
 def setDebug():
     global DEBUG
@@ -89,7 +91,11 @@ def setRunDir (runDir):
     RUNDIR = runDir
 
 def tmpPath(*dirs):
-    segments = [ 'ly2video.tmp' ]
+    global TMPDIR
+    if not TMPDIR:
+        TMPDIR = tempfile.mkdtemp(prefix='ly2video')
+
+    segments = [ TMPDIR ]
     segments.extend(dirs)
     return os.path.join(RUNDIR, *segments)
 
