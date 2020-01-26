@@ -105,7 +105,7 @@ def apply_rubato(tracks, tempos):
     event_index = 0
     while event_index < len(control):
         event = control[event_index]
-        print "%d: existing %s" % (event_index, event)
+        print("%d: existing %s" % (event_index, event))
 
         # insert any new tempo changes before the current tick
         while True:
@@ -121,7 +121,7 @@ def apply_rubato(tracks, tempos):
 
         # remove any pre-existing SetTempoEvents
         if isinstance(event, midi.SetTempoEvent):
-            print "  - dropping SetTempoEvent"
+            print("  - dropping SetTempoEvent")
             del control[event_index]
         else:
             event_index += 1
@@ -166,7 +166,7 @@ def secs_to_timestamp(secs):
 
 def generate_adjusted_midi_file(src, dst, beatmap):
     tracks = midi.read_midifile(src)
-    print "Read from %s" % src
+    print("Read from %s" % src)
 
     tracks.make_ticks_abs()
     beats = get_tempos_from_beatmap(beatmap, tracks.resolution)
@@ -177,7 +177,7 @@ def generate_adjusted_midi_file(src, dst, beatmap):
     tracks.make_ticks_rel()
 
     midi.write_midifile(dst, tracks)
-    print "Wrote tempo-adjusted tracks to %s" % dst
+    print("Wrote tempo-adjusted tracks to %s" % dst)
 
 if __name__ == '__main__':
     main()

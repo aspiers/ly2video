@@ -22,7 +22,7 @@
 # For more information about this program, please visit
 # <https://github.com/aspiers/ly2video/>.
 
-from utils import *
+from ly2video.utils import *
 
 class TimeCode (Observable):
 

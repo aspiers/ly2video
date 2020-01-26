@@ -154,7 +154,15 @@ def runLilyPond(lyFileName, dpi, *args):
     ] + list(args) + [lyFileName]
     output_divider_line()
     os.chdir(tmpPath())
-    output = safeRun(cmd, exitcode=9)
+    # the "*** Warning..." part may be inserted INSIDE UTF-8 character sequence,
+    # so we add a preprocessor to remove it before decode the output to text string
+    output = safeRun(
+        cmd, exitcode=9,
+        preprocessor=lambda s: re.sub(
+            b"\n\*\*\* Warning: GenericResourceDir doesn't point to a valid resource directory\.\s*\n"
+            b"\s*the .+ option can be used to set this.\n\n",
+            b"", s)
+    )
     output_divider_line()
     progress("Generated PNG and MIDI files")
     return output
@@ -166,11 +174,6 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     sorted list of (moment, xcoord) tuples where each X co-ordinate
     corresponds to the left-most grob at that moment.
     """
-
-    output = re.sub(
-        r"\n\*\*\* Warning: GenericResourceDir doesn't point to a valid resource directory\.\s*\n"
-        r"\s*the .+ option can be used to set this.\n\n",
-        "", output)
 
     lines = output.split('\n')
 
@@ -493,8 +496,7 @@ def getMidiEvents(midiFileName):
     notesInTicks, pitchBends = getNotesInTicks(midiFile)
 
     # get all ticks with notes and sorts it
-    midiTicks = notesInTicks.keys()
-    midiTicks.sort()
+    midiTicks = sorted(notesInTicks.keys())
 
     # find the tick corresponding to the earliest EndOfTrackEvent
     # across all MIDI channels, and append it
@@ -772,26 +774,25 @@ def generateSilence(name, length):
         os.mkdir(outdir)
     out = os.path.join(outdir, name + '.wav')
 
-    fSilence = open(out, "w")
+    with open(out, "wb") as fSilence:
+        for b in  (
+                'RIFF'.encode('utf-8'),                   # ChunkID (magic)      # 0x00
+                pack('<I', ChunkSize),                    # ChunkSize            # 0x04
+                'WAVE'.encode('utf-8'),                   # Format               # 0x08
+                'fmt '.encode('utf-8'),                   # Subchunk1ID          # 0x0c
+                pack('<I', Subchunk1Size),                # Subchunk1Size        # 0x10
+                pack('<H', 1),                            # AudioFormat (1=PCM)  # 0x14
+                pack('<H', channels),                     # NumChannels          # 0x16
+                pack('<I', sample),                       # SampleRate           # 0x18
+                pack('<I', bps // 8 * channels * sample),  # ByteRate             # 0x1c
+                pack('<H', bps // 8 * channels),           # BlockAlign           # 0x20
+                pack('<H', bps),                          # BitsPerSample        # 0x22
+                pack('<H', ExtraParamSize),               # ExtraParamSize       # 0x22
+                'data'.encode('utf-8'),                   # Subchunk2ID          # 0x24
+                pack('<I', Subchunk2Size),                # Subchunk2Size        # 0x28
+                ('\0' * Subchunk2Size).encode('utf-8')):
+            fSilence.write(b)
 
-    fSilence.write("".join([
-        'RIFF',                                   # ChunkID (magic)      # 0x00
-        pack('<I', ChunkSize),                    # ChunkSize            # 0x04
-        'WAVE',                                   # Format               # 0x08
-        'fmt ',                                   # Subchunk1ID          # 0x0c
-        pack('<I', Subchunk1Size),                # Subchunk1Size        # 0x10
-        pack('<H', 1),                            # AudioFormat (1=PCM)  # 0x14
-        pack('<H', channels),                     # NumChannels          # 0x16
-        pack('<I', sample),                       # SampleRate           # 0x18
-        pack('<I', bps / 8 * channels * sample),  # ByteRate             # 0x1c
-        pack('<H', bps / 8 * channels),           # BlockAlign           # 0x20
-        pack('<H', bps),                          # BitsPerSample        # 0x22
-        pack('<H', ExtraParamSize),               # ExtraParamSize       # 0x22
-        'data',                                   # Subchunk2ID          # 0x24
-        pack('<I', Subchunk2Size),                # Subchunk2Size        # 0x28
-        '\0' * Subchunk2Size
-    ]))
-    fSilence.close()
     return out
 
 
@@ -966,12 +967,12 @@ def getVersion():
 
 
 def showVersion():
-    print """ly2video %s
+    print("""ly2video %s
 
 Copyright (C) 2012-2014 Jiri "FireTight" Szabo, Adam Spiers, Emmanuel Leguy
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.""" % getVersion()
+There is NO WARRANTY, to the extent permitted by law.""" % getVersion())
     sys.exit(0)
 
 
@@ -989,7 +990,7 @@ def applyBeatmap(src, dst, beatmap):
     debug(safeRun(cmd))
 
 
-def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
+def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preprocessor=None):
     if shell:
         quotedCmd = cmd
     else:
@@ -1015,7 +1016,10 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[]):
         else:
             fatal(errormsg, exitcode)
 
-    return stdout
+    if preprocessor:
+        stdout = preprocessor(stdout)
+
+    return stdout.decode("utf-8")
 
 
 def findExecutableDependencies(options):
@@ -1492,7 +1496,8 @@ def main():
                    options.width, options.height, options.dpi,
                    numStaffLines, titleText, lilypondVersion)
 
-    output = runLilyPond(sanitisedLyFileName, options.dpi)
+    output = runLilyPond(sanitisedLyFileName, options.dpi,)
+
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
                                                      leftPaperMargin)
 

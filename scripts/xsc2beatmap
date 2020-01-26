@@ -200,7 +200,7 @@ def show_beats_with_beat_tempos(beats):
               (label, section, measure, beat, timestamp)
         if i < len(tempos):
             out += "  %.8f" % tempos[i]
-        print out
+        print(out)
 
 def timestamp_to_secs(timestamp):
     hours, mins, secs = timestamp.split(':')
