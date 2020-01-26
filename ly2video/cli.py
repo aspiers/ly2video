@@ -1219,16 +1219,19 @@ def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
         progress("Joining videos:\n%s" %
                  "".join(["  %s\n" % video for video in videos]))
 
-        with open(outputFile,'wb') as wfd:
-            for video in videos:
-                with open(video,'rb') as fd:
-                    shutil.copyfileobj(fd, wfd)
-
-    # Could also do this with ffmpeg:
-    #
-    #   ffmpeg -i concat:"title.mpg|notes.mpg" -codec copy out.mpg
-    #
-    # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
+        # Do this with ffmpeg:
+        #
+        #   ffmpeg -i concat:"title.mpg|notes.mpg" -codec copy out.mpg
+        #
+        # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
+        cmd = [
+            ffmpeg,
+            "-i", "concat:%s" % "|".join(videos),
+            "-codec", "copy",
+            "-y",
+            outputFile,
+        ]
+        safeRun(cmd, exitcode=16)
 
 
 def getLyVersion(fileName):
