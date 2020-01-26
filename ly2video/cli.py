@@ -38,10 +38,9 @@ from collections import namedtuple
 from distutils.version import StrictVersion
 from argparse import ArgumentParser
 from struct import pack
+from fractions import Fraction
 
 from PIL import Image, ImageDraw, ImageFont
-from ly2video.ly.tokenize import MusicTokenizer, Tokenizer
-import ly2video.ly.tools
 import midi
 from ly2video.utils import *
 from ly2video.video import *
@@ -70,82 +69,9 @@ NOTE_NAMES = [
     "G", "G#/Ab", "A", "A#/Bb", "B"
 ]
 
-
-class LySrc(object):
-    """
-    Provides access to the contents of .ly files, which on first read
-    are cached in memory along with the changelist from converting
-    relative note pitches to absolute pitches.
-    """
-    cache = {}
-
-    __slots__ = ['filename', 'lines', 'parser', 'absolutePitches']
-
-    @classmethod
-    def get(cls, filename):
-        if filename not in cls.cache:
-            cls.cache[filename] = LySrc(filename)
-        return cls.cache[filename]
-
-    def __init__(self, filename):
-        self.filename = filename
-        self.readLines()
-        document = ''.join(self.lines)
-        self.initParser(document)
-        self.getAbsolutePitches(document)
-
-    def readLines(self):
-        with open(self.filename) as f:
-            self.lines = [line for line in f.readlines()]
-
-    def initParser(self, document):
-        language, keyPitch = ly2video.ly.tools.languageAndKey(document)
-        progress('Detected language as %s' % language)
-        self.parser = MusicTokenizer()
-        self.parser.language = language
-
-    def getAbsolutePitches(self, document):
-        if document.find('\\relative') == -1:
-            self.absolutePitches = {}
-            return
-
-        # N.B. line numbers in this are numbered starting from 0
-        changelist = ly2video.ly.tools.relativeToAbsolute(document)
-        self.absolutePitches = changelist.token_changes_by_coords
-        debug("absolutePitches: %s" % repr(self.absolutePitches))
-        if not self.absolutePitches:
-            warn("Conversion of .ly relative pitches to absolute failed. "
-                 "Synchronization will probably fail.")
-
-    def getAbsolutePitch(self, lySrcLocation):
-        coords = lySrcLocation.coords()
-        if coords in self.absolutePitches:
-            grobPitchText = self.absolutePitches[coords]
-        else:
-            # text representations of absolute and relative pitch are the same
-            # (absolutePitches contains a changelist, i.e. only differences)
-            grobPitchText = \
-                self.lines[lySrcLocation.lineNum][lySrcLocation.columnNum:]
-
-        try:
-            grobPitchToken = self.parser.tokens(grobPitchText).next()
-        except StopIteration:
-            bug("Didn't find a note at:\n"
-                "    %s\n" % lySrcLocation)
-
-        if grobPitchToken == 'q':
-            # 'q' means a repeated chord in LilyPond
-            return None, grobPitchToken
-
-        if not isinstance(grobPitchToken,
-                          ly2video.ly.tokenize.MusicTokenizer.Pitch):
-            bug("Expected pitch token during conversion from relative to\n"
-                "absolute pitch, but found %s instance @ %s:\n\n    %s" %
-                (grobPitchToken.__class__, lySrcLocation, grobPitchToken),
-                33, 37)
-
-        grobPitchValue = pitchValue(grobPitchToken, self.parser)
-        return grobPitchValue, grobPitchToken
+NOTE_ALTERATIONS = [
+    'eses', 'eseh', 'es', 'eh', '', 'ih', 'is', 'isih', 'isis'
+]
 
 
 class LySrcLocation(object):
@@ -153,13 +79,23 @@ class LySrcLocation(object):
     Represents a location within a .ly file.  Note that line numbers
     count from 0, but are displayed counting from 1, since that
     matches what editors such as emacs and vim show.
-    """
-    __slots__ = ['filename', 'lineNum', 'columnNum']
 
-    def __init__(self, filename, lineNum, columnNum):
+    Addtional pitch info is stored.
+
+    - octave: int, 0 is c', 1 is c'', -1 is c, and so on
+    - notename: int, 0,1,2,3,4,5,6 for c,d,e,f,g,a,b 
+    - alteration: Fraction, 0: no alteration, 1/2: SHARP, -1/2: FLAT, and so on
+
+    """
+    __slots__ = ['filename', 'lineNum', 'columnNum', 'octave', 'notename', 'alteration']
+
+    def __init__(self, filename, lineNum, columnNum, octave, notename, alteration):
         self.filename  = filename
         self.lineNum   = lineNum
         self.columnNum = columnNum
+        self.octave  = octave
+        self.notename  = notename
+        self.alteration  = alteration
 
     def __str__(self):
         return "%s:%d:%d" % (self.filename, self.lineNum + 1, self.columnNum)
@@ -168,7 +104,15 @@ class LySrcLocation(object):
         return (self.lineNum, self.columnNum)
 
     def getAbsolutePitch(self):
-        return LySrc.get(self.filename).getAbsolutePitch(self)
+        accidentalSemitoneSteps = 2 * self.alteration
+
+        pitch = (self.octave + 5) * 12 + \
+            C_MAJOR_SCALE_STEPS[self.notename] + \
+            accidentalSemitoneSteps
+
+        token = noteToken(self.octave, self.notename, self.alteration)
+
+        return pitch, token
 
 
 def preprocessLyFile(lyFile, lilypondVersion, dumper):
@@ -240,6 +184,8 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
         m = re.match('^ly2video:\\s+'
                      # X-extents
                      '\\(\\s*(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)\\s*\\)'
+                     # pitch (octave/notename/alteration)
+                     '\\s+pitch\\s+(-?\\d+):(\\d+):(-?\\d+(?:/\\d+)?)'
                      # delimiter
                      '\\s+@\\s+'
                      # moment
@@ -251,7 +197,7 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
                      '$', line)
         if not m:
             bug("Failed to parse ly2video line:\n%s" % line)
-        left, right, moment, filename, line, column = m.groups()
+        left, right, octave, notename, alteration, moment, filename, line, column = m.groups()
 
         if currentLySrcFile is None or currentLySrcFile != filename:
             currentLySrcFile = filename
@@ -259,6 +205,9 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
 
         left   = float(left)
         right  = float(right)
+        octave = int(octave)
+        notename = int(notename)
+        alteration = Fraction(alteration)
         centre = (left + right) / 2
         moment = float(moment)
         line   = int(line) - 1  # LilyPond counts from 1
@@ -266,10 +215,12 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
         x = int(round(staffSpacesToPixels(centre, dpi))) + leftPaperMarginPx
 
         if moment not in leftmostGrobs or x < leftmostGrobs[moment][0]:
-            location = LySrcLocation(filename, line, column)
+            location = LySrcLocation(
+                filename, line, column, octave, notename, alteration)
             leftmostGrobs[moment] = [x, location]
-            debug("leftmost grob for moment %9f is now x =%5d @ %3d:%d"
-                  % (moment, x, line + 1, column))
+            debug("leftmost grob (%2d, %s) for moment %9f is now x =%5d @ %3d:%d"
+                  % (location.getAbsolutePitch()[0], location.getAbsolutePitch()[1],
+                     moment, x, line + 1, column))
 
     groblist = [tuple([moment] + leftmostGrobs[moment])
                 for moment in sorted(leftmostGrobs.keys())]
@@ -559,22 +510,28 @@ def getMidiEvents(midiFileName):
     return (midiResolution, temposList, midiTicks, notesInTicks, pitchBends)
 
 
-def pitchValue(token, parser):
-    """
-    Returns the numerical pitch of the token representing a note,
-    where the token is treated as an absolute pitch, and each
-    increment of 1 is equivalent to going up a semi-tone (half-step).
-    This facilitates comparison to MIDI NoteOn events.
-    """
-    p = ly2video.ly.tools.Pitch.fromToken(token, parser)
+def pitchToken(pitch):
+    pitch = int(pitch)
+    token = NOTE_NAMES[pitch % 12].lower()
 
-    accidentalSemitoneSteps = 2 * p.alter
+    if pitch < 4 * 12:
+        token +=  "," * (4 - pitch // 12)
+    else:
+        token +=  "'" * (pitch // 12 - 4)
 
-    pitch = (p.octave + 4) * 12 + \
-        C_MAJOR_SCALE_STEPS[p.note] + \
-        accidentalSemitoneSteps
+    return token
 
-    return pitch
+
+def noteToken(octave, notename, alteration):
+    token = NOTE_NAMES[C_MAJOR_SCALE_STEPS[notename]].lower()
+    token += NOTE_ALTERATIONS[4 + int(alteration * 4)]
+
+    if octave < -1:
+        token +=  "," * (-octave - 1)
+    else:
+        token +=  "'" * (octave + 1)
+
+    return token
 
 
 def getMidiPitches(events, pitchBends):
@@ -724,11 +681,11 @@ def getNoteIndices(leftmostGrobsByMoment,
         # ChordName, since its pitch might be in a different octave to
         # the NoteOn event for the root of the chord.
         if grobPitchValue not in midiPitches:
-            debug("    grob's pitch %d not found in midiPitches; "
-                  "probably a tie/ChordName" % grobPitchValue)
+            debug("    grob's pitch %d (%s) not found in midiPitches; "
+                  "probably a tie/ChordName" % (grobPitchValue, pitchToken(grobPitchValue)))
             midiPitches = [str(event.get_pitch()) for event in events]
             debug("    midiPitches: %s" %
-                  " ".join(["%s (%s)" % (pitch, NOTE_NAMES[int(pitch) % 12])
+                  " ".join(["%s (%s)" % (pitch, pitchToken(pitch))
                             for pitch in sorted(midiPitches)]))
             if midiIndex == 0:
                 # This is the first MIDI event - we can't skip it,
@@ -1238,24 +1195,14 @@ def getLyVersion(fileName):
     else:
         # otherwise try to open fileName
         try:
-            fLyFile = open(fileName, "r")
+            with open(fileName, "r") as fLyFile:
+                # find version of LilyPond in .ly input file
+                for line in fLyFile.readlines():
+                    m = re.search(r'\\version\s+"([^"]+)"', line)
+                    if m:
+                        return m.group(1)
         except IOError:
             fatal("Couldn't read %s" % fileName, 5)
-
-    # find version of LilyPond in .ly input file
-    version = ""
-    for line in fLyFile.readlines():
-        if line.find("\\version") != -1:
-            parser = Tokenizer()
-            for token in parser.tokens(line):
-                if token.__class__.__name__ == "StringQuoted":
-                    version = str(token)[1:-1]
-                    break
-            if version != "":
-                break
-    fLyFile.close()
-
-    return version
 
 
 def getNumStaffLines(lyFileName, dpi):
@@ -1340,8 +1287,11 @@ def writeSpaceTimeDumper():
          (pitch        (ly:event-property cause 'pitch))
          (midi-pitch   (if (ly:pitch? pitch) (+ 0.0 (ly:pitch-tones pitch)) "no pitch")))
    (if (not (equal? (ly:grob-property grob 'transparent) #t))
-    (format #t "\\nly2video: (~23,16f, ~23,16f) @ ~23,16f from ~a:~3d:~d"
+    (format #t "\\nly2video: (~23,16f, ~23,16f) pitch ~d:~a:~a @ ~23,16f from ~a:~3d:~d"
                 left right
+                (ly:pitch-octave pitch)
+                (ly:pitch-notename pitch)
+                (ly:pitch-alteration pitch)
                 (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
                 file line char))))
 

@@ -9,7 +9,7 @@ setup(name='ly2video',
       author='Adam Spiers',
       author_email='github@adamspiers.org',
       url='https://github.com/aspiers/ly2video',
-      packages=['ly2video', 'ly2video.ly'],
+      packages=['ly2video'],
       entry_points={
           'console_scripts': [
               'ly2video = ly2video.cli:main'
