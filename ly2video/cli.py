@@ -1139,6 +1139,7 @@ def generateNotesVideo(ffmpeg, fps, quality, wavPath):
         "-i", framePath,
         "-i", wavPath,
         "-q:v", quality,
+        "-f", "avi",
         notesPath
     ]
     safeRun(cmd, exitcode=15)
@@ -1175,6 +1176,7 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
         "-i", framePath,
         "-i", silentAudio,
         "-q:v", quality,
+        "-f", "avi",
         out
     ]
     safeRun(cmd, exitcode=14)
@@ -1229,6 +1231,7 @@ def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
             "-i", "concat:%s" % "|".join(videos),
             "-codec", "copy",
             "-y",
+            "-f", "avi",
             outputFile,
         ]
         safeRun(cmd, exitcode=16)
