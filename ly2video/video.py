@@ -414,7 +414,7 @@ class ScoreImage (Media):
             centre = self.width / 2
             left  = int(index - centre)
             right = int(index + centre)
-            frame = self.picture.copy().crop((left, self.__cropTop, right, self.__cropBottom))
+            frame = self.picture.crop((left, self.__cropTop, right, self.__cropBottom))
             cursorX = centre
         else:
             if self.__leftEdge is None:
@@ -435,7 +435,7 @@ class ScoreImage (Media):
                 # the cursor has to finish its travel in the last picture cropping
                 self.rightMargin = 0
             rightEdge = self.__leftEdge + self.width
-            frame = self.picture.copy().crop((self.__leftEdge, self.__cropTop,
+            frame = self.picture.crop((self.__leftEdge, self.__cropTop,
                                           rightEdge, self.__cropBottom))
         return (frame,cursorX)
 
