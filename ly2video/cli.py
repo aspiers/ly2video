@@ -27,6 +27,7 @@
 
 import collections
 import copy
+import itertools
 import os
 import re
 import shutil
@@ -39,6 +40,7 @@ from distutils.version import StrictVersion
 from argparse import ArgumentParser
 from struct import pack
 from fractions import Fraction
+from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 import midi
@@ -46,6 +48,9 @@ from ly2video.utils import *
 from ly2video.video import *
 
 from pprint import pprint, pformat
+
+from pexpect.popen_spawn import PopenSpawn
+from pexpect import EOF
 
 VERSION = '0.4.2'
 
@@ -303,9 +308,9 @@ def generateTitleFrame(titleText, width, height, ttfFile):
     drawer = ImageDraw.Draw(titleScreen)
 
     # font for song's name, args - font type, size
-    nameFont = ImageFont.truetype(ttfFile, height / 15)
+    nameFont = ImageFont.truetype(ttfFile, int(height / 15))
     # font for author
-    authorFont = ImageFont.truetype(ttfFile, height / 25)
+    authorFont = ImageFont.truetype(ttfFile, int(height / 25))
 
     # args - position of left upper corner of rectangle (around text),
     # text, font and color (black)
@@ -318,9 +323,7 @@ def generateTitleFrame(titleText, width, height, ttfFile):
                  (height / 2) + height / 25),
                 titleText.author, font=authorFont, fill=(0, 0, 0))
 
-    out = tmpPath("title.png")
-    titleScreen.save(out)
-    return out
+    return titleScreen
 
 
 def staffSpacesToPixels(ss, dpi):
@@ -1022,6 +1025,55 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preproces
     return stdout.decode("utf-8")
 
 
+def safeRunInput(cmd, inputs, errormsg=None, exitcode=None, issues=[], preprocessor=None):
+    quotedCmd = [cmd[0]]
+    for arg in cmd[1:]:
+        quotedCmd.append(pipes.quote(arg))
+    quotedCmd = " ".join(quotedCmd)
+
+    debug("Running: %s\n" % quotedCmd)
+
+    outputs = []
+
+    try:
+        process = PopenSpawn(cmd, timeout=None)
+
+        if inputs:
+            count = 0
+            for input in inputs:
+                process.send(input)
+                count += 1
+
+                if count % 10 == 0:
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
+
+        process.sendeof()
+        process.expect(EOF)
+        output = process.before
+    except KeyboardInterrupt:
+        fatal("Interrupted via keyboard; aborting.")
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        excmsg = "%s: %s" % (exc_type.__name__, exc_value)
+        if errormsg is None:
+            errormsg = "Failed to run command: %s:\n%s" % \
+                (quotedCmd, excmsg)
+        if issues:
+            bug(errormsg, *issues)
+        else:
+            fatal(errormsg, exitcode)
+
+    retcode = process.wait()
+    if retcode:
+        raise subprocess.CalledProcessError(retcode, cmd, output=output)
+
+    if preprocessor:
+        output = preprocessor(output)
+
+    return output.decode("utf-8")
+
+
 def findExecutableDependencies(options):
     stdout = safeRun(["lilypond", "-v"], "LilyPond was not found.", 1)
     progress("LilyPond was found.")
@@ -1089,37 +1141,28 @@ def getOutputFile(options):
     return absPathFromRunDir(outputFile)
 
 
-def generateNotesVideo(ffmpeg, fps, quality, wavPath):
+def imageToBytes(image):
+    f = BytesIO()
+    image.save(f, format="BMP")
+    return f.getvalue() 
+
+
+def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
     progress("Generating video with animated notation\n")
     notesPath = tmpPath("notes.mpg")
-    framePath = tmpPath('notes', 'frame%d.png')
     cmd = [
         ffmpeg,
-        "-f", "image2",
+        "-f", "image2pipe",
         "-r", str(fps),
-        "-i", framePath,
+        "-i", "-",
         "-i", wavPath,
         "-q:v", quality,
         "-f", "avi",
         notesPath
     ]
-    safeRun(cmd, exitcode=15)
+    safeRunInput(cmd, inputs=(imageToBytes(frame) for frame in frames), exitcode=15)
     output_divider_line()
     return notesPath
-
-
-def generateStaticVideoFrames(name, frames, srcFrame):
-    outdir = tmpPath(name)
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-    frameFileTemplate = "frame%d.png"
-
-    for i in xrange(frames):
-        os.symlink(srcFrame, os.path.join(outdir, frameFileTemplate % i))
-
-    progress("Generated %d frames in %s/ from %s\n" %
-             (frames, outdir, srcFrame))
-    return tmpPath(name, frameFileTemplate)
 
 
 def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
@@ -1128,41 +1171,40 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
     trueDuration = float(frames) / fps
     progress("Generating silent video %s, duration %fs\n" %
              (out, trueDuration))
-    framePath   = generateStaticVideoFrames(name, frames, srcFrame)
     silentAudio = generateSilence(name, trueDuration)
     cmd = [
         ffmpeg,
-        "-f", "image2",
+        "-f", "image2pipe",
         "-r", str(fps),
-        "-i", framePath,
+        "-i", "-",
         "-i", silentAudio,
         "-q:v", quality,
         "-f", "avi",
         out
     ]
-    safeRun(cmd, exitcode=14)
+    safeRunInput(cmd, inputs=itertools.repeat(imageToBytes(srcFrame), frames), exitcode=14)
     output_divider_line()
     return out
 
 
-def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
+def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
     fps = float(options.fps)
     quality = str(options.quality)
 
-    videos = [generateNotesVideo(ffmpeg, fps, quality, wavPath)]
+    videos = [generateNotesVideo(ffmpeg, fps, quality, frameWriter.frames, wavPath)]
 
     initialPadding, finalPadding = options.padding.split(",")
 
     if float(initialPadding) > 0:
         video = generateSilentVideo(ffmpeg, fps, quality,
                                     float(initialPadding), 'initial-padding',
-                                    tmpPath("notes/frame0.png"))
+                                    frameWriter.firstFrame)
         videos.insert(0, video)
 
     if float(finalPadding) > 0:
         video = generateSilentVideo(ffmpeg, fps, quality,
                                     float(finalPadding), 'final-padding',
-                                    tmpPath(finalFrame))
+                                    frameWriter.lastFrame)
         videos.append(video)
 
     if options.titleAtStart:
@@ -1558,7 +1600,7 @@ def main():
         lastOffset = midiTicks[-1] / midiResolution
         frameWriter.push(
             SlideShow(options.slideShow, options.slideShowCursor, lastOffset))
-    frameWriter.write()
+    #  frameWriter.write()
     output_divider_line()
 
     wavPath = genWavFile(timidity, midiPath)
@@ -1566,8 +1608,8 @@ def main():
     output_divider_line()
 
     outputFile = getOutputFile(options)
-    finalFrame = "notes/frame%d.png" % (frameWriter.frameNum - 1)
-    generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile)
+    #  finalFrame = "notes/frame%d.png" % (frameWriter.frameNum - 1)
+    generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile)
 
     output_divider_line()
 
