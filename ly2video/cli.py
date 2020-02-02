@@ -1152,6 +1152,7 @@ def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
     notesPath = tmpPath("notes.mpg")
     cmd = [
         ffmpeg,
+        "-nostdin",
         "-f", "image2pipe",
         "-r", str(fps),
         "-i", "-",
@@ -1174,6 +1175,7 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
     silentAudio = generateSilence(name, trueDuration)
     cmd = [
         ffmpeg,
+        "-nostdin",
         "-f", "image2pipe",
         "-r", str(fps),
         "-i", "-",
@@ -1231,6 +1233,7 @@ def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
         # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
         cmd = [
             ffmpeg,
+            "-nostdin",
             "-i", "concat:%s" % "|".join(videos),
             "-codec", "copy",
             "-y",
