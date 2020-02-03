@@ -1100,6 +1100,7 @@ def generateNotesVideo(ffmpeg, fps, quality, wavPath):
         "-i", framePath,
         "-i", wavPath,
         "-q:v", quality,
+        "-f", "avi",
         notesPath
     ]
     safeRun(cmd, exitcode=15)
@@ -1136,6 +1137,7 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
         "-i", framePath,
         "-i", silentAudio,
         "-q:v", quality,
+        "-f", "avi",
         out
     ]
     safeRun(cmd, exitcode=14)
@@ -1180,16 +1182,20 @@ def generateVideo(ffmpeg, options, wavPath, titleText, finalFrame, outputFile):
         progress("Joining videos:\n%s" %
                  "".join(["  %s\n" % video for video in videos]))
 
-        with open(outputFile,'wb') as wfd:
-            for video in videos:
-                with open(video,'rb') as fd:
-                    shutil.copyfileobj(fd, wfd)
-
-    # Could also do this with ffmpeg:
-    #
-    #   ffmpeg -i concat:"title.mpg|notes.mpg" -codec copy out.mpg
-    #
-    # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
+        # Do this with ffmpeg:
+        #
+        #   ffmpeg -i concat:"title.mpg|notes.mpg" -codec copy out.mpg
+        #
+        # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
+        cmd = [
+            ffmpeg,
+            "-i", "concat:%s" % "|".join(videos),
+            "-codec", "copy",
+            "-y",
+            "-f", "avi",
+            outputFile,
+        ]
+        safeRun(cmd, exitcode=16)
 
 
 def getLyVersion(fileName):
