@@ -203,7 +203,7 @@ class VideoFrameWriter(object):
             neededFrames = self.__timecode.nbFramesToNextNote()
             for i in xrange(neededFrames):
                 frame = self.__makeFrame(i, neededFrames)
-                if i == 0:
+                if not self.firstFrame:
                     self.firstFrame = frame
 
                 self.frameNum += 1
