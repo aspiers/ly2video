@@ -177,6 +177,9 @@ class VideoFrameWriter(object):
         self.__medias = []
         self.__timecode = TimeCode (midiTicks,temposList,midiResolution,fps)
 
+        self.firstFrame = None
+        self.lastFrame = None
+
     def push (self, media):
         self.height += media.height
         self.__medias.append(media)
@@ -194,25 +197,34 @@ class VideoFrameWriter(object):
         self.__scoreImage.cursorLineColor = self.cursorLineColor
         self.__timecode.registerObserver(scoreImage)
 
+    @property
+    def frames (self):
+        while not self.__timecode.atEnd() :
+            neededFrames = self.__timecode.nbFramesToNextNote()
+            for i in xrange(neededFrames):
+                frame = self.__makeFrame(i, neededFrames)
+                if not self.firstFrame:
+                    self.firstFrame = frame
+
+                self.frameNum += 1
+                yield frame
+            else:
+                self.lastFrame = frame
+
+            self.__timecode.goToNextNote()
+
     def write (self):
         # folder to store frames for video
         if not os.path.exists("notes"):
             os.mkdir("notes")
 
-        while not self.__timecode.atEnd() :
-            neededFrames = self.__timecode.nbFramesToNextNote()
-            for i in xrange(neededFrames):
-                videoFrame = self.__makeFrame(i, neededFrames)
-                # Save the frame.  ffmpeg doesn't work if the numbers in these
-                # filenames are zero-padded.
-                videoFrame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
-                self.frameNum += 1
-                if not DEBUG and self.frameNum % 10 == 0:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-
-            self.__timecode.goToNextNote()
-
+        for videoFrame in self.frames:
+            # Save the frame.  ffmpeg doesn't work if the numbers in these
+            # filenames are zero-padded.
+            videoFrame.save(tmpPath("notes", "frame%d.png" % self.frameNum))
+            if not DEBUG and self.frameNum % 10 == 0:
+                sys.stdout.write(".")
+                sys.stdout.flush()
 
     def __makeFrame (self, numFrame, among):
         debug("        writing frame %d" % (self.frameNum))
@@ -402,7 +414,7 @@ class ScoreImage (Media):
             centre = self.width / 2
             left  = int(index - centre)
             right = int(index + centre)
-            frame = self.picture.copy().crop((left, self.__cropTop, right, self.__cropBottom))
+            frame = self.picture.crop((left, self.__cropTop, right, self.__cropBottom))
             cursorX = centre
         else:
             if self.__leftEdge is None:
@@ -423,7 +435,7 @@ class ScoreImage (Media):
                 # the cursor has to finish its travel in the last picture cropping
                 self.rightMargin = 0
             rightEdge = self.__leftEdge + self.width
-            frame = self.picture.copy().crop((self.__leftEdge, self.__cropTop,
+            frame = self.picture.crop((self.__leftEdge, self.__cropTop,
                                           rightEdge, self.__cropBottom))
         return (frame,cursorX)
 
