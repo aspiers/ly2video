@@ -1548,6 +1548,8 @@ def main():
                    numStaffLines, titleText, lilypondVersion)
 
     output = runLilyPond(sanitisedLyFileName, options.dpi,)
+    with open(tmpPath("sanitised.ly.out"), "w") as out:
+        out.write(output)
 
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
                                                      leftPaperMargin)
