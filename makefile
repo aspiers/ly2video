@@ -11,5 +11,5 @@ run:
 	docker run -it -v ${LILY_FILES}:/opt/lily/scores ly2video
 
 .PHONY:
-	build-ly2video
+	build
 	run
