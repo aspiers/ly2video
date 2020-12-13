@@ -1,0 +1,10 @@
+version: "3"
+services:
+  ly2video:
+    image: ly2video
+    build:
+      context: .
+      dockerfile: Dockerfile.ly2video
+      args:
+        - BASE_PATH
+        - SCORE_PATH

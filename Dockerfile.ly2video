@@ -1,0 +1,46 @@
+FROM ubuntu:16.04
+
+RUN apt-get update && apt-get install -y \
+    timidity \
+    python-pip \
+    python-imaging swig \
+    libasound-dev \
+    git \
+    curl \
+    ffmpeg
+
+ARG BASE_PATH
+ARG SCORE_PATH
+
+# Check for mandatory build arguments
+RUN \
+    : "${BASE_PATH:?mandatory build argument is missing}"
+RUN \
+    : "${SCORE_PATH:?mandatory build argument is missing}"
+
+RUN mkdir -p ${BASE_PATH}/ly2video
+
+WORKDIR ${BASE_PATH}
+
+RUN curl -o lilypond.sh https://lilypond.org/download/binaries/linux-64/lilypond-2.20.0-1.linux-64.sh
+
+RUN ls -l
+
+RUN chmod +x lilypond.sh
+
+RUN sh lilypond.sh --batch
+
+WORKDIR ${BASE_PATH}/ly2video
+
+RUN git clone https://github.com/aspiers/ly2video.git .
+
+
+RUN pwd
+RUN ls
+
+RUN pip install -r requirements.txt
+RUN pip install .
+
+WORKDIR ${SCORE_PATH}
+
+CMD ["/bin/bash"]

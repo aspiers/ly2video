@@ -145,6 +145,21 @@ You must ensure that your `.ly` input file contains both `\layout { }`
 and `\midi` commands, which ensure that valid `.midi` and `.png` files
 are generated when it is run through `lilypond --png`.
 
+## Usage with docker container
+
+Set up your path to argument LILY_FILES in makefile.
+
+Build docker container with workable ly2video inside
+
+    make build
+
+Run docker container with access to direcory you point at LILY_FILES
+
+    make run
+
+Use `ly2video` usually.
+All actions applied in container to your files (LILY_FILES) will change your files (LILY_FILES) outside container.
+
 ## Support, bugs, development etc.
 
 Please check the [issue tracker](https://github.com/aspiers/ly2video/issues)
