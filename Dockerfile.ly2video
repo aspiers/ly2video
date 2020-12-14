@@ -33,7 +33,7 @@ RUN sh lilypond.sh --batch
 
 WORKDIR ${BASE_PATH}/ly2video
 
-RUN git clone https://github.com/aspiers/ly2video.git .
+COPY . .
 
 
 RUN pwd
