@@ -416,7 +416,7 @@ def getNotesInTicks(midiFile):
     pitchBends   = {}
 
     # for every channel in MIDI (except the first one)
-    for i in xrange(1, len(midiFile)):
+    for i in range(1, len(midiFile)):
         debug("Reading MIDI track %d" % i)
         track = midiFile[i]
         pendingPitchBend = None
@@ -963,7 +963,7 @@ def getVersion():
             return m.group(1)
     except:
         #exc_type, exc_value, exc_traceback = sys.exc_info()
-        #print "%s: %s" % (exc_type.__name__, exc_value)
+        #print("%s: %s" % (exc_type.__name__, exc_value))
         pass
 
     return VERSION
