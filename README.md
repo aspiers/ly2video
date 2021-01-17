@@ -55,7 +55,7 @@ zypper](http://wiki.links2linux.de/packman:faq_en#software_installation_updates_
 You can ensure the remaining dependencies are installed via something
 like:
 
-    sudo zypper install lilypond timidity python-pip python-imaging alsa-devel
+    sudo zypper install lilypond timidity python3-pip python-imaging alsa-devel
 
 ### Installing dependencies on Debian- and Ubuntu-based Linux distributions
 
@@ -71,7 +71,7 @@ of LilyPond, so you might need to install a newer one via the
 You can ensure the remaining dependencies are installed via something
 like:
 
-    sudo apt-get install timidity python-pip python-imaging swig libasound-dev
+    sudo apt-get install timidity python3-pip python3-pil swig libasound-dev
 
 ### Installing dependencies on Arch-based Linux distributions
 
