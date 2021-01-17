@@ -28,7 +28,7 @@ How it actually works under the hood:
 - `ly2video` uses LilyPond to generate a MIDI rendition of the audio
   alongside the graphical rendering of the score.
 - If a beatmap is specified, `ly2video`
-  uses [`midi-rubato`](../midi-rubato) to insert MIDI tempo change
+  uses [`midi-rubato`](../scripts/midi-rubato) to insert MIDI tempo change
   events into the generated `.midi` file.
 - `ly2video` generates a scrolling video which is synchronised with
   the MIDI events from the `.midi` file.
