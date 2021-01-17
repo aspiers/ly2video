@@ -35,7 +35,7 @@ to get it working - please see below for how to get support.
 *   FFmpeg (if you are on Ubuntu or Debian, see first see
     [issue 32](https://github.com/aspiers/ly2video/issues/32))
 *   TiMidity++
-*   Python 3.5
+*   Python >= 3.5
 *   Python's [pip installer](http://www.pip-installer.org)
 *   [swig](http://www.swig.org/) and ALSA development libraries
     (`python-midi` requires these in order to build its sequencer
