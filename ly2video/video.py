@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 # ly2video - generate performances video from LilyPond source files
@@ -34,7 +34,7 @@ try:
 except NameError:
     xrange = range
 
- 
+
 # Image manipulation functions
 
 def writeCursorLine(image, X, color):
