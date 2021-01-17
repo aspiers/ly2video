@@ -132,7 +132,7 @@ For example, to install system-wide, just run
 
 or for the current user via:
 
-    sudo pip install --user .
+    pip install --user .
 
 If something fails, please double-check you correctly met the
 requirements and dependencies detailed above.
