@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 """
 xsc2beatmap - generates a beat map from an .xsc file

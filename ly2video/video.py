@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 # ly2video - generate performances video from LilyPond source files
@@ -34,12 +34,12 @@ try:
 except NameError:
     xrange = range
 
- 
+
 # Image manipulation functions
 
 def writeCursorLine(image, X, color):
     """Draws a line on the image"""
-    for pixel in xrange(image.size[1]):
+    for pixel in range(image.size[1]):
         image.putpixel((X    , pixel), color)
         image.putpixel((X + 1, pixel), color)
 
@@ -49,7 +49,7 @@ def writeMeasureCursor(image, start, end, color, cursor_height=10):
     if start > w :
         raise Exception()
     for dx in range(end-start) :
-        for y in xrange(cursor_height):
+        for y in range(cursor_height):
             if start + dx < w and start + dx > 0 :
                 image.putpixel((start + dx, h-y-1), color)
 
@@ -71,9 +71,9 @@ def findTopStaffLine(image, lineLength):
     width, height = image.size
 
     # Start searching at the hard left but allow for a left margin.
-    for x in xrange(width):
-        for y in xrange(height):
-            for length in xrange(lineLength):
+    for x in range(width):
+        for y in range(height):
+            for length in range(lineLength):
                 # testing color of pixels in range (startPos, startPos + lineLength)
                 if image.getpixel((x + length, y)) == (255,255,255):
                     # if it's white then it's not a staff line
@@ -113,7 +113,7 @@ def findStaffLinesInImage(image, lineLength):
 
     width, height = image.size
 
-    for y in xrange(firstLineY, height):
+    for y in range(firstLineY, height):
         # if color of that pixel isn't white
         if image.getpixel((firstLineX, y)) != (255,255,255):
             # and it can be new staff line
@@ -201,7 +201,7 @@ class VideoFrameWriter(object):
     def frames (self):
         while not self.__timecode.atEnd() :
             neededFrames = self.__timecode.nbFramesToNextNote()
-            for i in xrange(neededFrames):
+            for i in range(neededFrames):
                 frame = self.__makeFrame(i, neededFrames)
                 if not self.firstFrame:
                     self.firstFrame = frame
@@ -463,7 +463,7 @@ class ScoreImage (Media):
         Returns True if the line with the given y coordinate
         is entirely white.
         """
-        for x in xrange(width):
+        for x in range(width):
             if pixels[x, y] != (255, 255, 255):
                 return False
         return True
@@ -474,7 +474,7 @@ class ScoreImage (Media):
         pixels = self.__picture.load()
         progress("Auto-detecting top margin; this may take a while ...")
         self.__topCroppable = 0
-        for y in xrange(picture_height):
+        for y in range(picture_height):
             if y == picture_height - 1:
                 raise BlankScoreImageError
             if self.__isLineBlank(pixels, picture_width, y):
@@ -488,7 +488,7 @@ class ScoreImage (Media):
         pixels = self.__picture.load()
         progress("Auto-detecting top margin; this may take a while ...")
         self.__bottomCroppable = 0
-        for y in xrange(picture_height - 1, -1, -1):
+        for y in range(picture_height - 1, -1, -1):
             if y == 0:
                 raise BlankScoreImageError
             if self.__isLineBlank(pixels, picture_width, y):

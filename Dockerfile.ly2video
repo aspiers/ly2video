@@ -2,8 +2,9 @@ FROM ubuntu:16.04
 
 RUN apt-get update && apt-get install -y \
     timidity \
-    python-pip \
-    python-imaging swig \
+    python3-pip \
+    python3-pil \
+    swig \
     libasound-dev \
     git \
     curl \
@@ -39,8 +40,8 @@ COPY . .
 RUN pwd
 RUN ls
 
-RUN pip install -r requirements.txt
-RUN pip install .
+RUN pip3 install -r requirements.txt
+RUN pip3 install .
 
 WORKDIR ${SCORE_PATH}
 

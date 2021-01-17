@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 # ly2video - generate performances video from LilyPond source files
@@ -25,15 +25,12 @@
 # Used to determine --version output for released versions, not
 # when running from a git check-out:
 
-import collections
-import copy
 import itertools
 import os
 import re
 import shutil
 import subprocess
 import sys
-import urllib
 import pipes
 from collections import namedtuple
 from distutils.version import StrictVersion
@@ -88,7 +85,7 @@ class LySrcLocation(object):
     Addtional pitch info is stored.
 
     - octave: int, 0 is c', 1 is c'', -1 is c, and so on
-    - notename: int, 0,1,2,3,4,5,6 for c,d,e,f,g,a,b 
+    - notename: int, 0,1,2,3,4,5,6 for c,d,e,f,g,a,b
     - alteration: Fraction, 0: no alteration, 1/2: SHARP, -1/2: FLAT, and so on
 
     """
@@ -416,7 +413,7 @@ def getNotesInTicks(midiFile):
     pitchBends   = {}
 
     # for every channel in MIDI (except the first one)
-    for i in xrange(1, len(midiFile)):
+    for i in range(1, len(midiFile)):
         debug("Reading MIDI track %d" % i)
         track = midiFile[i]
         pendingPitchBend = None
@@ -963,7 +960,7 @@ def getVersion():
             return m.group(1)
     except:
         #exc_type, exc_value, exc_traceback = sys.exc_info()
-        #print "%s: %s" % (exc_type.__name__, exc_value)
+        #print("%s: %s" % (exc_type.__name__, exc_value))
         pass
 
     return VERSION
@@ -1144,7 +1141,7 @@ def getOutputFile(options):
 def imageToBytes(image):
     f = BytesIO()
     image.save(f, format="BMP")
-    return f.getvalue() 
+    return f.getvalue()
 
 
 def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
@@ -1538,7 +1535,7 @@ def main():
 
     numStaffLines = getNumStaffLines(lyFile, options.dpi)
 
-    titleText = collections.namedtuple("titleText", "name author")
+    titleText = namedtuple("titleText", "name author")
     titleText.name = "<name of song>"
     titleText.author = "<author>"
 
