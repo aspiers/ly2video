@@ -4,7 +4,7 @@ services:
     image: ly2video
     build:
       context: .
-      dockerfile: Dockerfile.ly2video
+      dockerfile: Dockerfile
       args:
         - BASE_PATH
         - SCORE_PATH
