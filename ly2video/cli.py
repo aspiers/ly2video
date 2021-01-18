@@ -124,7 +124,7 @@ def preprocessLyFile(lyFile, lilypondVersion, dumper):
     if version and version != lilypondVersion:
         progress("Will convert to: %s" % lilypondVersion)
         newLyFile = tmpPath('converted.ly')
-        with open(newLyFile, 'w') as f:
+        with open(newLyFile, 'w', encoding='utf-8') as f:
             f.write(dumper)
         if os.system("convert-ly '%s' >> '%s'" % (lyFile, newLyFile)) == 0:
             return newLyFile
@@ -134,9 +134,9 @@ def preprocessLyFile(lyFile, lilypondVersion, dumper):
 
     newLyFile = tmpPath('unconverted.ly')
 
-    with open(newLyFile, 'w') as new:
+    with open(newLyFile, 'w', encoding='utf-8') as new:
         new.write(dumper)
-        with open(lyFile) as old:
+        with open(lyFile, encoding='utf-8') as old:
             new.write(''.join(old.readlines()))
 
     debug("new ly file is " + newLyFile)
@@ -774,7 +774,7 @@ def generateSilence(name, length):
         os.mkdir(outdir)
     out = os.path.join(outdir, name + '.wav')
 
-    with open(out, "wb") as fSilence:
+    with open(out, 'wb') as fSilence:
         for b in  (
                 'RIFF'.encode('utf-8'),                   # ChunkID (magic)      # 0x00
                 pack('<I', ChunkSize),                    # ChunkSize            # 0x04
@@ -1247,7 +1247,7 @@ def getLyVersion(fileName):
     else:
         # otherwise try to open fileName
         try:
-            with open(fileName, "r") as fLyFile:
+            with open(fileName, 'r', encoding='utf-8') as fLyFile:
                 # find version of LilyPond in .ly input file
                 for line in fLyFile.readlines():
                     m = re.search(r'\\version\s+"([^"]+)"', line)
@@ -1306,7 +1306,7 @@ def getNumStaffLines(lyFileName, dpi):
 
 def writeSpaceTimeDumper():
     filename = 'dump-spacetime-info.ly'
-    f = open(tmpPath(filename), 'w')
+    f = open(tmpPath(filename), 'w', encoding='utf-8')
     f.write('''
 % Huge thanks to Jan Nieuwenhuizen for helping me with this!
 
@@ -1383,12 +1383,12 @@ def writeSpaceTimeDumper():
 
 def sanitiseLy(lyFile, dumper, width, height, dpi, numStaffLines,
                titleText, lilypondVersion):
-    fLyFile = open(lyFile, "r")
+    fLyFile = open(lyFile, 'r', encoding='utf-8')
 
     sanitisedLyFileName = tmpPath("sanitised.ly")
 
     # create own ly lyFile
-    fSanitisedLyFile = open(sanitisedLyFileName, "w")
+    fSanitisedLyFile = open(sanitisedLyFileName, 'w', encoding='utf-8')
 
     # if I add own paper block
     paperBlock = False
@@ -1545,7 +1545,7 @@ def main():
                    numStaffLines, titleText, lilypondVersion)
 
     output = runLilyPond(sanitisedLyFileName, options.dpi,)
-    with open(tmpPath("sanitised.ly.out"), "w") as out:
+    with open(tmpPath('sanitised.ly.out'), 'w', encoding='utf-8') as out:
         out.write(output)
 
     leftmostGrobsByMoment = getLeftmostGrobsByMoment(output, options.dpi,
