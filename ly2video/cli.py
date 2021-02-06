@@ -1595,6 +1595,8 @@ def main():
     leftMargin, rightMargin = options.cursorMargins.split(",")
     frameWriter.scoreImage = ScoreImage(
         options.width, options.height,
+        # https://pillow.readthedocs.io/en/5.1.x/releasenotes/5.0.0.html#decompression-bombs-now-raise-exceptions
+        Image.MAX_IMAGE_PIXELS = None
         Image.open(notesImage), noteIndices, measuresXpositions,
         int(leftMargin), int(rightMargin),
         options.scrollNotes, options.noteCursor)
