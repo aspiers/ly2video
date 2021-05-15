@@ -414,7 +414,7 @@ class ScoreImage (Media):
             left  = int(index - centre)
             right = int(index + centre)
             frame = self.picture.crop((left, self.__cropTop, right, self.__cropBottom))
-            cursorX = centre
+            cursorX = int(centre)
         else:
             if self.__leftEdge is None:
                 # first frame
