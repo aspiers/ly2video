@@ -152,7 +152,6 @@ class VideoFrameWriter(object):
                  midiResolution, midiTicks, temposList):
         """
         Params:
-          - videoDef:          Strict definition of the final video
           - fps:               frame rate of video
           - cursorLineColor:   color of middle line
           - midiResolution:    resolution of MIDI file

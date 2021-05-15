@@ -849,10 +849,6 @@ def parseOptions():
         help='resolution in DPI [%(default)s]',
         metavar="DPI", type=int, default=110)
     group_video.add_argument(
-        "--videoDef",
-        help='Definition of final video [1280x720]',
-        default=None)
-    group_video.add_argument(
         "-x", "--width",
         help='pixel width of final video [%(default)s]',
         metavar="WIDTH", type=int, default=1280)
