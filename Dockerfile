@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 RUN apt-get update && apt-get install -y \
     timidity \
@@ -24,7 +24,7 @@ RUN mkdir -p ${BASE_PATH}/ly2video
 
 WORKDIR ${BASE_PATH}
 
-RUN curl -o lilypond.sh https://lilypond.org/download/binaries/linux-64/lilypond-2.20.0-1.linux-64.sh
+RUN curl -o lilypond.sh https://lilypond.org/download/binaries/linux-64/lilypond-2.22.1-1.linux-64.sh
 
 RUN ls -l
 
