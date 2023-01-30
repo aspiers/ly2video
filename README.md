@@ -75,22 +75,7 @@ like:
 
 ### Installing dependencies on Arch-based Linux distributions
 
-Download the source tarball from [the Arch User Repository](https://aur.archlinux.org/packages/ly2video-git/), extract it, and run
-
-    makepkg -si
-
-in the directory you extracted to in order to pull all the dependencies (python and otherwise)
-from the main repos and then install ly2video. The other dependencies
-from the AUR will have to be installed manually; however, they will all be listed
-if you run `makepkg` in the same directory.
-
-If you have an AUR helper such as [yaourt](https://wiki.archlinux.org/index.php/Yaourt) installed, this entire process can be shortened to one step:
-
-    yaourt -S ly2video
-
-where yaourt would be replaced by the name of your AUR helper if you have a different helper installed.
-
-Regardless, after installing the package, you can use the script by running `ly2video` with the required arguments.
+Download and install [the AUR package `ly2video-git`](https://aur.archlinux.org/packages/ly2video-git/). See the [the Arch wiki](https://wiki.archlinux.org/title/Arch_User_Repository#Installing_and_upgrading_packages) for further instructions.
 
 ### Installing dependencies on other platforms
 
