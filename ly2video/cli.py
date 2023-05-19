@@ -1343,6 +1343,33 @@ def writeSpaceTimeDumper():
                 (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
                 file line char))))
 
+#(define (dump-spacetime-infod grob)
+  (let* ((extent       (ly:grob-extent grob grob X))
+         (system       (ly:grob-system grob))
+         (x-extent     (ly:grob-extent grob system X))
+         (left         (car x-extent))
+         (right        (cdr x-extent))
+         (paper-column (grob-get-paper-column grob))
+         (time         (ly:grob-property paper-column 'when 0))
+         (cause        (ly:grob-property grob 'cause))
+         (origin       (ly:event-property cause 'origin))
+         (location     (ly:input-file-line-char-column origin))
+         (file         (list-ref location 0))
+         (line         (list-ref location 1))
+         (char         (list-ref location 2))
+         (column       (list-ref location 3))
+         (drum-type    (ly:event-property cause 'drum-type))
+         (pitch        (ly:assoc-get drum-type midiDrumPitches))
+         (midi-pitch   (if (ly:pitch? pitch) (+ 0.0 (ly:pitch-tones pitch)) "no pitch")))
+   (if (not (equal? (ly:grob-property grob 'transparent) #t))
+    (format #t "\nly2video: (~23,16f, ~23,16f) pitch ~d:~a:~a @ ~23,16f from ~a:~3d:~d"
+                left right
+                (ly:pitch-octave pitch)
+                (ly:pitch-notename pitch)
+                (ly:pitch-alteration pitch)
+                (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
+                file line char))))
+
 #(define (dump-spacetime-info-barline grob)
   (let* ((extent       (ly:grob-extent grob grob X))
          (system       (ly:grob-system grob))
@@ -1359,6 +1386,14 @@ def writeSpaceTimeDumper():
                 ))))
 
 \layout {
+  \context {
+    \DrumVoice
+    \override NoteHead  #'after-line-breaking = #dump-spacetime-infod
+  }
+  \context {
+    \DrumStaff
+    \override BarLine  #'after-line-breaking = #dump-spacetime-info-barline
+  }
   \context {
     \Voice
     \override NoteHead  #'after-line-breaking = #dump-spacetime-info
