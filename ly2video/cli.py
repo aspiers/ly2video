@@ -27,11 +27,13 @@
 
 import itertools
 import os
+import pipes
 import re
 import shutil
 import subprocess
 import sys
-import pipes
+import traceback
+
 from collections import namedtuple
 from distutils.version import StrictVersion
 from argparse import ArgumentParser
@@ -1262,7 +1264,9 @@ def getLyVersion(fileName):
                     m = re.search(r'\\version\s+"([^"]+)"', line)
                     if m:
                         return m.group(1)
-        except IOError:
+        except Exception as e:
+            traceback.print_exception(e)
+
             fatal("Couldn't read %s" % fileName, 5)
 
 
