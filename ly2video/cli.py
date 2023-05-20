@@ -260,7 +260,7 @@ def getMeasuresIndices(output, dpi, leftPaperMarginPx):
                      '(-?\\d+\\.\\d+)'
                      '$', line)
         if not m:
-            bug("Failed to parse ly2video line:\n%s" % line)
+            bug("Failed to parse ly2videoBar line:\n%s" % line)
         left, right, moment = m.groups()
 
         left   = float(left)
