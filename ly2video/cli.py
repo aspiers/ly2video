@@ -179,11 +179,17 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
     leftmostGrobs = {}
     currentLySrcFile = None
 
+    prefix = '^ly2video:\\s+'
     for line in lines:
         if not line.startswith('ly2video: '):
             continue
 
-        m = re.match('^ly2video:\\s+'
+        # Allow ly2video to embed comments in output for debugging
+        # purposes.
+        if re.match(prefix + '#', line):
+            continue
+
+        m = re.match(prefix +
                      # X-extents
                      '\\(\\s*(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)\\s*\\)'
                      # pitch (octave/notename/alteration)
@@ -1344,6 +1350,7 @@ def writeSpaceTimeDumper():
                            (ly:event-property cause 'pitch)
                           (ly:assoc-get drum-type midiDrumPitches)))
          (midi-pitch   (if (ly:pitch? pitch) (+ 0.0 (ly:pitch-tones pitch)) "no pitch")))
+   (if #f (format #t "\\nly2video: # pitch ~a drum-type ~a ~a" pitch drum-type (null? drum-type)))
    (if (not (equal? (ly:grob-property grob 'transparent) #t))
     (format #t "\\nly2video: (~23,16f, ~23,16f) pitch ~d:~a:~a @ ~23,16f from ~a:~3d:~d"
                 left right
