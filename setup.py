@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='ly2video',
-      version='0.4.1',
+      version='0.5.0',
       description='Converts Lilypond files to videos',
       license='GPLv3',
       author='Adam Spiers',

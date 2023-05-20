@@ -51,7 +51,7 @@ from pprint import pprint, pformat
 from pexpect.popen_spawn import PopenSpawn
 from pexpect import EOF
 
-VERSION = '0.4.2'
+VERSION = '0.5.0'
 
 GLOBAL_STAFF_SIZE = 20
 
