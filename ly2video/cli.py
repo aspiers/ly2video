@@ -117,15 +117,13 @@ class LySrcLocation(object):
         return pitch, token
 
 
-def preprocessLyFile(lyFile, lilypondVersion, dumper):
+def preprocessLyFile(lyFile, lilypondVersion):
     version = getLyVersion(lyFile)
     progress("Version in %s: %s" %
              (lyFile, version if version else "unspecified"))
     if version and version != lilypondVersion:
         progress("Will convert to: %s" % lilypondVersion)
         newLyFile = tmpPath('converted.ly')
-        with open(newLyFile, 'w', encoding='utf-8') as f:
-            f.write(dumper)
         if os.system("convert-ly '%s' >> '%s'" % (lyFile, newLyFile)) == 0:
             return newLyFile
         else:
@@ -135,7 +133,6 @@ def preprocessLyFile(lyFile, lilypondVersion, dumper):
     newLyFile = tmpPath('unconverted.ly')
 
     with open(newLyFile, 'w', encoding='utf-8') as new:
-        new.write(dumper)
         with open(lyFile, encoding='utf-8') as old:
             new.write(''.join(old.readlines()))
 
@@ -1568,11 +1565,9 @@ def main():
     # .ly input file from user (string)
     lyFile = options.input
 
-    dumper = writeSpaceTimeDumper()
-
     # If the input .ly doesn't match the currently installed LilyPond
     # version, try to convert it
-    lyFile = preprocessLyFile(lyFile, lilypondVersion, dumper)
+    lyFile = preprocessLyFile(lyFile, lilypondVersion)
 
     # https://pillow.readthedocs.io/en/5.1.x/releasenotes/5.0.0.html#decompression-bombs-now-raise-exceptions
     Image.MAX_IMAGE_PIXELS = None
@@ -1583,6 +1578,7 @@ def main():
     titleText.name = "<name of song>"
     titleText.author = "<author>"
 
+    dumper = writeSpaceTimeDumper()
     sanitisedLyFileName, leftPaperMargin = \
         sanitiseLy(lyFile, dumper,
                    options.width, options.height, options.dpi,
