@@ -1388,23 +1388,23 @@ def writeSpaceTimeDumper():
 \layout {
   \context {
     \DrumVoice
-    \override NoteHead  #'after-line-breaking = #dump-spacetime-infod
+    \override NoteHead.after-line-breaking = #dump-spacetime-infod
   }
   \context {
     \DrumStaff
-    \override BarLine  #'after-line-breaking = #dump-spacetime-info-barline
+    \override BarLine.after-line-breaking = #dump-spacetime-info-barline
   }
   \context {
     \Voice
-    \override NoteHead  #'after-line-breaking = #dump-spacetime-info
+    \override NoteHead.after-line-breaking = #dump-spacetime-info
   }
   \context {
     \Staff
-    \override BarLine  #'after-line-breaking = #dump-spacetime-info-barline
+    \override BarLine.after-line-breaking = #dump-spacetime-info-barline
   }
   \context {
     \ChordNames
-    \override ChordName #'after-line-breaking = #dump-spacetime-info
+    \override ChordName.after-line-breaking = #dump-spacetime-info
   }
 }
 ''')
