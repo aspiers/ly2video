@@ -1343,7 +1343,7 @@ def writeSpaceTimeDumper():
                 (+ 0.0 (ly:moment-main time) (* (ly:moment-grace time) (/ 9 40)))
                 file line char))))
 
-#(define (dump-spacetime-infod grob)
+#(define (dump-spacetime-info-drums grob)
   (let* ((extent       (ly:grob-extent grob grob X))
          (system       (ly:grob-system grob))
          (x-extent     (ly:grob-extent grob system X))
@@ -1388,7 +1388,7 @@ def writeSpaceTimeDumper():
 \layout {
   \context {
     \DrumVoice
-    \override NoteHead.after-line-breaking = #dump-spacetime-infod
+    \override NoteHead.after-line-breaking = #dump-spacetime-info-drums
   }
   \context {
     \DrumStaff
