@@ -203,8 +203,8 @@ def getLeftmostGrobsByMoment(output, dpi, leftPaperMarginPx):
                      # delimiter
                      '\\s+from\\s+'
                      # file:line:char
-                     '([^:]+): *(\d+):(\d+)'
-                     '$', line)
+                     '(.+): *(\d+):(\d+)'
+                     '\\r?$', line)
         if not m:
             bug("Failed to parse ly2video line:\n%s" % line)
         left, right, octave, notename, alteration, moment, filename, line, column = m.groups()
