@@ -1,4 +1,4 @@
-Pillow==7.1.0
+Pillow==9.3.0
 pexpect==4.8.0
 
 # python-midi 0.2.2 is also required; however, the upstream repository
