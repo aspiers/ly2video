@@ -37,7 +37,7 @@ import sys
 
 from optparse import OptionParser
 
-import midi
+import mido
 
 def parse_args():
     parser = OptionParser("Usage: %prog SRC-MIDI BEATMAP DST-MIDI")
@@ -56,6 +56,27 @@ def parse_args():
 def main():
     src, beatmap, dst = parse_args()
     generate_adjusted_midi_file(src, dst, beatmap)
+
+def make_time_abs(midiFile):
+    """
+    Changes the time of all messages to absolute time in ticks
+    """
+    for track in midiFile.tracks:
+        time = 0
+        for event in track:
+            time += event.time
+            event.time = time
+
+def make_time_rel(midiFile):
+    """
+    Changes the time of all messages to incremental time in ticks
+    """
+    for track in midiFile.tracks:
+        prev_time = 0
+        for event in track:
+            tmp_time = event.time
+            event.time -= prev_time
+            prev_time = tmp_time
 
 def get_tempos_from_beatmap(filename, resolution):
     xsc = open(filename)
@@ -81,11 +102,9 @@ def get_tempos_from_beatmap(filename, resolution):
 def new_tempo_event(tick, new_bpm, new_qpm, section, measure, beat):
     print("inserting %6.2fbpm (%6.2fqpm) @ section %d bar %3d beat %d tick %6d" %
           (new_bpm, new_qpm, section, measure, beat, tick))
-    tc = midi.SetTempoEvent()
-    tc.tick = tick
+    tc = mido.MetaMessage('set_tempo', time=tick, tempo=mido.bpm2tempo(new_qpm))
     # N.B. the midi library's API incorrectly refers to bpm when
     # it actually means qpm:
-    tc.set_bpm(new_qpm)
     return tc
 
 def apply_rubato(tracks, tempos):
@@ -97,7 +116,7 @@ def apply_rubato(tracks, tempos):
     # never know).
     for i in xrange(len(control)):
         event = control[i]
-        if isinstance(event, midi.EndOfTrackEvent):
+        if event.type == 'end_of_track':
             del control[i:]
             break
 
@@ -112,14 +131,14 @@ def apply_rubato(tracks, tempos):
                 break
             next_tempo = tempos[0]
             next_tempo_tick = next_tempo[0]
-            if next_tempo_tick > event.tick:
+            if next_tempo_tick > event.time:
                 break
             tc = new_tempo_event(*(tempos.pop(0)))
             control.insert(event_index, tc)
             event_index += 1
 
         # remove any pre-existing SetTempoEvents
-        if isinstance(event, midi.SetTempoEvent):
+        if event.type == 'set_tempo':
             print("  - dropping SetTempoEvent")
             del control[event_index]
         else:
@@ -135,18 +154,15 @@ def apply_rubato(tracks, tempos):
         tc = new_tempo_event(*(tempos.pop(0)))
         control.append(tc)
 
-    eot = midi.EndOfTrackEvent()
-    eot.tick = control[-1].tick
+    eot = mido.MetaMessage('end_of_track', time=control[-1].time)
     control.append(eot)
-
-    return tracks
 
 def get_final_tick(tracks):
     final_tick = None
     for track in tracks:
         for event in track:
-            if event.tick > final_tick:
-                final_tick = event.tick
+            if event.time > final_tick:
+                final_tick = event.time
     return final_tick
 
 def timestamp_to_secs(timestamp):
@@ -164,18 +180,18 @@ def secs_to_timestamp(secs):
     return "%d:%02d:%s" % (hours, mins, secs)
 
 def generate_adjusted_midi_file(src, dst, beatmap):
-    tracks = midi.read_midifile(src)
+    midiFile = mido.MidiFile(src)
     print("Read from %s" % src)
 
-    tracks.make_ticks_abs()
-    beats = get_tempos_from_beatmap(beatmap, tracks.resolution)
-    apply_rubato(tracks, beats)
+    make_time_abs(midiFile)
+    beats = get_tempos_from_beatmap(beatmap, midiFile.ticks_per_beat)
+    apply_rubato(midiFile.tracks, beats)
     from pprint import pprint
-    pprint(tracks[0][-2])
-    pprint(tracks[1][-2])
-    tracks.make_ticks_rel()
+    pprint(midiFile.tracks[0][-2])
+    pprint(midiFile.tracks[1][-2])
+    make_time_rel(midiFile)
 
-    midi.write_midifile(dst, tracks)
+    midiFile.save(dst)
     print("Wrote tempo-adjusted tracks to %s" % dst)
 
 if __name__ == '__main__':

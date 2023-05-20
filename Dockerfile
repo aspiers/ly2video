@@ -4,8 +4,6 @@ RUN apt-get update && apt-get install -y \
     timidity \
     python3-pip \
     python3-pil \
-    swig \
-    libasound-dev \
     git \
     curl \
     ffmpeg \

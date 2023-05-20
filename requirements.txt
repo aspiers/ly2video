@@ -1,16 +1,3 @@
 Pillow==9.3.0
 pexpect==4.8.0
-
-# python-midi 0.2.2 is also required; however, the upstream repository
-# still has an unmerged pull request fixing a significant tempo
-# calculation bug:
-#
-#   https://github.com/vishnubob/python-midi/pull/6
-#
-# whereas my fork has the pull request already merged in:
-git+https://github.com/aspiers/python-midi.git#egg=midi
-
-# Once https://github.com/pypa/pip/pull/526 is completed,
-# this should work instead, for anyone who wants to
-# concurrently hack on python-midi:
-#-e git+https://github.com/aspiers/python-midi.git#egg=midi&subdirectory=src
+mido==1.2.9

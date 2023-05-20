@@ -40,7 +40,7 @@ from fractions import Fraction
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
-import midi
+import mido
 from ly2video.utils import *
 from ly2video.video import *
 
@@ -390,15 +390,16 @@ def getTemposList(midiFile):
     Returns a list of tempo changes in midiFile.  Each tempo change is
     represented as a (tick, tempoValue) tuple.
     """
-    midiHeader = midiFile[0]
+    midiHeader = midiFile.tracks[0]
 
     temposList = []
     for event in midiHeader:
         # if it's SetTempoEvent
-        if isinstance(event, midi.SetTempoEvent):
+        if event.type == 'set_tempo':
+            bpm = mido.tempo2bpm(event.tempo)
             debug("tick %6d: tempo change to %.3f bpm" %
-                  (event.tick, event.bpm))
-            temposList.append((event.tick, event.bpm))
+                  (event.time, bpm))
+            temposList.append((event.time, bpm))
 
     return temposList
 
@@ -413,43 +414,43 @@ def getNotesInTicks(midiFile):
     pitchBends   = {}
 
     # for every channel in MIDI (except the first one)
-    for i in range(1, len(midiFile)):
+    for i in range(1, len(midiFile.tracks)):
         debug("Reading MIDI track %d" % i)
-        track = midiFile[i]
+        track = midiFile.tracks[i]
         pendingPitchBend = None
         for event in track:
-            tick = event.tick
-            eventClass = event.__class__.__name__
+            tick = event.time
+            eventClass = event.type
 
             if pendingPitchBend:
                 if pendingPitchBend.tick != tick:
                     bug("Found orphaned pitch bend in tick %d" %
                         pendingPitchBend.tick)
-                if not isinstance(event, midi.NoteOnEvent):
+                if not eventClass == 'note_on':
                     bug("Pitch bend was not followed by NoteOn in tick %d" %
                         tick)
-                if event.get_velocity() == 0:
+                if event.velocity == 0:
                     bug("Pitch bend was followed by NoteOff")
 
-            if isinstance(event, midi.PitchWheelEvent):
-                bend = event.get_pitch()
+            if eventClass == 'pitchwheel':
+                bend = event.pitch
                 debug("    tick %6d: %s(%d)" %
                       (tick, eventClass, bend))
                 if bend != 0:
                     pendingPitchBend = event
                 continue
-            elif isinstance(event, midi.NoteOnEvent):
-                if event.get_velocity() == 0:
+            elif eventClass == 'note_on':
+                if event.velocity == 0:
                     # velocity is zero (that's basically "NoteOffEvent")
                     debug("    tick %6d:     NoteOffEvent(%d)" %
-                          (tick, event.get_pitch()))
+                          (tick, event.note))
                     continue
                 else:
                     if pendingPitchBend:
                         pitchBends[event] = pendingPitchBend
                         pendingPitchBend = None
                     debug("    tick %6d: %s(%d)" %
-                          (tick, eventClass, event.get_pitch()))
+                          (tick, eventClass, event.note))
             else:
                 debug("    tick %6d:     %s - skipping" %
                       (tick, eventClass))
@@ -462,6 +463,15 @@ def getNotesInTicks(midiFile):
 
     return notesInTicks, pitchBends
 
+def make_time_abs(midiFile):
+    """
+    Changes the time of all messages to absolute time in ticks
+    """
+    for track in midiFile.tracks:
+        time = 0
+        for event in track:
+            time += event.time
+            event.time = time
 
 def getMidiEvents(midiFileName):
     """
@@ -481,12 +491,12 @@ def getMidiEvents(midiFileName):
     """
 
     # open MIDI with external library
-    midiFile = midi.read_midifile(midiFileName)
+    midiFile = mido.MidiFile(midiFileName)
     # and make ticks absolute
-    midiFile.make_ticks_abs()
+    make_time_abs(midiFile)
 
     # get MIDI resolution and header
-    midiResolution = midiFile.resolution
+    midiResolution = midiFile.ticks_per_beat
     progress("MIDI resolution (ticks per beat) is %d" % midiResolution)
 
     temposList = getTemposList(midiFile)
@@ -501,10 +511,10 @@ def getMidiEvents(midiFileName):
     # find the tick corresponding to the earliest EndOfTrackEvent
     # across all MIDI channels, and append it
     endOfTrack = -1
-    for eventsList in midiFile[1:]:
-        if isinstance(eventsList[-1], midi.EndOfTrackEvent):
-            if endOfTrack < eventsList[-1].tick:
-                endOfTrack = eventsList[-1].tick
+    for eventsList in midiFile.tracks[1:]:
+        if eventsList[-1].type == 'end_of_track':
+            if endOfTrack < eventsList[-1].time:
+                endOfTrack = eventsList[-1].time
     midiTicks.append(endOfTrack)
 
     progress("MIDI: Parsing MIDI file has ended.")
@@ -543,9 +553,9 @@ def getMidiPitches(events, pitchBends):
     """
     midiPitches = {}
     for event in events:
-        pitch = event.get_pitch()
-        if event in pitchBends:
-            pitch += float(pitchBends[event].get_pitch()) / 4096
+        pitch = event.note
+        if pitch in pitchBends:
+            pitch += float(pitchBends[pitch].pitch) / 4096 # TODO:
         midiPitches[pitch] = event
     return midiPitches
 
@@ -655,8 +665,8 @@ def getNoteIndices(leftmostGrobsByMoment,
             msg = "    WARNING: skipping MIDI tick %d since " \
                   "no grob matched; contents:" % midiTick
             for event in events:
-                msg += ("\n        pitch %d length %d" %
-                        (event.get_pitch(), event.length))
+                msg += ("\n        pitch %d time %d" %
+                        (event.note, event.time))
             progress(msg)
             continue
 
@@ -685,7 +695,7 @@ def getNoteIndices(leftmostGrobsByMoment,
         if grobPitchValue not in midiPitches:
             debug("    grob's pitch %d (%s) not found in midiPitches; "
                   "probably a tie/ChordName" % (grobPitchValue, pitchToken(grobPitchValue)))
-            midiPitches = [str(event.get_pitch()) for event in events]
+            midiPitches = [str(event.note) for event in events]
             debug("    midiPitches: %s" %
                   " ".join(["%s (%s)" % (pitch, pitchToken(pitch))
                             for pitch in sorted(midiPitches)]))

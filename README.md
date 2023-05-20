@@ -37,9 +37,6 @@ to get it working - please see below for how to get support.
 *   TiMidity++
 *   Python >= 3.5
 *   Python's [pip installer](http://www.pip-installer.org)
-*   [swig](http://www.swig.org/) and ALSA development libraries
-    (`python-midi` requires these in order to build its sequencer
-    code successfully, although ly2video doesn't use that code)
 
 ## Installation
 
@@ -71,7 +68,7 @@ of LilyPond, so you might need to install a newer one via the
 You can ensure the remaining dependencies are installed via something
 like:
 
-    sudo apt-get install timidity python3-pip python3-pil swig libasound-dev
+    sudo apt-get install timidity python3-pip python3-pil
 
 ### Installing dependencies on Arch-based Linux distributions
 
