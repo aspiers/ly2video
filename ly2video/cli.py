@@ -378,6 +378,8 @@ def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     fFile.write("   left-margin   = %d\\mm\n" % leftMm)
     fFile.write("   right-margin  = %d\\mm\n" % rightMm)
 
+    fFile.write("   oddFooterMarkup = \\markup \\null\n")
+    fFile.write("   evenFooterMarkup = \\markup \\null\n")
     fFile.write("}\n")
 
     fFile.write("#(set-global-staff-size %d)\n" % GLOBAL_STAFF_SIZE)
