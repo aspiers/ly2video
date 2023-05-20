@@ -373,10 +373,10 @@ def writePaperHeader(fFile, width, height, dpi, numOfLines, lilypondVersion):
     leftMm   = round(pixelsToMm(leftPixels,   dpi))
     rightMm  = round(pixelsToMm(rightPixels,  dpi))
 
-    fFile.write("   top-margin    = %d\\mm\n" % topMm)
-    fFile.write("   bottom-margin = %d\\mm\n" % bottomMm)
-    fFile.write("   left-margin   = %d\\mm\n" % leftMm)
-    fFile.write("   right-margin  = %d\\mm\n" % rightMm)
+    fFile.write("   top-margin    = %d\\mm  %% %d pixels\n" % (topMm, topPixels))
+    fFile.write("   bottom-margin = %d\\mm  %% %d pixels\n" % (bottomMm, bottomPixels))
+    fFile.write("   left-margin   = %d\\mm  %% %d pixels\n" % (leftMm, leftPixels))
+    fFile.write("   right-margin  = %d\\mm  %% %d pixels\n" % (rightMm, rightPixels))
 
     fFile.write("   oddFooterMarkup = \\markup \\null\n")
     fFile.write("   evenFooterMarkup = \\markup \\null\n")
