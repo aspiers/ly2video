@@ -346,6 +346,7 @@ class ScoreImage (Media):
         picture_width, picture_height = self.__picture.size
 
         bottomY = picture_height - self.bottomCroppable
+        progress("      Video height: %5d pixels" % self.height)
         progress("      Image height: %5d pixels" % picture_height)
         progress("   Top margin size: %5d pixels" % self.topCroppable)
         progress("Bottom margin size: %5d pixels (y=%d)" %
