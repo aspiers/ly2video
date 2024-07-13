@@ -37,6 +37,7 @@ import traceback
 from collections import namedtuple
 from distutils.version import StrictVersion
 from argparse import ArgumentParser
+from configparser import ConfigParser
 from struct import pack
 from fractions import Fraction
 from io import BytesIO
@@ -129,18 +130,41 @@ class LySrcLocation(object):
         return pitch, token
 
 
-def preprocessLyFile(lyFile, lilypondVersion):
+# TODO:
+# On Wine, convert-ly can't be found and yet this function still returns 0.
+# convert-ly can be run on wine as "python /path/to/convert-ly.py".
+#
+# if convert-ly is run on windows:
+# warning: cannot find file: `C:\users\me\Temp\ly2video4gs3sqqy\converted.ly'
+# fatal error: failed files: "C:\\users\\me\\Temp\\ly2video4gs3sqqy\\converted.ly"
+#
+# Could this be related to deleting the tmp directory from shutil.rmtree that
+# raises an exception?
+def runConvertLy(lilypond, lyFile, newLyFile):
+    if sys.platform.startswith("win"):
+#        rc = os.system("python %sconvert-ly.py '%s' >> '%s'"
+#                            % (lilypond, lyFile, newLyFile))
+        print("not running convert-ly.py on windows...");
+        rc = 1  # for now error out so that converted.ly is created by copy
+    else:
+        rc = os.system("convert-ly '%s' >> '%s'" % (lyFile, newLyFile))
+
+    if rc:
+        warn("Convert of input file has failed. " +
+           "This could cause some problems.")
+
+    return rc
+
+def preprocessLyFile(lilypond, lyFile, lilypondVersion):
     version = getLyVersion(lyFile)
     progress("Version in %s: %s" %
              (lyFile, version if version else "unspecified"))
     if version and version != lilypondVersion:
         progress("Will convert to: %s" % lilypondVersion)
         newLyFile = tmpPath('converted.ly')
-        if os.system("convert-ly '%s' >> '%s'" % (lyFile, newLyFile)) == 0:
+        if runConvertLy(lilypond, lyFile, newLyFile) == 0:
+            print('convertly success')
             return newLyFile
-        else:
-            warn("Convert of input file has failed. " +
-                 "This could cause some problems.")
 
     newLyFile = tmpPath('unconverted.ly')
 
@@ -758,7 +782,7 @@ def getNoteIndices(leftmostGrobsByMoment,
     return alignedNoteIndices
 
 
-def genWavFile(timidity, midiPath):
+def genWavFile(midiPath):
     """
     Call TiMidity++ to convert MIDI to .wav.
     It has a weird problem where it converts any '.' into '_'
@@ -768,7 +792,7 @@ def genWavFile(timidity, midiPath):
     progress("Running TiMidity++ on %s to generate .wav audio ..." % midiPath)
     dirname, midiFile = os.path.split(midiPath)
     os.chdir(dirname)
-    cmd = [timidity, midiFile, "-Ow"]
+    cmd = ["timidity", midiFile, "-Ow"]
     progress(safeRun(cmd, exitcode=11))
     wavExpected = midiPath.replace('.midi', '.wav')
     if not os.path.exists(wavExpected):
@@ -931,14 +955,19 @@ def parseOptions():
     group_os = parser.add_argument_group(title='External programs')
 
     group_os.add_argument(
-        "--windows-ffmpeg", dest="winFfmpeg",
-        help='(for Windows users) folder with ffpeg.exe '
+        "--lilypond", dest="lilypond",
+        help='folder with lilypond executable '
+        '(e.g. "C:\\lilypond\\bin\\")',
+        metavar="PATH", default="")
+    group_os.add_argument(
+        "--ffmpeg", dest="ffmpeg",
+        help='folder with ffmpeg executable '
         '(e.g. "C:\\ffmpeg\\bin\\")',
         metavar="PATH", default="")
     group_os.add_argument(
-        "--windows-timidity", dest="winTimidity",
-        help='(for Windows users) folder with '
-        'timidity.exe (e.g. "C:\\timidity\\")',
+        "--timidity", dest="timidity",
+        help='folder with timidity executable'
+        ' (e.g. "C:\\timidity\\")',
         metavar="PATH", default="")
 
     group_debug = parser.add_argument_group(title='Debug')
@@ -961,6 +990,15 @@ def parseOptions():
         sys.exit(0)
 
     options = parser.parse_args()
+
+    # Check for options in config file.  Don't apply them if cli arguments
+    # were supplied.
+    config = ConfigParser()
+    if config.read('ly2video.cfg'):
+        section = config['External programs']
+        options.lilypond = options.lilypond or section.get('lilypond')
+        options.ffmpeg = options.ffmpeg or section.get('ffmpeg')
+        options.timidity = options.timidity or section.get('timidity')
 
     if options.showVersion:
         showVersion()
@@ -1025,7 +1063,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preproces
     debug("Running: %s\n" % quotedCmd)
 
     try:
-        stdout = subprocess.check_output(cmd, shell=shell)
+        stdout = subprocess.check_output(cmd, shell=shell, env=os.environ)
     except KeyboardInterrupt:
         fatal("Interrupted via keyboard; aborting.")
     except:
@@ -1095,7 +1133,8 @@ def safeRunInput(cmd, inputs, errormsg=None, exitcode=None, issues=[], preproces
 
 
 def findExecutableDependencies(options):
-    stdout = safeRun(["lilypond", "-v"], "LilyPond was not found.", 1)
+    stdout = safeRun(["lilypond", "-v"],
+        "LilyPond was not found (maybe use --lilypond?).", 1)
     progress("LilyPond was found.")
     m = re.search('\AGNU LilyPond (\d[\d.]+\d)', stdout)
     if not m:
@@ -1113,19 +1152,17 @@ def findExecutableDependencies(options):
 
     redirectToNull = " >%s" % portableDevNull()
 
-    ffmpeg = options.winFfmpeg + "ffmpeg"
-    if os.system(ffmpeg + " -version" + redirectToNull) != 0:
-        fatal("FFmpeg was not found (maybe use --windows-ffmpeg?).", 2)
+    stdout = safeRun(["ffmpeg", "-version", redirectToNull],
+        "FFmpeg was not found (maybe use --ffmpeg?).", 2)
     progress("FFmpeg was found.")
 
-    timidity = options.winTimidity + "timidity"
-    if os.system(timidity + " -v" + redirectToNull) != 0:
-        fatal("TiMidity++ was not found (maybe use --windows-timidity?).", 3)
+    stdout = safeRun(["timidity", "-v", redirectToNull],
+        "Timidity was not found (maybe use --timidity?).", 3)
     progress("TiMidity++ was found.")
 
     output_divider_line()
 
-    return version, ffmpeg, timidity
+    return version
 
 
 def getCursorLineColor(options):
@@ -1156,11 +1193,11 @@ def imageToBytes(image):
     return f.getvalue()
 
 
-def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
+def generateNotesVideo(fps, quality, frames, wavPath):
     progress("Generating video with animated notation\n")
     notesPath = tmpPath("notes.mpg")
     cmd = [
-        ffmpeg,
+        "ffmpeg",
         "-nostdin",
         "-f", "image2pipe",
         "-r", str(fps),
@@ -1175,7 +1212,7 @@ def generateNotesVideo(ffmpeg, fps, quality, frames, wavPath):
     return notesPath
 
 
-def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
+def generateSilentVideo(fps, quality, desiredDuration, name, srcFrame):
     out         = tmpPath('%s.mpg' % name)
     frames = int(desiredDuration * fps)
     trueDuration = float(frames) / fps
@@ -1183,7 +1220,7 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
              (out, trueDuration))
     silentAudio = generateSilence(name, trueDuration)
     cmd = [
-        ffmpeg,
+        "ffmpeg",
         "-nostdin",
         "-f", "image2pipe",
         "-r", str(fps),
@@ -1198,22 +1235,22 @@ def generateSilentVideo(ffmpeg, fps, quality, desiredDuration, name, srcFrame):
     return out
 
 
-def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
+def generateVideo(options, wavPath, titleText, frameWriter, outputFile):
     fps = float(options.fps)
     quality = str(options.quality)
 
-    videos = [generateNotesVideo(ffmpeg, fps, quality, frameWriter.frames, wavPath)]
+    videos = [generateNotesVideo(fps, quality, frameWriter.frames, wavPath)]
 
     initialPadding, finalPadding = options.padding.split(",")
 
     if float(initialPadding) > 0:
-        video = generateSilentVideo(ffmpeg, fps, quality,
+        video = generateSilentVideo(fps, quality,
                                     float(initialPadding), 'initial-padding',
                                     frameWriter.firstFrame)
         videos.insert(0, video)
 
     if float(finalPadding) > 0:
-        video = generateSilentVideo(ffmpeg, fps, quality,
+        video = generateSilentVideo(fps, quality,
                                     float(finalPadding), 'final-padding',
                                     frameWriter.lastFrame)
         videos.append(video)
@@ -1224,7 +1261,7 @@ def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
                                         options.titleTtfFile)
         output_divider_line()
 
-        video = generateSilentVideo(ffmpeg, fps, quality,
+        video = generateSilentVideo(fps, quality,
                                     float(options.titleDuration),
                                     'title', titleFrame)
         videos.insert(0, video)
@@ -1241,7 +1278,7 @@ def generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile):
         #
         # See: http://stackoverflow.com/questions/7333232/concatenate-two-mp4-files-using-ffmpeg
         cmd = [
-            ffmpeg,
+            "ffmpeg",
             "-nostdin",
             "-i", "concat:%s" % "|".join(videos),
             "-codec", "copy",
@@ -1545,25 +1582,27 @@ def main():
     """
     options = parseOptions()
 
-    lilypondVersion, ffmpeg, timidity = findExecutableDependencies(options)
+    # old behaviour was to use path+executable, new behaviour is to modify
+    # the path variable for subproceses.  I don't think there's any harm
+    # in empty path separators.
+    os.environ["PATH"] += os.pathsep + options.lilypond
+    os.environ["PATH"] += os.pathsep + options.ffmpeg
+    os.environ["PATH"] += os.pathsep + options.timidity
+
+    lilypondVersion = findExecutableDependencies(options)
 
     # FIXME.  Ugh, eventually this will be an instance method, and
     # we'll have somewhere nice to save state.
     global runDir
     runDir = os.getcwd()
-    setRunDir(runDir)
-
-    # Delete old temporary files.
-    if os.path.isdir(tmpPath()):
-        shutil.rmtree(tmpPath())
-    os.mkdir(tmpPath())
+    setRunDir(runDir)        # runDir is needed for lilypond includes
 
     # .ly input file from user (string)
     lyFile = options.input
 
     # If the input .ly doesn't match the currently installed LilyPond
     # version, try to convert it
-    lyFile = preprocessLyFile(lyFile, lilypondVersion)
+    lyFile = preprocessLyFile(options.lilypond, lyFile, lilypondVersion)
 
     # https://pillow.readthedocs.io/en/5.1.x/releasenotes/5.0.0.html#decompression-bombs-now-raise-exceptions
     Image.MAX_IMAGE_PIXELS = None
@@ -1641,20 +1680,29 @@ def main():
     #  frameWriter.write()
     output_divider_line()
 
-    wavPath = genWavFile(timidity, midiPath)
+    wavPath = genWavFile(midiPath)
 
     output_divider_line()
 
     outputFile = getOutputFile(options)
     #  finalFrame = "notes/frame%d.png" % (frameWriter.frameNum - 1)
-    generateVideo(ffmpeg, options, wavPath, titleText, frameWriter, outputFile)
+    generateVideo(options, wavPath, titleText, frameWriter, outputFile)
 
     output_divider_line()
 
     if options.keepTempFiles:
         progress("Left temporary files in %s" % tmpPath())
     else:
-        shutil.rmtree(tmpPath())
+        try:
+            # On Wine, rmtree raises an exception.
+            shutil.rmtree(tmpPath())
+        except:
+            progress("\nFailed to remove temporary directory."
+                      "  Please remove manually.\n")
+            if sys.platform.startswith("win"):
+                progress("    Try: rmdir %s\n" % tmpPath())
+            else:
+                progress("    Try: rm -r %s\n" % tmpPath())
 
     # end
     progress("Ly2video has ended. Your generated file: " + outputFile + ".")
