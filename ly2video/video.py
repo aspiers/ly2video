@@ -414,8 +414,16 @@ class ScoreImage (Media):
             centre = self.width / 2
             left  = int(index - centre)
             right = int(index + centre)
-            frame = self.picture.crop((left, self.__cropTop, right, self.__cropBottom))
             cursorX = int(centre)
+            cropped = self.picture.crop((max(left, 0), self.__cropTop,
+                                         min(picture_width, right), self.__cropBottom))
+
+            if left < 0 or right > picture_width:
+                # Paste the cropped frame onto white background
+                frame = Image.new('RGB', (self.width, self.height), (255, 255, 255))
+                frame.paste(cropped, (max(-left, 0), 0))
+            else:
+                frame = cropped
         else:
             if self.__leftEdge is None:
                 # first frame
