@@ -1391,6 +1391,14 @@ def writeSpaceTimeDumper():
     \override BarLine.after-line-breaking = #dump-spacetime-info-barline
   }
   \context {
+    \TabVoice
+    \override TabNoteHead.after-line-breaking = #dump-spacetime-info
+  }
+  \context {
+    \TabStaff
+    \override BarLine.after-line-breaking = #dump-spacetime-info-barline
+  }
+  \context {
     \Voice
     \override NoteHead.after-line-breaking = #dump-spacetime-info
   }
