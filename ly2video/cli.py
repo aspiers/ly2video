@@ -41,7 +41,7 @@ from struct import pack
 from fractions import Fraction
 from io import BytesIO
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageColor
 import mido
 from ly2video.utils import *
 from ly2video.video import *
@@ -878,7 +878,7 @@ def parseOptions():
 
     group_cursors.add_argument(
         "-c", "--color",
-        help='name of the cursor color [%(default)s]',
+        help='color of the cursor line [%(default)s]',
         metavar="COLOR", default="red")
     group_cursors.add_argument(
         "--no-cursor", dest="noteCursor",
@@ -1119,20 +1119,9 @@ def findExecutableDependencies(options):
 
 
 def getCursorLineColor(options):
-    options.color = options.color.lower()
-    if options.color == "black":
-        return (0, 0, 0)
-    elif options.color == "yellow":
-        return (255, 255, 0)
-    elif options.color == "red":
-        return (255, 0, 0)
-    elif options.color == "green":
-        return (0, 128, 0)
-    elif options.color == "blue":
-        return (0, 0, 255)
-    elif options.color == "brown":
-        return (165, 42, 42)
-    else:
+    try:
+        return ImageColor.getrgb(options.color)
+    except ValueError:
         warn("Color was not found, ly2video will use default one ('red').")
         return (255, 0, 0)
 
