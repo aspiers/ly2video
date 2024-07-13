@@ -279,7 +279,7 @@ class ScoreImage (Media):
     This class handles the 'measure cursor', a new type of cursor.
     """
 
-    def __init__ (self, width, height, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = False, noteCursor = True):
+    def __init__ (self, width, height, picture, notesXpostions, measuresXpositions, leftMargin = 50, rightMargin = 50, scrollNotes = None, noteCursor = True):
         """
         Params:
           - width:             pixel width of frames (and video)
@@ -411,10 +411,9 @@ class ScoreImage (Media):
 
         if self.scrollNotes:
             # Get frame from image of staff
-            centre = self.width / 2
-            left  = int(index - centre)
-            right = int(index + centre)
-            cursorX = int(centre)
+            cursorX = int(self.width * self.scrollNotes)
+            left  = int(index - cursorX)
+            right = int(index - cursorX + self.width)
             cropped = self.picture.crop((max(left, 0), self.__cropTop,
                                          min(picture_width, right), self.__cropBottom))
 

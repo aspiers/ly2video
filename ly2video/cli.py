@@ -77,6 +77,16 @@ NOTE_ALTERATIONS = [
     'eses', 'eseh', 'es', 'eh', '', 'ih', 'is', 'isih', 'isis'
 ]
 
+class Range(object):
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def __eq__(self, other):
+        return self.start <= other <= self.end
+
+    def __repr__(self):
+        return '[{0},{1}]'.format(self.start, self.end)
 
 class LySrcLocation(object):
     """
@@ -847,8 +857,8 @@ def parseOptions():
         "-s", "--scroll-notes", dest="scrollNotes",
         help='rather than scrolling the cursor from left to right, '
         'scroll the notation from right to left and keep the '
-        'cursor in the centre',
-        action="store_true", default=False)
+        'cursor in the specified horizontal position (0-1)',
+        type=float, metavar="POS", default=None, choices=[Range(0.0, 1.0)])
 
     group_video = parser.add_argument_group(title='Video output')
 
