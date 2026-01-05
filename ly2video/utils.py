@@ -95,9 +95,7 @@ def tmpPath(*dirs):
     if not TMPDIR:
         TMPDIR = tempfile.mkdtemp(prefix='ly2video')
 
-    segments = [ TMPDIR ]
-    segments.extend(dirs)
-    return os.path.join(RUNDIR, *segments)
+    return os.path.join(TMPDIR, *dirs)
 
 
 class Observable:
