@@ -1,3 +1,3 @@
-Pillow==9.3.0
+Pillow==10.0.1
 pexpect==4.8.0
 mido==1.2.9
