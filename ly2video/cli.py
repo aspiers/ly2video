@@ -27,7 +27,7 @@
 
 import itertools
 import os
-import pipes
+import shlex
 import re
 import shutil
 import subprocess
@@ -35,7 +35,7 @@ import sys
 import traceback
 
 from collections import namedtuple
-from distutils.version import StrictVersion
+import packaging.version
 from argparse import ArgumentParser
 from struct import pack
 from fractions import Fraction
@@ -324,16 +324,13 @@ def generateTitleFrame(titleText, width, height, ttfFile):
     # font for author
     authorFont = ImageFont.truetype(ttfFile, int(height / 25))
 
-    # args - position of left upper corner of rectangle (around text),
+    # args - position of top middle of rectangle (around text),
     # text, font and color (black)
-    drawer.text(((width - nameFont.getsize(titleText.name)[0]) / 2,
-                 (height - nameFont.getsize(titleText.name)[1]) / 2 -
-                 height / 25),
-                titleText.name, font=nameFont, fill=(0, 0, 0))
+    drawer.text( ( width / 2, height / 2 - height / 25),
+                titleText.name, font=nameFont, fill=(0, 0, 0), anchor = "ms")
     # same thing
-    drawer.text(((width - authorFont.getsize(titleText.author)[0]) / 2,
-                 (height / 2) + height / 25),
-                titleText.author, font=authorFont, fill=(0, 0, 0))
+    drawer.text( (width / 2, (height / 2) + (height / 25)),
+                titleText.author, font=authorFont, fill=(0, 0, 0), anchor = "ms")
 
     return titleScreen
 
@@ -978,7 +975,7 @@ def getVersion():
     try:
         stdout = subprocess.check_output(["git", "describe", "--tags"],
                                          cwd=os.path.dirname(__file__))
-        m = re.match('^(v\d\S+)', stdout)
+        m = re.match(b'^(v\d\S+)', stdout)
         if m:
             return m.group(1)
     except:
@@ -1019,7 +1016,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preproces
     else:
         quotedCmd = [cmd[0]]
         for arg in cmd[1:]:
-            quotedCmd.append(pipes.quote(arg))
+            quotedCmd.append(shlex.quote(arg))
         quotedCmd = " ".join(quotedCmd)
 
     debug("Running: %s\n" % quotedCmd)
@@ -1048,7 +1045,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preproces
 def safeRunInput(cmd, inputs, errormsg=None, exitcode=None, issues=[], preprocessor=None):
     quotedCmd = [cmd[0]]
     for arg in cmd[1:]:
-        quotedCmd.append(pipes.quote(arg))
+        quotedCmd.append(shlex.quote(arg))
     quotedCmd = " ".join(quotedCmd)
 
     debug("Running: %s\n" % quotedCmd)
@@ -1106,7 +1103,7 @@ def findExecutableDependencies(options):
     #   https://code.google.com/p/lilypond/issues/detail?id=2570
     #   https://codereview.appspot.com/6248056/
     #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
-    if StrictVersion(version) < StrictVersion('2.15.41'):
+    if packaging.version.parse(version) < packaging.version.parse('2.15.41'):
         fatal("You have LilyPond %s which does not support\n"
               "infinitely long lines.  Please upgrade to >= 2.15.41." %
               version)
