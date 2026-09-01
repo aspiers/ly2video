@@ -27,7 +27,7 @@
 
 import itertools
 import os
-import pipes
+import shlex
 import re
 import shutil
 import subprocess
@@ -35,7 +35,7 @@ import sys
 import traceback
 
 from collections import namedtuple
-from distutils.version import StrictVersion
+from packaging.version import Version
 from argparse import ArgumentParser
 from struct import pack
 from fractions import Fraction
@@ -1019,7 +1019,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preproces
     else:
         quotedCmd = [cmd[0]]
         for arg in cmd[1:]:
-            quotedCmd.append(pipes.quote(arg))
+            quotedCmd.append(shlex.quote(arg))
         quotedCmd = " ".join(quotedCmd)
 
     debug("Running: %s\n" % quotedCmd)
@@ -1048,7 +1048,7 @@ def safeRun(cmd, errormsg=None, exitcode=None, shell=False, issues=[], preproces
 def safeRunInput(cmd, inputs, errormsg=None, exitcode=None, issues=[], preprocessor=None):
     quotedCmd = [cmd[0]]
     for arg in cmd[1:]:
-        quotedCmd.append(pipes.quote(arg))
+        quotedCmd.append(shlex.quote(arg))
     quotedCmd = " ".join(quotedCmd)
 
     debug("Running: %s\n" % quotedCmd)
@@ -1106,7 +1106,7 @@ def findExecutableDependencies(options):
     #   https://code.google.com/p/lilypond/issues/detail?id=2570
     #   https://codereview.appspot.com/6248056/
     #   http://article.gmane.org/gmane.comp.gnu.lilypond.general/72373/
-    if StrictVersion(version) < StrictVersion('2.15.41'):
+    if Version(version) < Version('2.15.41'):
         fatal("You have LilyPond %s which does not support\n"
               "infinitely long lines.  Please upgrade to >= 2.15.41." %
               version)
